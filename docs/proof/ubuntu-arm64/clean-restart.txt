@@ -1,0 +1,406 @@
+=== spine-1 ===
+net.ipv4.ip_forward = 1
+{
+"ipv4Unicast":{
+  "routerId":"10.213.1.1",
+  "as":65000,
+  "vrfId":0,
+  "vrfName":"default",
+  "tableVersion":2,
+  "ribCount":3,
+  "ribMemory":384,
+  "peerCount":2,
+  "peerMemory":34320,
+  "peers":{
+    "10.211.11.2":{
+      "hostname":"698083a9b55e",
+      "remoteAs":65101,
+      "localAs":65000,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":7,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:08",
+      "peerUptimeMsec":8000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    },
+    "10.211.12.2":{
+      "hostname":"eef26e5bbe5d",
+      "remoteAs":65102,
+      "localAs":65000,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":8,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:08",
+      "peerUptimeMsec":8000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    }
+  },
+  "failedPeers":0,
+  "displayedPeers":2,
+  "totalPeers":2,
+  "dynamicPeers":0,
+  "bestPath":{
+    "multiPathRelax":"false"
+  }
+}
+}
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+B>* 10.212.1.0/28 [20/0] via 10.211.11.2, eth0, weight 1, 00:00:07
+B>* 10.212.2.0/28 [20/0] via 10.211.12.2, eth1, weight 1, 00:00:07
+10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 
+10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 
+10.212.1.0/28 nhid 6 via 10.211.11.2 dev eth0 proto bgp metric 20 
+10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20 
+=== spine-2 ===
+net.ipv4.ip_forward = 1
+{
+"ipv4Unicast":{
+  "routerId":"10.213.1.2",
+  "as":65000,
+  "vrfId":0,
+  "vrfName":"default",
+  "tableVersion":2,
+  "ribCount":3,
+  "ribMemory":384,
+  "peerCount":2,
+  "peerMemory":34320,
+  "peers":{
+    "10.211.21.2":{
+      "hostname":"698083a9b55e",
+      "remoteAs":65101,
+      "localAs":65000,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":8,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:09",
+      "peerUptimeMsec":9000,
+      "peerUptimeEstablishedEpoch":1795029546,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    },
+    "10.211.22.2":{
+      "hostname":"eef26e5bbe5d",
+      "remoteAs":65102,
+      "localAs":65000,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":8,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:08",
+      "peerUptimeMsec":8000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    }
+  },
+  "failedPeers":0,
+  "displayedPeers":2,
+  "totalPeers":2,
+  "dynamicPeers":0,
+  "bestPath":{
+    "multiPathRelax":"false"
+  }
+}
+}
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+B>* 10.212.1.0/28 [20/0] via 10.211.21.2, eth1, weight 1, 00:00:07
+B>* 10.212.2.0/28 [20/0] via 10.211.22.2, eth0, weight 1, 00:00:07
+10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 
+10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.1 
+10.212.1.0/28 nhid 6 via 10.211.21.2 dev eth1 proto bgp metric 20 
+10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth0 proto bgp metric 20 
+=== leaf-1 ===
+net.ipv4.ip_forward = 1
+{
+"ipv4Unicast":{
+  "routerId":"10.213.2.1",
+  "as":65101,
+  "vrfId":0,
+  "vrfName":"default",
+  "tableVersion":2,
+  "ribCount":3,
+  "ribMemory":384,
+  "peerCount":2,
+  "peerMemory":34320,
+  "peers":{
+    "10.211.11.1":{
+      "hostname":"fd834ce6303d",
+      "remoteAs":65000,
+      "localAs":65101,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":8,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:08",
+      "peerUptimeMsec":8000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    },
+    "10.211.21.1":{
+      "hostname":"2ab845f5af77",
+      "remoteAs":65000,
+      "localAs":65101,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":7,
+      "tableVersion":2,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:09",
+      "peerUptimeMsec":9000,
+      "peerUptimeEstablishedEpoch":1795029546,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    }
+  },
+  "failedPeers":0,
+  "displayedPeers":2,
+  "totalPeers":2,
+  "dynamicPeers":0,
+  "bestPath":{
+    "multiPathRelax":"false"
+  }
+}
+}
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+B>* 10.212.2.0/28 [20/0] via 10.211.11.1, eth1, weight 1, 00:00:07
+  *                      via 10.211.21.1, eth2, weight 1, 00:00:07
+10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 
+10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 
+10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 
+10.212.2.0/28 nhid 10 proto bgp metric 20 
+	nexthop via 10.211.11.1 dev eth1 weight 1 
+	nexthop via 10.211.21.1 dev eth2 weight 1 
+=== leaf-2 ===
+net.ipv4.ip_forward = 1
+{
+"ipv4Unicast":{
+  "routerId":"10.213.2.2",
+  "as":65102,
+  "vrfId":0,
+  "vrfName":"default",
+  "tableVersion":3,
+  "ribCount":3,
+  "ribMemory":384,
+  "peerCount":2,
+  "peerMemory":34320,
+  "peers":{
+    "10.211.12.1":{
+      "hostname":"fd834ce6303d",
+      "remoteAs":65000,
+      "localAs":65102,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":7,
+      "tableVersion":3,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:09",
+      "peerUptimeMsec":9000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    },
+    "10.211.22.1":{
+      "hostname":"2ab845f5af77",
+      "remoteAs":65000,
+      "localAs":65102,
+      "version":4,
+      "msgRcvd":7,
+      "msgSent":7,
+      "tableVersion":3,
+      "outq":0,
+      "inq":0,
+      "peerUptime":"00:00:09",
+      "peerUptimeMsec":9000,
+      "peerUptimeEstablishedEpoch":1795029547,
+      "pfxRcd":1,
+      "pfxSnt":2,
+      "state":"Established",
+      "peerState":"OK",
+      "connectionsEstablished":1,
+      "connectionsDropped":0,
+      "idType":"ipv4"
+    }
+  },
+  "failedPeers":0,
+  "displayedPeers":2,
+  "totalPeers":2,
+  "dynamicPeers":0,
+  "bestPath":{
+    "multiPathRelax":"false"
+  }
+}
+}
+Codes: K - kernel route, C - connected, L - local, S - static,
+       R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+       T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+       f - OpenFabric, t - Table-Direct,
+       > - selected route, * - FIB route, q - queued, r - rejected, b - backup
+       t - trapped, o - offload failure
+
+B>* 10.212.1.0/28 [20/0] via 10.211.12.1, eth2, weight 1, 00:00:08
+  *                      via 10.211.22.1, eth0, weight 1, 00:00:08
+10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 
+10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 
+10.212.1.0/28 nhid 12 proto bgp metric 20 
+	nexthop via 10.211.22.1 dev eth0 weight 1 
+	nexthop via 10.211.12.1 dev eth2 weight 1 
+10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1 
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+36: eth0@if24: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue 
+    link/ether 76:2e:cb:d1:9d:91 brd ff:ff:ff:ff:ff:ff
+    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0
+       valid_lft forever preferred_lft forever
+10.212.1.0/28 dev eth0 scope link  src 10.212.1.2 
+10.212.2.0/28 via 10.212.1.1 dev eth0 
+PING 10.212.1.1 (10.212.1.1): 56 data bytes
+64 bytes from 10.212.1.1: seq=0 ttl=64 time=0.154 ms
+64 bytes from 10.212.1.1: seq=1 ttl=64 time=0.720 ms
+
+--- 10.212.1.1 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.154/0.437/0.720 ms
+PING 10.212.2.2 (10.212.2.2): 56 data bytes
+64 bytes from 10.212.2.2: seq=0 ttl=61 time=0.242 ms
+64 bytes from 10.212.2.2: seq=1 ttl=61 time=0.453 ms
+64 bytes from 10.212.2.2: seq=2 ttl=61 time=0.311 ms
+
+--- 10.212.2.2 ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max = 0.242/0.335/0.453 ms
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Malmö site</title></head>
+<body>
+  <h1>Malmö edge service</h1>
+  <p>Status: online</p>
+</body>
+</html>
+traceroute to 10.212.2.2 (10.212.2.2), 6 hops max, 46 byte packets
+ 1  10.212.1.1  0.005 ms
+ 2  *
+ 3  *
+ 4  10.212.2.2  0.026 ms
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+30: eth0@if27: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue 
+    link/ether ba:d7:d8:56:74:77 brd ff:ff:ff:ff:ff:ff
+    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0
+       valid_lft forever preferred_lft forever
+10.212.1.0/28 via 10.212.2.1 dev eth0 
+10.212.2.0/28 dev eth0 scope link  src 10.212.2.2 
+PING 10.212.2.1 (10.212.2.1): 56 data bytes
+64 bytes from 10.212.2.1: seq=0 ttl=64 time=0.112 ms
+64 bytes from 10.212.2.1: seq=1 ttl=64 time=0.132 ms
+
+--- 10.212.2.1 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max = 0.112/0.122/0.132 ms
+PING 10.212.1.2 (10.212.1.2): 56 data bytes
+64 bytes from 10.212.1.2: seq=0 ttl=61 time=0.149 ms
+64 bytes from 10.212.1.2: seq=1 ttl=61 time=0.194 ms
+64 bytes from 10.212.1.2: seq=2 ttl=61 time=0.496 ms
+
+--- 10.212.1.2 ping statistics ---
+3 packets transmitted, 3 packets received, 0% packet loss
+round-trip min/avg/max = 0.149/0.279/0.496 ms
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Malmö site</title></head>
+<body>
+  <h1>Malmö edge service</h1>
+  <p>Status: online</p>
+</body>
+</html>
+traceroute to 10.212.1.2 (10.212.1.2), 6 hops max, 46 byte packets
+ 1  10.212.2.1  0.008 ms
+ 2  *
+ 3  *
+ 4  10.212.1.2  0.016 ms
+spine-1 {'10.211.11.2': 'Established', '10.211.12.2': 'Established'}
+spine-2 {'10.211.21.2': 'Established', '10.211.22.2': 'Established'}
+leaf-1 {'10.211.11.1': 'Established', '10.211.21.1': 'Established'}
+leaf-2 {'10.211.12.1': 'Established', '10.211.22.1': 'Established'}
+{'timestamp': '2026-11-18T19:19:27.719422+00:00', 'source': 1, 'destination': '10.212.2.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}
+{'timestamp': '2026-11-18T19:19:27.788638+00:00', 'source': 2, 'destination': '10.212.1.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}

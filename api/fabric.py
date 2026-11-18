@@ -83,7 +83,7 @@ def collect() -> Snapshot:
     return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers)
 
 
-DB = ROOT / ".runtime/timeline.sqlite"
+DB = Path(os.environ.get("NETGUARD_TIMELINE_DB", ROOT / ".runtime/timeline.sqlite"))
 
 
 def record(sample: Snapshot) -> None:

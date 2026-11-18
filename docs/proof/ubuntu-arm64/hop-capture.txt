@@ -1,0 +1,14 @@
+leaf-1
+19:18:43.990746 eth2  In  IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+19:18:43.990785 eth0  Out IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+
+spine-1
+19:18:43.990786 eth0  In  IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+19:18:43.990807 eth1  Out IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+
+spine-2
+
+leaf-2
+19:18:43.990809 eth1  In  IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+19:18:43.990836 eth0  Out IP 10.212.1.2 > 10.212.2.2: ICMP echo request, id 58, seq 0, length 64
+
