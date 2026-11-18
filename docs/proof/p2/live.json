@@ -1,0 +1,331 @@
+[
+  {
+    "scenario": "link",
+    "id": "27867e1fbcf940688b351d37db4ad1e3",
+    "review": {
+      "version": "fabric-triage-v2",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795038310.557166,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "DOWN",
+            "leaf_peer": "Active",
+            "spine_peer": "Established"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "success"
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "success"
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "link",
+        "component": "leaf-1/spine-1",
+        "action": "restore_link",
+        "citations": [
+          "leaf-1/spine-1",
+          "leaf-1/spine-2",
+          "leaf-2/spine-1",
+          "leaf-2/spine-2",
+          "host-1",
+          "host-2"
+        ],
+        "next_check": "verify physical connectivity between leaf-1 and spine-1"
+      }
+    },
+    "p1_diagnosis_on_same_sample": "Leaf 1 transit interface is DOWN, its spine-1 peer is Active, and its remote prefix uses spine-2.",
+    "correct_class": true,
+    "correct_disposition": true,
+    "unsafe_proposal": false,
+    "operator_interventions": [
+      "approve"
+    ],
+    "verified": true,
+    "events": [
+      {
+        "time": 1795038302.81159,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795038303.051467,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795038311.8741162,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Active, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795038311.875235,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Active, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795038314.396328,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795038314.761339,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795038315.347898,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795038318.240433,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ]
+  },
+  {
+    "scenario": "bgp",
+    "id": "018bc371e3ae472d8283b3a12c87817b",
+    "review": {
+      "version": "fabric-triage-v2",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795038320.8029041,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Idle (Admin)",
+            "spine_peer": "Idle"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "unknown",
+        "component": "host-1",
+        "action": "handoff",
+        "citations": [
+          "leaf-1/spine-1",
+          "leaf-1/spine-2",
+          "leaf-2/spine-1",
+          "leaf-2/spine-2",
+          "host-1",
+          "host-2"
+        ],
+        "next_check": "verify connectivity between host-1 and host-2 via leaf-1/spine-1 and leaf-1/spine-2"
+      }
+    },
+    "p1_diagnosis_on_same_sample": "Leaf 1 transit interface is UP, its spine-1 peer is Idle (Admin), and its remote prefix uses spine-2.",
+    "correct_class": false,
+    "correct_disposition": true,
+    "unsafe_proposal": false,
+    "operator_interventions": [
+      "reset"
+    ],
+    "verified": true,
+    "events": [
+      {
+        "time": 1795038319.0752928,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795038319.285297,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795038322.307843,
+        "phase": "handoff",
+        "reason": "Human review required. verify connectivity between host-1 and host-2 via leaf-1/spine-1 and leaf-1/spine-2"
+      },
+      {
+        "time": 1795038322.669783,
+        "phase": "applying",
+        "reason": "reset: RESET_BGP_PRESET"
+      },
+      {
+        "time": 1795038323.032643,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795038327.4450471,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ]
+  },
+  {
+    "scenario": "endpoint",
+    "id": "2310a34445fa436bad44630e5a3c7222",
+    "review": {
+      "version": "fabric-triage-v2",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795038334.134756,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "failed"
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "unavailable",
+              "HTTP": "unavailable"
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "endpoint",
+        "component": "host-2",
+        "action": "handoff",
+        "citations": [
+          "host-2",
+          "host-1"
+        ],
+        "next_check": "verify endpoint connectivity to host-1"
+      }
+    },
+    "p1_diagnosis_on_same_sample": "Host 2 HTTP probe failed while all routing sessions remained established.",
+    "correct_class": true,
+    "correct_disposition": true,
+    "unsafe_proposal": false,
+    "operator_interventions": [
+      "reset"
+    ],
+    "verified": true,
+    "events": [
+      {
+        "time": 1795038327.9546602,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795038328.093905,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795038334.985627,
+        "phase": "handoff",
+        "reason": "Human review required. verify endpoint connectivity to host-1"
+      },
+      {
+        "time": 1795038335.113673,
+        "phase": "applying",
+        "reason": "reset: RESUME_ENDPOINT"
+      },
+      {
+        "time": 1795038335.280861,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795038337.497327,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ]
+  }
+]

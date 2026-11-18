@@ -2,7 +2,7 @@
 
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
-The [post-P1 plan](docs/AI_PLAN.md) covers AI-assisted incident response and prompt-driven fabric provisioning.
+P2 adds local AI incident diagnosis, evidence citations and human handoff. [Run or replay P2](docs/P2_AI.md) · [Roadmap](docs/AI_PLAN.md)
 
 ## Incident walkthrough
 
@@ -25,7 +25,7 @@ Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab 
     make smoke
     NETGUARD_CONTEXT=$(scripts/local-context) .venv/bin/python -m scripts.verify_failover
 
-The smoke check requires two established peers on each router, two kernel next hops per leaf, and successful ICMP and HTTP in both directions. The failover check temporarily disables the leaf-1 interface facing spine-1 and restores it in a finally block. Launch it only on the local demo fabric. Captures are in scenarios/. P1 measures incident workflow timing. Local AI evaluation is a later milestone.
+The smoke check requires two established peers on each router, two kernel next hops per leaf, and successful ICMP and HTTP in both directions. The failover check temporarily disables the leaf-1 interface facing spine-1 and restores it in a finally block. Launch it only on the local demo fabric. Captures are in scenarios/. P1 measures incident workflow timing. P2 compares local AI decisions against the P1 evidence checks.
 
 ## Demonstration evidence
 

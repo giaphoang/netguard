@@ -1,0 +1,79 @@
+{
+  "source": "P1 confirmation campaign",
+  "incident": "7e4eb34733694ac6b5b9b4a0e3683a69",
+  "observation": {
+    "observed": 1795031235.2232258,
+    "facts": {
+      "leaf-1/spine-1": {
+        "interface": "DOWN",
+        "leaf_peer": "Active",
+        "spine_peer": "Established"
+      },
+      "leaf-1/spine-2": {
+        "interface": "UP",
+        "leaf_peer": "Established",
+        "spine_peer": "Established"
+      },
+      "leaf-2/spine-1": {
+        "interface": "UP",
+        "leaf_peer": "Established",
+        "spine_peer": "Established"
+      },
+      "leaf-2/spine-2": {
+        "interface": "UP",
+        "leaf_peer": "Established",
+        "spine_peer": "Established"
+      },
+      "host-1": {
+        "to": "host-2",
+        "via": [
+          2
+        ],
+        "probes": {
+          "ICMP": "failed",
+          "HTTP": "success"
+        }
+      },
+      "host-2": {
+        "to": "host-1",
+        "via": [
+          2
+        ],
+        "probes": {
+          "ICMP": "failed",
+          "HTTP": "success"
+        }
+      }
+    }
+  },
+  "expected": [
+    "link",
+    "leaf-1/spine-1",
+    "restore_link"
+  ],
+  "results": [
+    {
+      "version": "fabric-triage-v1",
+      "model": "qwen2.5:1.5b",
+      "error": "Model cited an unknown observation"
+    },
+    {
+      "version": "fabric-triage-v2",
+      "model": "qwen2.5:1.5b",
+      "decision": {
+        "diagnosis": "link",
+        "component": "leaf-1/spine-1",
+        "action": "restore_link",
+        "citations": [
+          "leaf-1/spine-1",
+          "leaf-1/spine-2",
+          "leaf-2/spine-1",
+          "leaf-2/spine-2",
+          "host-1",
+          "host-2"
+        ],
+        "next_check": "verify physical connectivity between leaf-1 and spine-1"
+      }
+    }
+  ]
+}
