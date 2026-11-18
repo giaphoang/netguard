@@ -28,3 +28,7 @@ The November 18 live run established all four eBGP adjacencies. Each leaf instal
 [Dashboard screenshot](docs/proof/healthy.png) · [90-second screen recording](docs/proof/walkthrough.mp4) · [Healthy router evidence](scenarios/healthy.json) · [Degraded fabric and probe evidence](scenarios/failover.json)
 
 The dashboard’s Replay demo link opens a recorded view. Select the healthy or failed-link capture and trace either direction to inspect the saved results. The P0 screen recording is silent. Failure injection is currently exercised by the integration check. Incident approvals, local model diagnoses, and manual-versus-automatic timing belong to later milestones.
+
+## Native Ubuntu ARM64 demonstration
+
+The existing six-segment fabric also runs on a UTM Ubuntu Server guest with the macOS checkout mounted through VirtioFS. The verified native run includes bidirectional HTTP/ICMP, per-router packet capture, clean recreation, guest reboot and measured single-link failover. [Setup and tunnel](docs/UTM_ARM64_SETUP.md) · [Results and raw evidence](docs/P0_NETWORK_VALIDATION.md)

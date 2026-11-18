@@ -1,0 +1,24 @@
+spine-1 {'10.211.11.2': 'Established', '10.211.12.2': 'Established'}
+spine-2 {'10.211.21.2': 'Established', '10.211.22.2': 'Established'}
+leaf-1 {'10.211.11.1': 'Established', '10.211.21.1': 'Established'}
+leaf-2 {'10.211.12.1': 'Established', '10.211.22.1': 'Established'}
+{'timestamp': '2026-11-18T19:20:21.339110+00:00', 'source': 1, 'destination': '10.212.2.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}
+{'timestamp': '2026-11-18T19:20:21.406725+00:00', 'source': 2, 'destination': '10.212.1.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}
+Link down confirmed 2026-11-18T19:20:21.457412+00:00
+Alternate route observed 2026-11-18T19:20:21.634691+00:00
+Alternate route observed 2026-11-18T19:20:31.206260+00:00
+Verified alternate path {'10.211.11.1': 'Active', '10.211.21.1': 'Established'} [{'timestamp': '2026-11-18T19:20:31.276355+00:00', 'source': 1, 'destination': '10.212.2.2', 'candidates': [2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}, {'timestamp': '2026-11-18T19:20:31.341934+00:00', 'source': 2, 'destination': '10.212.1.2', 'candidates': [2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}]
+Link up confirmed 2026-11-18T19:20:31.365645+00:00
+spine-1 {'10.211.11.2': 'Established', '10.211.12.2': 'Established'}
+spine-2 {'10.211.21.2': 'Established', '10.211.22.2': 'Established'}
+leaf-1 {'10.211.11.1': 'Established', '10.211.21.1': 'Established'}
+spine-1 {'10.211.11.2': 'Established', '10.211.12.2': 'Established'}
+spine-2 {'10.211.21.2': 'Established', '10.211.22.2': 'Established'}
+leaf-1 {'10.211.11.1': 'Established', '10.211.21.1': 'Established'}
+leaf-2 {'10.211.12.1': 'Established', '10.211.22.1': 'Established'}
+spine-1 {'10.211.11.2': 'Established', '10.211.12.2': 'Established'}
+spine-2 {'10.211.21.2': 'Established', '10.211.22.2': 'Established'}
+leaf-1 {'10.211.11.1': 'Established', '10.211.21.1': 'Established'}
+leaf-2 {'10.211.12.1': 'Established', '10.211.22.1': 'Established'}
+{'timestamp': '2026-11-18T19:20:34.120210+00:00', 'source': 1, 'destination': '10.212.2.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}
+{'timestamp': '2026-11-18T19:20:34.313248+00:00', 'source': 2, 'destination': '10.212.1.2', 'candidates': [1, 2], 'probes': {'ICMP': 'success', 'HTTP': 'success'}}

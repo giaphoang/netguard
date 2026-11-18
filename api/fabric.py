@@ -12,8 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
+from . import measurements
+from .controls import router as control_routes, running_controls
+
 from fastapi import FastAPI, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -83,7 +86,7 @@ def collect() -> Snapshot:
     return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers)
 
 
-DB = ROOT / ".runtime/timeline.sqlite"
+DB = Path(os.environ.get("NETGUARD_TIMELINE_DB", ROOT / ".runtime/timeline.sqlite"))
 
 
 def record(sample: Snapshot) -> None:
@@ -104,6 +107,7 @@ def record(sample: Snapshot) -> None:
 async def poll(app: FastAPI) -> None:
     while True:
         app.state.snapshot = await asyncio.to_thread(collect)
+        app.state.flows = await asyncio.gather(*(asyncio.to_thread(trace, i) for i in (1, 2)))
         await asyncio.to_thread(record, app.state.snapshot)
         await asyncio.sleep(3)
 
@@ -111,19 +115,22 @@ async def poll(app: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.snapshot = None
+    app.state.flows = []
     if REPLAY:
         app.state.snapshot = Snapshot.model_validate_json(FIXTURE.read_text())
         yield
     else:
-        task = asyncio.create_task(poll(app))
-        try:
-            yield
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        async with running_controls(app, DB):
+            task = asyncio.create_task(poll(app))
+            try:
+                yield
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(control_routes)
 
 
 @app.get("/api/state")
@@ -131,7 +138,25 @@ def state():
     return {
         "mode": "RECORDED REPLAY" if REPLAY else "LOCAL LAB / LIVE",
         "snapshot": app.state.snapshot,
+        "flows": app.state.flows,
     }
+
+
+@app.get("/metrics")
+def fabric_metrics():
+    if REPLAY:
+        return Response(status_code=204)
+    return Response(
+        measurements.export(DB, app.state.snapshot, app.state.flows),
+        media_type="text/plain; version=0.0.4",
+    )
+
+
+@app.get("/api/comparison")
+def comparison():
+    if REPLAY:
+        return []
+    return measurements.comparison(measurements.summaries(DB))
 
 
 @app.get("/api/topology")
@@ -155,7 +180,27 @@ def timeline():
 
 
 @app.get("/api/recording")
-def recording():
+def recording(incident: bool = False):
+    if incident:
+        run = json.loads((FIXTURE.parent / "p1-link.json").read_text())
+        frames = []
+        for event in run["events"]:
+            sample = next(s for s in reversed(run["samples"]) if s["observed"] <= event["time"])
+            frames.append(
+                {
+                    "label": event["phase"].capitalize(),
+                    "reason": event["reason"],
+                    "eventTime": event["time"],
+                    "snapshot": {
+                        "routers": sample["routers"],
+                        "timestamp": datetime.fromtimestamp(
+                            sample["observed"], timezone.utc
+                        ).isoformat(),
+                    },
+                    "probes": sample["flows"],
+                }
+            )
+        return frames
     return [
         {
             "label": "Healthy fabric",

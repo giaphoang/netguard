@@ -1,15 +1,18 @@
 """Exercise one isolated link and restore it even if a check fails."""
 
+import argparse
 import json
 import os
-import subprocess
 import re
+import subprocess
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 from api.fabric import FIXTURE, collect, command, trace
 from scripts.smoke import main as healthy
 
 
-def verify() -> None:
+def verify(output: Path = FIXTURE.parent / "failover.json") -> None:
     ctx = os.environ["NETGUARD_CONTEXT"]
     endpoint = subprocess.check_output(
         ["docker", "context", "inspect", ctx, "--format", "{{.Endpoints.docker.Host}}"], text=True
@@ -40,6 +43,7 @@ def verify() -> None:
     assert re.fullmatch(r"eth\d+", iface)
     try:
         command("leaf-1", "ip", "link", "set", iface, "down")
+        print("Link down confirmed", datetime.now(timezone.utc).isoformat(), flush=True)
         for _ in range(30):
             snapshot = collect()
             leaf = next(r for r in snapshot.routers if r.name == "leaf-1")
@@ -49,10 +53,11 @@ def verify() -> None:
                 and "via 10.211.21.1" in leaf.routes
                 and "via 10.211.11.1" not in leaf.routes
             ):
+                print("Alternate route observed", snapshot.timestamp, flush=True)
                 probes = [trace(i) for i in (1, 2)]
                 if all(set(p["probes"].values()) == {"success"} for p in probes):
                     print("Verified alternate path", leaf.peers, probes)
-                    (FIXTURE.parent / "failover.json").write_text(
+                    output.write_text(
                         json.dumps({"snapshot": snapshot.model_dump(), "probes": probes}, indent=2)
                     )
                     break
@@ -61,6 +66,7 @@ def verify() -> None:
             raise RuntimeError("Alternate path verification timed out")
     finally:
         command("leaf-1", "ip", "link", "set", iface, "up")
+        print("Link up confirmed", datetime.now(timezone.utc).isoformat(), flush=True)
     for _ in range(60):
         try:
             healthy()
@@ -71,4 +77,6 @@ def verify() -> None:
 
 
 if __name__ == "__main__":
-    verify()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=FIXTURE.parent / "failover.json")
+    verify(parser.parse_args().output)
