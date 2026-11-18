@@ -43,6 +43,9 @@ type Impact = {
   }[];
 };
 type Props = {
+  page: string;
+  request?: { text: string };
+  navigate: (page: string) => void;
   signal: string;
   live: boolean;
   target: string;
@@ -52,11 +55,13 @@ type Props = {
   preview: (leaves: number[]) => void;
   trace: () => Promise<void>;
   probe: string;
-  onSaved: (seconds: number | null) => void;
 };
 const duration = (n: number | null) => (n === null ? "—" : n.toFixed(1) + " s");
 
 export function Operator({
+  page,
+  request,
+  navigate,
   signal,
   live,
   target,
@@ -66,7 +71,6 @@ export function Operator({
   preview,
   trace,
   probe,
-  onSaved,
 }: Props) {
   const [input, setInput] = useState(""),
     [busy, setBusy] = useState(false),
@@ -99,7 +103,6 @@ export function Operator({
           setPlan(p);
           preview(p?.phase === "preview" ? p.leaves : []);
           setImpact(i);
-          onSaved(i.saved);
         }
       } catch {}
     }
@@ -110,6 +113,12 @@ export function Operator({
       clearInterval(timer);
     };
   }, [live]);
+  useEffect(() => {
+    if (request) ask(request.text);
+  }, [request]);
+  useEffect(() => {
+    if (page === "AI Impact") setShowImpact(true);
+  }, [page]);
   async function post(path: string, body: object = {}) {
     const response = await fetch("/api/" + path, {
       method: "POST",
@@ -160,7 +169,7 @@ export function Operator({
           setPlan(a.plan);
           preview(a.plan.leaves);
         }
-        if (a.impact) setShowImpact(true);
+        if (a.impact) navigate("AI Impact");
       }
     } catch (e) {
       setAnswer({ text: String(e instanceof Error ? e.message : e) });
@@ -203,16 +212,19 @@ export function Operator({
         : "Waiting for a fabric observation.");
   return (
     <section className="operator">
-      <h2>
-        <span aria-hidden="true">⚙</span> AI Network Operator{" "}
-        <span className="tag">Local model</span>
-      </h2>
+      <div className="operator-head">
+        <b className="op-icon">✳</b>
+        <div>
+          <h2>NetGuard AI Operator</h2>
+          <small>Local model · Policy controlled</small>
+        </div>
+        <b className="tag">ASSIST</b>
+      </div>
       <div className="answer" aria-live="polite">
         <strong>
           {busy
             ? "Working…"
-            : question ||
-              (active ? "Current incident" : "Suggested investigation")}
+            : question || (active ? "Current incident" : "Network overview")}
         </strong>
         <p>{answer?.text || replayText || currentText}</p>
         {run && (active || tracking) && answer && (
@@ -245,14 +257,15 @@ export function Operator({
         )}
         {question === "Inspect traffic" && <p>{probe}</p>}
       </div>
-      <div className="chips">
-        {["Explain root cause", "Preview repair", "Inspect traffic"].map(
-          (q) => (
-            <button key={q} disabled={busy} onClick={() => ask(q)}>
-              {q}
-            </button>
-          ),
-        )}
+      <div className="workflow">
+        <strong>Workflow preview</strong>
+        <p>Observe → Diagnose → Validate → Act / Escalate</p>
+      </div>
+      <div className="policy">
+        <strong>◇ Safety policy enforced</strong>
+        <small>
+          Infrastructure changes require a validated plan and authorization.
+        </small>
       </div>
       <form
         onSubmit={(e) => {
@@ -265,12 +278,24 @@ export function Operator({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           maxLength={500}
-          placeholder="Ask NetGuard to inspect, provision, or recover…"
+          placeholder="Ask about the network…"
         />
         <button aria-label="Send request" disabled={busy || !input.trim()}>
           ↑
         </button>
       </form>
+      <div className="chips">
+        <button disabled={busy} onClick={() => ask("Explain root cause")}>
+          Diagnose incident
+        </button>
+        <button
+          disabled={busy || !live}
+          onClick={() => ask("Add one leaf connected to both spines with BGP.")}
+        >
+          Add a leaf
+        </button>
+        <button onClick={() => navigate("AI Impact")}>Show impact</button>
+      </div>
       {plan && !["rolled_back", "cancelled"].includes(plan.phase) && (
         <div className="drawer">
           <strong>Fabric expansion · {plan.phase.replace(/_/g, " ")}</strong>
@@ -313,7 +338,7 @@ export function Operator({
         </div>
       )}
       <details
-        className="drawer"
+        className="drawer impact"
         open={showImpact}
         onToggle={(e) => setShowImpact(e.currentTarget.open)}
       >
@@ -332,6 +357,7 @@ export function Operator({
                 ],
                 [impact.rejected, "Unsafe proposals withheld"],
                 [impact.escalated, "AI cases escalated"],
+                [duration(impact.saved), "Time saved · matched closure"],
                 [
                   impact.correct_handoffs + "/" + impact.required_handoffs,
                   "Required handoffs completed",

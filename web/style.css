@@ -305,3 +305,529 @@ nav {
 .warn:empty {
   display: none;
 }
+/* Command Center workspace */
+:root {
+  --ink: #1c2b4e;
+  --muted: #627391;
+  --line: #dce4f1;
+  --blue: #3458ff;
+}
+body {
+  background: #f6f8fc;
+  color: var(--ink);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+#root {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+button,
+select {
+  color: #30466e;
+  border-color: #cedaf3;
+  font-weight: 550;
+}
+.mast {
+  background: white;
+  border-bottom: 1px solid var(--line);
+  padding: 0 22px;
+  gap: 14px;
+  height: 68px;
+}
+.brand-mark,
+.op-icon {
+  display: grid;
+  place-items: center;
+  background: var(--blue);
+  color: white;
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  font-size: 26px;
+  line-height: 1;
+}
+.brand strong {
+  font-size: 20px;
+  letter-spacing: -0.05em;
+}
+.brand small,
+.env {
+  font-size: 10px;
+  color: #51658d;
+}
+.sim {
+  background: #e6f6ec;
+  color: #167544;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+}
+.shell {
+  display: grid;
+  grid-template-columns: clamp(125px, 16vw, 210px) minmax(0, 1fr);
+  min-height: calc(100vh - 68px);
+}
+.rail {
+  background: white;
+  border-right: 1px solid var(--line);
+  padding: 16px 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+.rail > small,
+.page-title > div > small {
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #8392ab;
+  letter-spacing: 0.12em;
+  font-size: 10px;
+  margin: 9px;
+}
+.rail > small:not(:first-child) {
+  margin-top: 22px;
+}
+.rail button {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 9px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+}
+.rail button span {
+  font-size: 17px;
+}
+.rail button[aria-current="page"] {
+  background: #e6eeff;
+  color: #294fff;
+}
+.rail .replays {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding: 20px 10px 0;
+  font-size: 11px;
+}
+.replays a {
+  color: #647594;
+  text-decoration: none;
+}
+main {
+  width: 100%;
+  min-width: 0;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px clamp(12px, 2vw, 30px) 30px;
+}
+.page-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.page-title > div > small {
+  margin: 0;
+  color: var(--blue);
+}
+.page-title h1 {
+  font-size: clamp(21px, 2.2vw, 31px);
+  letter-spacing: -0.045em;
+  margin: 5px 0;
+}
+.page-title p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 16px;
+}
+.page-title button {
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 9px;
+}
+.kpis {
+  padding: 0;
+  margin: 0 0 12px;
+  gap: 9px;
+}
+.kpis > div,
+.fabric,
+.operator,
+.timeline,
+.drawer {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+.kpis > div {
+  padding: clamp(10px, 1.6vw, 20px);
+}
+.kpis small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.kpis small:last-child {
+  color: #237e56;
+  font-size: 10px;
+}
+.kpis strong {
+  font-size: clamp(20px, 2.4vw, 32px);
+  margin: 8px 0;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.fabric,
+.operator {
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.fabric-head,
+.operator-head {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  min-height: 62px;
+}
+.fabric h2,
+.operator h2,
+.timeline h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.fabric-head small,
+.operator-head small,
+.transmission small,
+.policy small {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 4px 0;
+}
+.tag {
+  background: #edf2ff;
+  color: #365cff;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  padding: 4px 7px;
+}
+.canvas {
+  height: clamp(225px, 30vw, 390px);
+  margin: 0;
+}
+.react-flow__node-default {
+  background: white;
+  border-color: #a6b7e3;
+  color: var(--ink);
+  border-radius: 8px;
+  font-size: 15px;
+  width: 106px;
+}
+.react-flow__node-default.spine span {
+  color: #267953;
+}
+.react-flow__node-default.leaf {
+  background: #e9efff;
+  border-color: #859eff;
+}
+.react-flow__node-default.host {
+  background: #e6f6ed;
+  border-color: #78c69d;
+  color: #236a48;
+}
+.react-flow__node-default span {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.packet {
+  fill: #3458ff;
+  stroke: white;
+  stroke-width: 1;
+}
+.edge-warning {
+  font-size: 11px;
+  fill: #984a2d;
+  paint-order: stroke;
+  stroke: white;
+  stroke-width: 3;
+}
+.legend,
+.fabric-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px;
+}
+.legend span {
+  font-size: 10px;
+  color: #237958;
+}
+.legend span:nth-child(2) {
+  color: #b55239;
+}
+.legend span:nth-child(3) {
+  color: var(--blue);
+}
+.fabric-actions {
+  justify-content: flex-start;
+  padding: 12px;
+}
+.fabric-actions button,
+.chips button {
+  font-size: 11px;
+}
+.primary,
+form button {
+  background: var(--blue);
+  color: white;
+}
+.transmission,
+.workflow,
+.policy {
+  margin: 12px;
+  padding: 12px;
+  font-size: 12px;
+}
+.transmission {
+  border-top: 1px solid var(--line);
+  margin: 0 12px;
+  padding: 12px 0;
+}
+.transmission div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.transmission p {
+  margin: 6px 0;
+  color: #355485;
+  font-variant-numeric: tabular-nums;
+}
+.operator-head {
+  background: #f2f5fc;
+}
+.operator-head .tag {
+  margin-left: auto;
+}
+.op-icon {
+  width: 28px;
+  min-width: 22px;
+  height: 30px;
+  font-size: 19px;
+}
+.operator .answer {
+  background: #f0f4fa;
+  border: 1px solid var(--line);
+  margin: 13px;
+  padding: 11px;
+  color: #344569;
+  font-size: 12px;
+}
+.operator .answer p {
+  color: #526485;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workflow {
+  padding: 0;
+}
+.workflow p {
+  font-size: 11px;
+  color: #365bdf;
+  background: #eff4ff;
+  line-height: 1.8;
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.policy {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px;
+}
+.operator form {
+  margin: 12px;
+  gap: 0;
+  padding: 0;
+  border-color: #c9d7ff;
+  overflow: hidden;
+}
+.operator form input {
+  font-size: 12px;
+}
+.operator form button {
+  border-radius: 0;
+  padding: 10px 12px;
+}
+.chips {
+  margin: 12px;
+}
+.chips button {
+  background: white;
+  border: 1px solid #cbd8f1;
+}
+.timeline {
+  padding: 0;
+  margin: 12px 0;
+}
+.timeline h2 {
+  padding: 14px;
+}
+.timeline > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid #edf0f6;
+  padding: 9px 14px;
+  font-size: 11px;
+}
+.timeline b {
+  text-transform: uppercase;
+  color: #4263d4;
+  background: #edf2ff;
+  font-size: 9px;
+  padding: 4px;
+  border-radius: 3px;
+}
+.timeline span {
+  overflow-wrap: anywhere;
+}
+.timeline time {
+  color: var(--muted);
+}
+.timeline p {
+  padding: 0 14px;
+}
+main:not([data-page="AI Impact"]) .impact {
+  display: none;
+}
+main:not([data-page="Command Center"]) .kpis,
+main:not([data-page="Command Center"]) .timeline {
+  display: none;
+}
+main[data-page="AI Impact"] .workspace,
+main[data-page="Provisioning"] .workspace {
+  grid-template-columns: 1fr;
+}
+main[data-page="AI Impact"] .fabric,
+main[data-page="AI Impact"] .operator > :not(.impact),
+main[data-page="Provisioning"] .fabric {
+  display: none;
+}
+main[data-page="AI Impact"] .operator {
+  border: 0;
+  background: none;
+}
+.impact {
+  margin: 0;
+  padding: 16px;
+}
+.impact-grid {
+  margin: 12px 0;
+}
+main:not([data-page="Diagnostics"]) .inspection:not([open]),
+main:not([data-page="Incidents"]) .incident-drawer:not([open]),
+main:not([data-page="Diagnostics"]) .collector {
+  display: none;
+}
+@media (max-width: 800px) and (min-width: 601px) {
+  .shell {
+    grid-template-columns: 124px minmax(0, 1fr);
+  }
+  main {
+    padding: 17px 12px;
+  }
+  .operator-head,
+  .fabric-head {
+    padding: 10px;
+  }
+  .kpis > div {
+    padding: 11px 8px;
+  }
+  .op-icon {
+    width: 22px;
+  }
+  .operator-head h2,
+  .fabric h2 {
+    font-size: 12px;
+  }
+  .operator-head small {
+    font-size: 9px;
+  }
+  .canvas {
+    height: 235px;
+  }
+  .fabric-actions {
+    gap: 6px;
+  }
+  .fabric-actions button {
+    padding: 7px;
+  }
+  .env {
+    font-size: 9px;
+  }
+}
+@media (max-width: 600px) {
+  .mast {
+    padding: 0 12px;
+    height: 58px;
+  }
+  .env {
+    display: none;
+  }
+  .shell {
+    display: block;
+  }
+  .rail {
+    display: flex;
+    flex-direction: row;
+    overflow: auto;
+    padding: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .rail > small,
+  .rail .replays {
+    display: none;
+  }
+  .rail button {
+    padding: 7px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .rail button span {
+    display: none;
+  }
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .canvas {
+    height: 270px;
+  }
+  .page-title p {
+    line-height: 1.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet {
+    display: none;
+  }
+}

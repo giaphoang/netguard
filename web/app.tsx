@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ReactFlow } from "@xyflow/react";
+import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
+import { edgeTypes, LinkActivity } from "./TrafficEdge";
 import { Operator } from "./Operator";
 import { IncidentPanel, Run } from "./Incidents";
 
@@ -14,7 +15,12 @@ type Router = {
   error: string | null;
 };
 type Probe = { probes: Record<string, string> };
-type Sample = { timestamp: string; routers: Router[]; flows?: Probe[] };
+type Sample = {
+  timestamp: string;
+  routers: Router[];
+  traffic?: Record<string, LinkActivity>;
+  flows?: Probe[];
+};
 function displayName(id: string) {
   const edge = /^([12])-([1-4])$/.exec(id);
   if (edge) return "Leaf " + edge[2] + " ↔ Spine " + edge[1];
@@ -24,10 +30,30 @@ function displayName(id: string) {
 }
 function App() {
   const [preview, setPreview] = useState<number[]>([]);
-  const [saved, setSaved] = useState<number | null>(null);
   const [signal, setSignal] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const [settings, setSettings] = useState(false);
+  const pages = [
+    "Command Center",
+    "AI Impact",
+    "Diagnostics",
+    "Provisioning",
+    "Incidents",
+  ];
+  const [page, setPage] = useState("Command Center"),
+    [environment, setEnvironment] = useState("Local lab");
+  const [operatorRequest, requestOperator] = useState<{ text: string }>(),
+    [notice, setNotice] = useState("");
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 2000);
+    return () => clearInterval(timer);
+  }, []);
+  function navigate(name: string) {
+    setPage(name);
+    setNotice("");
+    if (name === "Incidents") setDrawerOpen(true);
+  }
+
   const [sample, setSample] = useState<Sample>(),
     [mode, setMode] = useState("CONNECTING"),
     [selected, select] = useState("leaf-1");
@@ -53,13 +79,14 @@ function App() {
     if (faultTarget || (incident && incident.phase !== "resolved"))
       setDrawerOpen(true);
   }, [faultTarget, incident?.id, incident?.phase]);
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<string[][]>([]);
   useEffect(() => {
     let alive = true;
     let events: EventSource | undefined;
     async function connect() {
       const d = await (await fetch("/api/state")).json();
       if (!alive) return;
+      setEnvironment(d.environment || "Local lab");
       const query = new URLSearchParams(location.search);
       if (query.has("replay") || d.mode === "RECORDED REPLAY") {
         const f = await (
@@ -77,7 +104,11 @@ function App() {
         return;
       }
       setMode(d.mode);
-      setSample(d.snapshot);
+      setSample(
+        d.snapshot
+          ? { ...d.snapshot, flows: d.flows, traffic: d.traffic }
+          : undefined,
+      );
       events = new EventSource("/api/events");
       events.onmessage = (e) => {
         const s: Sample = JSON.parse(e.data);
@@ -85,14 +116,9 @@ function App() {
         setOffline(false);
         fetch("/api/timeline")
           .then((r) => r.json())
-          .then((rows: string[][]) =>
-            setHistory(
-              rows.map(
-                ([t, n, v]) =>
-                  new Date(t).toLocaleTimeString() + " · " + n + " · " + v,
-              ),
-            ),
-          )
+          .then((rows: string[][]) => {
+            if (alive) setHistory(rows);
+          })
           .catch(() => {});
       };
       events.onerror = () => setOffline(true);
@@ -178,18 +204,34 @@ function App() {
         : pending
           ? "pending"
           : status === "BGP UP"
-            ? "up"
+            ? spine
+              ? "spine up"
+              : "leaf up"
             : "impaired",
       data: {
         label: (
           <>
             <strong>{displayName(id)}</strong>
-            {!host && <span>{status}</span>}
+            {!host && (
+              <span>
+                {status === "BGP UP"
+                  ? spine
+                    ? "● Online"
+                    : "ASN " + (65100 + n)
+                  : status}
+              </span>
+            )}
           </>
         ),
       },
     };
   });
+  const fresh =
+    !frames.length &&
+    !offline &&
+    sample &&
+    clock - Date.parse(sample.timestamp) < 18000;
+  const activity = fresh ? sample.traffic || {} : {};
   const edges = [];
   let warnings = 0;
   for (const l of leaves)
@@ -209,20 +251,15 @@ function App() {
         id: s + "-" + l,
         source: "spine-" + s,
         target: "leaf-" + l,
-        type: "straight",
+        type: "traffic",
+        data: { activity: activity[s + "-" + l] },
         label: failed ? "Link warning" : undefined,
         labelStyle: { fill: "#87431a", fontSize: 12 },
         labelBgStyle: { fill: "#ffead4" },
         labelBgPadding: [6, 4] as [number, number],
         style: {
-          stroke: failed
-            ? "#c25137"
-            : live
-              ? chosen
-                ? "#467bdd"
-                : "#309276"
-              : "#a4acb7",
-          strokeWidth: 3,
+          stroke: failed ? "#c25137" : live ? "#309276" : "#a4acb7",
+          strokeWidth: chosen && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
@@ -232,7 +269,8 @@ function App() {
       id: "access" + n,
       source: "leaf-" + n,
       target: "host-" + n,
-      type: "straight",
+      type: "traffic",
+      data: { activity: activity["access" + n] },
       style: { stroke: "#606f89", strokeWidth: 2 },
     });
   const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
@@ -279,285 +317,453 @@ function App() {
       setBusy(false);
     }
   }
+  const sessions = leaves
+    .filter((l) => observedNames.includes("leaf-" + l))
+    .flatMap((l) =>
+      [1, 2].map(
+        (s) =>
+          sample?.routers.find((r) => r.name === "leaf-" + l)?.peers?.[
+            `10.211.${s}${l}.1`
+          ] === "Established" &&
+          sample?.routers.find((r) => r.name === "spine-" + s)?.peers?.[
+            `10.211.${s}${l}.2`
+          ] === "Established",
+      ),
+    );
+  const selectedTraffic = activity[faultTarget];
+  const active = incident && incident.phase !== "resolved";
+  const activeCount = frames.length
+    ? Number(!["Resolved", "Injecting"].includes(frames[frame].label))
+    : loaded
+      ? Number(!!(active || signal))
+      : "—";
+  const totalRate = Object.values(activity).reduce(
+    (sum, v) => sum + v.bytes_per_second,
+    0,
+  );
+  async function resetIncident() {
+    if (frames.length) {
+      setPlaying(false);
+      setFrame(0);
+      setSample(frames[0].snapshot);
+      setProbe("");
+      setPaths([]);
+      return;
+    }
+    if (!active) {
+      setNotice("Fabric has no active incident to restore.");
+      return;
+    }
+    try {
+      const token = (await (await fetch("/api/session")).json()).token;
+      const result = await fetch("/api/scenarios/reset", {
+        method: "POST",
+        headers: { "X-NetGuard-Session": token },
+      });
+      if (!result.ok) throw Error((await result.json()).detail);
+      setNotice(
+        "Restoration submitted. The controller is verifying connectivity.",
+      );
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Restoration unavailable");
+    }
+  }
+  const timeline = frames.length
+    ? frames
+        .slice(0, frame + 1)
+        .map((f) => ({
+          time: (f.eventTime || 0) * 1000,
+          type: f.label,
+          text: f.reason || "",
+        }))
+    : [
+        ...(incident?.events || []).map((e) => ({
+          time: e.time * 1000,
+          type: e.phase,
+          text: e.reason,
+        })),
+        ...history.map(([stamp, node, value]) => ({
+          time: Date.parse(stamp),
+          type: "BGP",
+          text: displayName(node) + " · " + value,
+        })),
+      ];
+  timeline.sort((a, b) => b.time - a.time);
   return (
     <>
-      <header>
+      <header className="mast">
         <div className="brand">
-          <span aria-hidden="true">
-            <svg
-              width="19"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-            >
-              <circle cx="12" cy="5" r="2.5" />
-              <circle cx="5" cy="18" r="2.5" />
-              <circle cx="19" cy="18" r="2.5" />
-              <path d="M12 8v4M5 15v-3h14v3" />
-            </svg>
-          </span>
+          <b className="brand-mark">∞</b>
           <div>
-            <strong>NetGuard</strong>
-            <small>AI Network Operations</small>
+            <strong>netguard</strong>
+            <small>AI NETWORK OPERATIONS</small>
           </div>
         </div>
-        <div className={"health " + health}>◉ Fabric {health}</div>
-        <button
-          className="settings"
-          aria-label="Dashboard settings"
-          aria-expanded={settings}
-          onClick={() => setSettings(!settings)}
-        >
-          ☷
-        </button>
+        <span className="env">
+          DEMO ENVIRONMENT · {environment.toUpperCase()}
+        </span>
+        <b className="sim">{frames.length ? "● Replay" : "● Simulation"}</b>
       </header>
-      {settings && (
-        <nav>
-          <a href="/">Live dashboard</a>
-          <a href="?replay">Replay link repair</a>
-          <a href="?replay=handoff">Replay AI handoff</a>
-        </nav>
-      )}
-      <main>
-        <div className="kpis">
-          {[
-            [
-              up === undefined || offline
-                ? "—"
-                : up + "/" + sample!.routers.length,
-              "Routers up",
-            ],
-            [
-              percent === undefined || offline ? "—" : percent + "%",
-              "Probe success",
-            ],
-            [
-              liveMode && loaded
-                ? signal || (incident && incident.phase !== "resolved")
-                  ? 1
-                  : 0
-                : frames.length
-                  ? ["Resolved", "Injecting"].includes(frames[frame].label)
-                    ? 0
-                    : 1
-                  : "—",
-              "Active incidents",
-            ],
-            [saved === null ? "—" : saved.toFixed(1) + " s", "Time saved"],
-          ].map(([v, l]) => (
-            <div key={l}>
-              <strong>{v}</strong>
-              <small>{l}</small>
-            </div>
+      <div className="shell">
+        <aside className="rail" aria-label="Workspace navigation">
+          <small>Workspace</small>
+          {pages.map((name, i) => (
+            <React.Fragment key={name}>
+              {i === 2 && <small>Operations</small>}
+              <button
+                aria-current={page === name ? "page" : undefined}
+                onClick={() => navigate(name)}
+              >
+                <span aria-hidden="true">{["⊞", "▥", "⚲", "⊕", "△"][i]}</span>
+                {name}
+              </button>
+            </React.Fragment>
           ))}
-        </div>
-        <section className="fabric">
-          <div className="fabric-head">
-            <h1>{frames.length ? "Recorded" : "Live"} Network Fabric</h1>
-            <small>
-              {offline
-                ? "Telemetry disconnected"
-                : frames.length
-                  ? "Recorded telemetry"
-                  : sample
-                    ? "◈ Live telemetry"
-                    : "Connecting"}
-            </small>
+          <div className="replays">
+            <a href="/">Live lab</a>
+            <a href="?replay">Link replay</a>
+            <a href="?replay=handoff">Handoff replay</a>
           </div>
-          {frames.length > 0 && (
-            <select
-              aria-label="Recording stage"
-              value={frame}
-              onChange={(e) => {
-                const i = +e.target.value;
-                setFrame(i);
-                setSample(frames[i].snapshot);
-                setPaths([]);
-                setProbe("");
-              }}
-            >
-              {frames.map((f, i) => (
-                <option key={i} value={i}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {frames.length > 0 && (
-            <button
-              onClick={() => {
-                if (!playing && frame === frames.length - 1) {
-                  setFrame(0);
-                  setSample(frames[0].snapshot);
-                  setProbe("");
-                  setPaths([]);
+        </aside>
+        <main data-page={page}>
+          <div className="page-title">
+            <div>
+              <small>Network intelligence</small>
+              <h1>{page}</h1>
+              <p>
+                {
+                  {
+                    "Command Center":
+                      "Observe the fabric. Ask AI to investigate. Validate every action.",
+                    "AI Impact":
+                      "Measured outcomes from manual and AI-assisted operations.",
+                    Diagnostics:
+                      "Inspect routing state, link counters and host probes.",
+                    Provisioning: "Preview, approve and verify fabric changes.",
+                    Incidents:
+                      "Review fault controls, evidence and recovery history.",
+                  }[page]
                 }
-                setPlaying(!playing);
-              }}
-            >
-              {playing ? "Pause playback" : "Play walkthrough"}
+              </p>
+            </div>
+            <button onClick={resetIncident}>
+              {frames.length ? "↺ Reset replay" : "↺ Reset incident"}
             </button>
-          )}
-          <div className="canvas">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodesDraggable={false}
-              key={names.join(",")}
-              fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
-              onNodeClick={(_, n) => {
-                select(n.id);
-                setFaultTarget(n.id);
-              }}
-              onEdgeClick={(_, edge) => {
-                setFaultTarget(edge.id);
-                select(
-                  edge.target.startsWith("leaf") ? edge.target : edge.source,
-                );
-              }}
-              onPaneClick={() => setFaultTarget("")}
-              fitView
-              nodesConnectable={false}
-            ></ReactFlow>
           </div>
-          <div className="fabric-foot">
-            <small>
-              {faultTarget
-                ? "Inspecting " + displayName(faultTarget)
-                : "Select a router or link to inspect its state"}
-            </small>
-            <small className={warnings ? "warn" : ""}>
-              {warnings
-                ? warnings + " link warning" + (warnings > 1 ? "s" : "")
-                : ""}
-            </small>
+          {notice && <p role="status">{notice}</p>}
+          <div className="kpis">
+            {[
+              [
+                "Network nodes",
+                up === undefined || offline
+                  ? "—"
+                  : up + " / " + sample!.routers.length,
+                up === sample?.routers.length && up
+                  ? "● All online"
+                  : "Router telemetry",
+              ],
+              [
+                "BGP sessions",
+                sessions.length && !offline
+                  ? sessions.filter(Boolean).length + " / " + sessions.length
+                  : "—",
+                "● Established",
+              ],
+              [
+                "Probe success",
+                percent === undefined || offline ? "—" : percent + "%",
+                "ICMP · HTTP",
+              ],
+              [
+                "Active incidents",
+                activeCount,
+                activeCount === 0 ? "● No incidents" : "Incident monitor",
+              ],
+            ].map(([k, v, n]) => (
+              <div key={k}>
+                <small>{k}</small>
+                <strong>{v}</strong>
+                <small>{n}</small>
+              </div>
+            ))}
           </div>
-        </section>
-        <Operator
-          signal={signal}
-          onSaved={setSaved}
-          live={liveMode}
-          target={faultTarget}
-          run={incident}
-          observed={sample?.timestamp || ""}
-          preview={setPreview}
-          replayText={frames.length ? frames[frame].reason : undefined}
-          trace={trace}
-          probe={probe}
-        />
-        <details className="drawer" open={!!faultTarget || undefined}>
-          <summary>
-            Network inspection {faultTarget && "· " + displayName(faultTarget)}
-          </summary>
-          <h2>Trace traffic</h2>
-          <label>
-            Flow{" "}
-            <select
-              disabled={busy}
-              value={source}
-              onChange={(e) => {
-                setSource(+e.target.value);
-                setPaths([]);
-                setProbe("");
-              }}
-            >
-              <option value="1">Host 1 → Host 2</option>
-              <option value="2">Host 2 → Host 1</option>
-            </select>
-          </label>
-          <button disabled={busy || mode === "CONNECTING"} onClick={trace}>
-            {busy ? "Probing…" : "Trace traffic"}
-          </button>
-          <p role="status">
-            {probe || "Run ICMP and HTTP probes from the source host."}
-          </p>
-          <hr />
-          <small>OBSERVED ROUTER STATE</small>
-          <h2>{selected}</h2>
-          <p>{router?.error}</p>
-          <pre>
-            {router
-              ? JSON.stringify(router.peers, null, 2)
-              : "Select a router to inspect peers."}
-          </pre>
-          <pre>
-            {router?.interfaces
-              .split("\n")
-              .filter((l) => /^eth/.test(l))
-              .join("\n")}
-          </pre>
-          <pre>{router?.routes}</pre>
-        </details>
-        {frames.length > 0 && (
-          <section className="incidents">
-            <h2>Recorded incident · {frames[frame].label}</h2>
-            <p>{frames[frame].reason}</p>
-            {frames[frame].review?.decision && (
-              <details>
-                <summary>Model diagnosis and cited evidence</summary>
+          <div className="workspace">
+            <section className="fabric">
+              <div className="fabric-head">
+                <div>
+                  <h2>Live Network Topology</h2>
+                  <small>FRRouting · eBGP · ECMP</small>
+                </div>
+                <b className="tag">
+                  {frames.length
+                    ? "REPLAY"
+                    : !fresh
+                      ? "WAITING"
+                      : health.toUpperCase()}
+                </b>
+              </div>
+              {frames.length > 0 && (
+                <select
+                  aria-label="Recording stage"
+                  value={frame}
+                  onChange={(e) => {
+                    const i = +e.target.value;
+                    setFrame(i);
+                    setSample(frames[i].snapshot);
+                    setPaths([]);
+                    setProbe("");
+                  }}
+                >
+                  {frames.map((f, i) => (
+                    <option key={i} value={i}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {frames.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (!playing && frame === frames.length - 1) {
+                      setFrame(0);
+                      setSample(frames[0].snapshot);
+                      setProbe("");
+                      setPaths([]);
+                    }
+                    setPlaying(!playing);
+                  }}
+                >
+                  {playing ? "Pause playback" : "Play walkthrough"}
+                </button>
+              )}
+              <div className="canvas">
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  edgeTypes={edgeTypes}
+                  nodesDraggable={false}
+                  key={names.join(",")}
+                  fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
+                  onNodeClick={(_, n) => {
+                    select(n.id);
+                    setFaultTarget(n.id);
+                  }}
+                  onEdgeClick={(_, edge) => {
+                    setFaultTarget(edge.id);
+                    select(
+                      edge.target.startsWith("leaf")
+                        ? edge.target
+                        : edge.source,
+                    );
+                  }}
+                  onPaneClick={() => setFaultTarget("")}
+                  fitView
+                  nodesConnectable={false}
+                >
+                  <Background gap={18} size={1.4} color="#cedaff" />
+                </ReactFlow>
+              </div>
+              <div className="legend">
+                <span>● Healthy</span>
+                <span>● Degraded</span>
+                <span>● Traffic</span>
+              </div>
+              <div className="fabric-actions">
+                <button
+                  className="primary"
+                  disabled={!liveMode || !!active}
+                  onClick={() =>
+                    requestOperator({
+                      text: "Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.",
+                    })
+                  }
+                >
+                  Inject example fault
+                </button>
+                <button disabled={!liveMode || !active} onClick={resetIncident}>
+                  {active && incident?.scenario !== "link"
+                    ? "Restore incident"
+                    : "Restore link"}
+                </button>
+              </div>
+              <div className="transmission">
+                <div>
+                  <strong>Link activity</strong>
+                  <small>
+                    {frames.length
+                      ? "Recorded probes"
+                      : Object.keys(activity).length
+                        ? "Latest interval · " +
+                          Object.values(activity)[0].seconds.toFixed(1) +
+                          " s"
+                        : "Awaiting live counters"}
+                  </small>
+                </div>
                 <p>
-                  {frames[frame].review?.model} ·{" "}
-                  {frames[frame].review?.decision?.diagnosis}
+                  {selectedTraffic
+                    ? displayName(faultTarget) +
+                      " · RX " +
+                      selectedTraffic.rx +
+                      " / TX " +
+                      selectedTraffic.tx +
+                      " packets at leaf"
+                    : Object.keys(activity).length
+                      ? Math.round(totalRate).toLocaleString() +
+                        " B/s across measured links"
+                      : "Select a link to inspect its state."}
                 </p>
-                {frames[frame].review?.decision?.citations.map((key) => (
-                  <p key={key}>
-                    {key} ·{" "}
-                    {JSON.stringify(
-                      frames[frame].review?.observation.facts[key],
-                    )}
-                  </p>
+                {observed.map((f, i) => (
+                  <small key={i}>
+                    Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
+                    {f.probes.HTTP}
+                  </small>
                 ))}
-              </details>
-            )}
-            <p>
-              {frames[frame].probes
-                .map(
-                  (f, i) =>
-                    "Host " +
-                    (i + 1) +
-                    " · ICMP " +
-                    f.probes.ICMP +
-                    " · HTTP " +
-                    f.probes.HTTP,
-                )
-                .join(" | ")}
-            </p>
-          </section>
-        )}
-        {mode === "LOCAL LAB / LIVE" && (
-          <details
-            className="drawer"
-            open={drawerOpen}
-            onToggle={(e) => setDrawerOpen(e.currentTarget.open)}
-          >
-            <summary>Incident controls and timeline</summary>
-            <IncidentPanel
-              onSignal={setSignal}
-              onRun={(r) => {
-                setIncident(r);
-                setLoaded(true);
-              }}
+              </div>
+            </section>
+            <Operator
+              page={page}
+              request={operatorRequest}
+              navigate={navigate}
+              signal={signal}
+              live={liveMode}
               target={faultTarget}
+              run={incident}
+              observed={sample?.timestamp || ""}
+              preview={setPreview}
+              replayText={frames.length ? frames[frame].reason : undefined}
+              trace={trace}
+              probe={probe}
             />
+          </div>
+          <section className="timeline">
+            <h2>Operations Timeline</h2>
+            {timeline.slice(0, 5).map((e, i) => (
+              <div key={i}>
+                <b>{e.type}</b>
+                <span>{e.text}</span>
+                <time>{new Date(e.time).toLocaleTimeString()}</time>
+              </div>
+            ))}
+            {!frames.length && !history.length && !incident && (
+              <p>Waiting for routing or incident events.</p>
+            )}
+          </section>
+          <details
+            className="drawer inspection"
+            open={page === "Diagnostics" || !!faultTarget || undefined}
+          >
+            <summary>
+              Network inspection{" "}
+              {faultTarget && "· " + displayName(faultTarget)}
+            </summary>
+            <h2>Trace traffic</h2>
+            <label>
+              Flow{" "}
+              <select
+                disabled={busy}
+                value={source}
+                onChange={(e) => {
+                  setSource(+e.target.value);
+                  setPaths([]);
+                  setProbe("");
+                }}
+              >
+                <option value="1">Host 1 → Host 2</option>
+                <option value="2">Host 2 → Host 1</option>
+              </select>
+            </label>
+            <button disabled={busy || mode === "CONNECTING"} onClick={trace}>
+              {busy ? "Probing…" : "Trace traffic"}
+            </button>
+            <p role="status">
+              {probe || "Run ICMP and HTTP probes from the source host."}
+            </p>
+            <hr />
+            <small>OBSERVED ROUTER STATE</small>
+            <h2>{selected}</h2>
+            <p>{router?.error}</p>
+            <pre>
+              {router
+                ? JSON.stringify(router.peers, null, 2)
+                : "Select a router to inspect peers."}
+            </pre>
+            <pre>
+              {router?.interfaces
+                .split("\n")
+                .filter((l) => /^eth/.test(l))
+                .join("\n")}
+            </pre>
+            <pre>{router?.routes}</pre>
           </details>
-        )}
-        <details className="drawer">
-          <summary>Collector log</summary>
+          {frames.length > 0 && (
+            <section className="incidents">
+              <h2>Recorded incident · {frames[frame].label}</h2>
+              <p>{frames[frame].reason}</p>
+              {frames[frame].review?.decision && (
+                <details>
+                  <summary>Model diagnosis and cited evidence</summary>
+                  <p>
+                    {frames[frame].review?.model} ·{" "}
+                    {frames[frame].review?.decision?.diagnosis}
+                  </p>
+                  {frames[frame].review?.decision?.citations.map((key) => (
+                    <p key={key}>
+                      {key} ·{" "}
+                      {JSON.stringify(
+                        frames[frame].review?.observation.facts[key],
+                      )}
+                    </p>
+                  ))}
+                </details>
+              )}
+              <p>
+                {frames[frame].probes
+                  .map(
+                    (f, i) =>
+                      "Host " +
+                      (i + 1) +
+                      " · ICMP " +
+                      f.probes.ICMP +
+                      " · HTTP " +
+                      f.probes.HTTP,
+                  )
+                  .join(" | ")}
+              </p>
+            </section>
+          )}
+          {mode === "LOCAL LAB / LIVE" && (
+            <details
+              className="drawer incident-drawer"
+              open={drawerOpen}
+              onToggle={(e) => setDrawerOpen(e.currentTarget.open)}
+            >
+              <summary>Incident controls and timeline</summary>
+              <IncidentPanel
+                onSignal={setSignal}
+                onRun={(r) => {
+                  setIncident(r);
+                  setLoaded(true);
+                }}
+                target={faultTarget}
+              />
+            </details>
+          )}
+          <details className="drawer collector">
+            <summary>Collector log</summary>
 
-          <p>
-            {history.length
-              ? history.slice(0, 5).map((h, i) => (
-                  <React.Fragment key={i}>
-                    {h}
-                    <br />
-                  </React.Fragment>
-                ))
-              : "No session changes in this view."}
-          </p>
-        </details>
-      </main>
+            <p>
+              {history.length
+                ? history.slice(0, 5).map((h, i) => (
+                    <React.Fragment key={i}>
+                      {h.join(" · ")}
+                      <br />
+                    </React.Fragment>
+                  ))
+                : "No session changes in this view."}
+            </p>
+          </details>
+        </main>
+      </div>
     </>
   );
 }
