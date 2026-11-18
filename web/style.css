@@ -110,3 +110,44 @@ header a {
 header select {
   max-width: 250px;
 }
+.incidents {
+  grid-column: 1/-1;
+}
+.incidentHeader,
+.presetRow,
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.incidentHeader h2,
+.incidentHeader h3 {
+  margin-right: auto;
+}
+.incidents button {
+  margin: 4px 0;
+}
+.stop {
+  color: #872a22;
+  background: white;
+}
+.stats {
+  gap: 28px;
+}
+.stats strong {
+  display: block;
+  font: 600 19px monospace;
+}
+.incidents details {
+  margin: 12px 0;
+}
+.incidents summary {
+  cursor: pointer;
+}
+.incidents li {
+  margin: 7px 0;
+}
+.incidents time {
+  font-family: monospace;
+}

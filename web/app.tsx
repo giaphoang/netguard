@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { ReactFlow, Background, Controls, useNodesState } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
+import { IncidentPanel, Run } from "./Incidents";
 
 type Router = {
   name: string;
@@ -11,7 +12,8 @@ type Router = {
   interfaces: string;
   error: string | null;
 };
-type Sample = { timestamp: string; routers: Router[] };
+type Probe = { probes: Record<string,string> };
+type Sample = { timestamp: string; routers: Router[]; flows?: Probe[] };
 const names = ["spine-1", "spine-2", "leaf-1", "leaf-2", "host-1", "host-2"];
 const initial = names.map((id, i) => ({
   id,
@@ -30,11 +32,14 @@ function App() {
   const [frames, setFrames] = useState<
       {
         label: string;
+        reason?: string;
+        eventTime?: number;
         snapshot: Sample;
         probes: { timestamp: string; probes: Record<string, string> }[];
       }[]
     >([]),
     [frame, setFrame] = useState(0);
+  const [incident, setIncident] = useState<Run>();
   const [history, setHistory] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
@@ -43,7 +48,7 @@ function App() {
       const d = await (await fetch("/api/state")).json();
       if (!alive) return;
       if (location.search === "?replay" || d.mode === "RECORDED REPLAY") {
-        const f = await (await fetch("/api/recording")).json();
+        const f = await (await fetch("/api/recording?incident=true")).json();
         if (!alive) return;
         setMode("RECORDED REPLAY");
         setFrames(f);
@@ -77,14 +82,40 @@ function App() {
     };
   }, []);
   const [paths, setPaths] = useState<number[]>([]);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!playing || frame >= frames.length - 1) {
+      if (playing) setPlaying(false);
+      return;
+    }
+    const gap =
+      ((frames[frame + 1].eventTime || 0) - (frames[frame].eventTime || 0)) *
+      1000;
+    const timer = setTimeout(
+      () => {
+        const next = frame + 1;
+        setFrame(next);
+        setSample(frames[next].snapshot);
+        setProbe("");
+        setPaths([]);
+      },
+      Math.max(1100, gap),
+    );
+    return () => clearTimeout(timer);
+  }, [playing, frame, frames]);
   const peers =
     sample?.routers.flatMap((r) => Object.values(r.peers || {})) || [];
   const count = peers.filter((x) => x === "Established").length;
+  const observations = frames.length ? frames[frame].probes : sample?.flows || [];
+  const results = observations.flatMap(f=>Object.values(f.probes));
+  const answered = results.filter(result=>result==="success" || result==="failed");
+  const percent = answered.length ? Math.round(100*answered.filter(v=>v==="success").length/answered.length) : undefined;
+  const affected = results.includes("failed");
   const health = offline
     ? "Stale"
     : peers.length !== 8
       ? "Unknown"
-      : count === 8
+      : count === 8 && !affected
         ? "Healthy"
         : "Degraded";
   const router = sample?.routers.find((r) => r.name === selected);
@@ -100,7 +131,11 @@ function App() {
         label: offline ? "stale" : state || "unknown",
         style: {
           stroke:
-            paths.includes(s) && state === "Established"
+            (incident && incident.phase !== "resolved"
+              ? incident.latest
+                  .find((f) => f.source === source)
+                  ?.candidates?.includes(s)
+              : paths.includes(s)) && state === "Established"
               ? "#2457ce"
               : state === "Established"
                 ? "#178168"
@@ -115,7 +150,10 @@ function App() {
       id: "access" + i,
       source: "leaf-" + i,
       target: "host-" + i,
-      label: "access · configured",
+      label:
+        i === 2 && affected && incident?.scenario === "endpoint"
+          ? "endpoint unavailable"
+          : "access · configured",
     });
   async function trace() {
     if (frames.length) {
@@ -177,6 +215,21 @@ function App() {
             ))}
           </select>
         )}
+        {frames.length > 0 && (
+          <button
+            onClick={() => {
+              if (!playing && frame === frames.length - 1) {
+                setFrame(0);
+                setSample(frames[0].snapshot);
+                setProbe("");
+                setPaths([]);
+              }
+              setPlaying(!playing);
+            }}
+          >
+            {playing ? "Pause playback" : "Play walkthrough"}
+          </button>
+        )}
         <span>
           {offline
             ? "Telemetry disconnected"
@@ -192,7 +245,7 @@ function App() {
           <strong>
             {health} · {count}/8 established peer observations
           </strong>
-          <p>Two spines, two leaves and two isolated endpoints.</p>
+          <p>{frames.length?"Recorded":"Latest"} probe success · {percent === undefined ? "Awaiting measurements" : percent+"% across "+answered.length+" ICMP/HTTP results"}{results.includes("unavailable")?" · incomplete":""}</p>
           <div className="canvas">
             <ReactFlow
               nodes={nodes}
@@ -253,6 +306,26 @@ function App() {
           </pre>
           <pre>{router?.routes}</pre>
         </aside>
+        {frames.length > 0 && (
+          <section className="incidents">
+            <h2>Recorded incident · {frames[frame].label}</h2>
+            <p>{frames[frame].reason}</p>
+            <p>
+              {frames[frame].probes
+                .map(
+                  (f, i) =>
+                    "Host " +
+                    (i + 1) +
+                    " · ICMP " +
+                    f.probes.ICMP +
+                    " · HTTP " +
+                    f.probes.HTTP,
+                )
+                .join(" | ")}
+            </p>
+          </section>
+        )}
+        {mode === "LOCAL LAB / LIVE" && <IncidentPanel onRun={setIncident} />}
         <footer>
           <small>COLLECTOR LOG</small>
           <p>

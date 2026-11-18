@@ -106,8 +106,11 @@ def record(sample: Snapshot) -> None:
 
 async def poll(app: FastAPI) -> None:
     while True:
-        app.state.snapshot = await asyncio.to_thread(collect)
-        app.state.flows = await asyncio.gather(*(asyncio.to_thread(trace, i) for i in (1, 2)))
+        snapshot, *flows = await asyncio.gather(
+            asyncio.to_thread(collect), *(asyncio.to_thread(trace, i) for i in (1, 2))
+        )
+        app.state.snapshot = snapshot
+        app.state.flows = flows
         await asyncio.to_thread(record, app.state.snapshot)
         await asyncio.sleep(3)
 
@@ -222,7 +225,8 @@ async def events():
             sample = app.state.snapshot
             if sample and sample.timestamp != last:
                 last = sample.timestamp
-                yield f"data: {sample.model_dump_json()}\n\n"
+                payload = {**sample.model_dump(), "flows": app.state.flows}
+                yield f"data: {json.dumps(payload)}\n\n"
             await asyncio.sleep(1)
 
     return StreamingResponse(stream(), media_type="text/event-stream")
