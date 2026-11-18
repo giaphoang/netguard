@@ -183,6 +183,17 @@ class Controller:
             if action == "automatic" and not (self.auto and r["auto"]):
                 raise ValueError("Auto-repair is disabled")
             target = presets.Target(**r["target"])
+            if action == "reset" and presets.identify(r["scenario"]) != target:
+                sample = observe()
+                if not healthy(sample):
+                    raise ValueError("Target was replaced and the new fabric is unhealthy")
+                r["samples"].append(sample)
+                r["verified"] = 0
+                self.event(
+                    "verifying",
+                    "Target was replaced. Verifying healthy replacement without actuation.",
+                )
+                return
             if action != "reset":
                 fresh = observe()
                 if (

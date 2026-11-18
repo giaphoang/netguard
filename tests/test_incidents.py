@@ -138,3 +138,29 @@ def test_network_boundary_rejects_misconfigured_target(monkeypatch, override):
     monkeypatch.setattr(presets, "docker", read)
     with pytest.raises(ValueError, match="isolated"):
         presets.identify("endpoint")
+
+
+def test_replaced_target_requires_healthy_observation_and_never_actuates(tmp_path, monkeypatch):
+    controller = Controller(tmp_path / "journal")
+    target = Target(container="original", interface="eth1")
+    monkeypatch.setattr(incidents.presets, "identify", lambda s: target)
+    monkeypatch.setattr(incidents.presets, "fault_present", lambda *args: False)
+    monkeypatch.setattr(incidents.presets, "change", lambda *args: None)
+    monkeypatch.setattr(incidents, "observe", lambda: sample(False))
+    controller.inject("link")
+    restarted = Controller(controller.db)
+    assert restarted.run["phase"] == "handoff" and not restarted.auto
+    monkeypatch.setattr(
+        incidents.presets, "identify", lambda s: Target(container="replacement", interface="eth1")
+    )
+    monkeypatch.setattr(
+        incidents.presets, "change", lambda *args: pytest.fail("Actuated replacement")
+    )
+    monkeypatch.setattr(incidents, "observe", lambda: sample(True))
+    with pytest.raises(ValueError, match="unhealthy"):
+        restarted.restore("reset")
+    monkeypatch.setattr(incidents, "observe", lambda: sample(False))
+    restarted.restore("reset")
+    restarted.step()
+    restarted.step()
+    assert restarted.run["phase"] == "resolved" and restarted.run["attempts"] == 0
