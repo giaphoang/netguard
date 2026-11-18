@@ -20,3 +20,11 @@ Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab 
     NETGUARD_CONTEXT=$(scripts/local-context) .venv/bin/python -m scripts.verify_failover
 
 The smoke check requires two established peers on each router, two kernel next hops per leaf, and successful ICMP and HTTP in both directions. The failover check temporarily disables the leaf-1 interface facing spine-1 and restores it in a finally block. Launch it only on the local demo fabric. Captures are in scenarios/. Recovery benchmarks and AI evaluation are pending.
+
+## Demonstration evidence
+
+The November 18 live run established all four eBGP adjacencies. Each leaf installed two equal-weight kernel next hops to the opposite host subnet. ICMP and HTTP succeeded from both hosts before the interruption, after convergence on the surviving spine, and after restoration. A single successful probe is a reachability observation. These samples do not estimate a long-term success rate.
+
+[Dashboard screenshot](docs/proof/healthy.png) · [90-second screen recording](docs/proof/walkthrough.mp4) · [Healthy router evidence](scenarios/healthy.json) · [Degraded fabric and probe evidence](scenarios/failover.json)
+
+The dashboard’s Replay demo link opens a recorded view. Select the healthy or failed-link capture and trace either direction to inspect the saved results. The P0 screen recording is silent. Failure injection is currently exercised by the integration check. Incident approvals, local model diagnoses, and manual-versus-automatic timing belong to later milestones.

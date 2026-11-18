@@ -1,4 +1,5 @@
 """Validate observed sessions, kernel ECMP and bidirectional data plane."""
+
 from api.fabric import collect, trace
 
 

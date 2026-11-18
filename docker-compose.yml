@@ -1,3 +1,4 @@
+name: netguard-upstream
 services:
   api:
     build:

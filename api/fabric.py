@@ -1,4 +1,5 @@
 """Read-only NetGuard telemetry from fixed local Docker resources."""
+
 import asyncio
 import json
 import os
@@ -37,9 +38,18 @@ class Snapshot(BaseModel):
 
 def command(node: str, *args: str) -> str:
     return subprocess.run(
-        ["docker", "--context", os.getenv("NETGUARD_CONTEXT", "default"), "exec",
-         f"netguard-{node}-1", *args],
-        capture_output=True, text=True, timeout=5, check=True,
+        [
+            "docker",
+            "--context",
+            os.getenv("NETGUARD_CONTEXT", "default"),
+            "exec",
+            f"netguard-{node}-1",
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=True,
     ).stdout.strip()
 
 
@@ -50,11 +60,21 @@ def router(node: str) -> Router:
         interfaces = command(node, "ip", "-br", "addr")
         data = command(node, "vtysh", "-c", "show bgp summary json")
         peers = json.loads(data)["ipv4Unicast"]["peers"]
-        return Router(name=node, peers={ip: p["state"] for ip, p in peers.items()},
-                      routes=routes, interfaces=interfaces, error=None)
+        return Router(
+            name=node,
+            peers={ip: p["state"] for ip, p in peers.items()},
+            routes=routes,
+            interfaces=interfaces,
+            error=None,
+        )
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
-        return Router(name=node, peers=None, routes=routes, interfaces=interfaces,
-                      error=f"Telemetry unavailable ({type(exc).__name__})")
+        return Router(
+            name=node,
+            peers=None,
+            routes=routes,
+            interfaces=interfaces,
+            error=f"Telemetry unavailable ({type(exc).__name__})",
+        )
 
 
 def collect() -> Snapshot:
@@ -72,10 +92,13 @@ def record(sample: Snapshot) -> None:
         db.execute("CREATE TABLE IF NOT EXISTS events (timestamp TEXT, node TEXT, state TEXT)")
         for router in sample.routers:
             state = json.dumps(router.peers or router.error, sort_keys=True)
-            last = db.execute("SELECT state FROM events WHERE node=? ORDER BY rowid DESC LIMIT 1",
-                              (router.name,)).fetchone()
+            last = db.execute(
+                "SELECT state FROM events WHERE node=? ORDER BY rowid DESC LIMIT 1", (router.name,)
+            ).fetchone()
             if last != (state,):
-                db.execute("INSERT INTO events VALUES (?,?,?)", (sample.timestamp, router.name, state))
+                db.execute(
+                    "INSERT INTO events VALUES (?,?,?)", (sample.timestamp, router.name, state)
+                )
 
 
 async def poll(app: FastAPI) -> None:
@@ -105,15 +128,20 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/api/state")
 def state():
-    return {"mode": "RECORDED REPLAY" if REPLAY else "LOCAL LAB / LIVE",
-            "snapshot": app.state.snapshot}
+    return {
+        "mode": "RECORDED REPLAY" if REPLAY else "LOCAL LAB / LIVE",
+        "snapshot": app.state.snapshot,
+    }
 
 
 @app.get("/api/topology")
 def topology():
-    return {"routers": ROUTERS, "hosts": ["host-1", "host-2"],
-            "links": [[f"spine-{s}", f"leaf-{l}"] for s in (1, 2) for l in (1, 2)]
-                     + [[f"leaf-{i}", f"host-{i}"] for i in (1, 2)]}
+    return {
+        "routers": ROUTERS,
+        "hosts": ["host-1", "host-2"],
+        "links": [[f"spine-{spine}", f"leaf-{leaf}"] for spine in (1, 2) for leaf in (1, 2)]
+        + [[f"leaf-{i}", f"host-{i}"] for i in (1, 2)],
+    }
 
 
 @app.get("/api/timeline")
@@ -121,15 +149,24 @@ def timeline():
     if REPLAY or not DB.exists():
         return []
     with sqlite3.connect(DB) as db:
-        return db.execute("SELECT timestamp,node,state FROM events ORDER BY rowid DESC LIMIT 12").fetchall()
+        return db.execute(
+            "SELECT timestamp,node,state FROM events ORDER BY rowid DESC LIMIT 12"
+        ).fetchall()
 
 
 @app.get("/api/recording")
 def recording():
-    return [{"label": "Healthy fabric", "snapshot": json.loads(FIXTURE.read_text()),
-             "probes": json.loads((FIXTURE.parent / "probes.json").read_text())},
-            {"label": "Link down · alternate path verified",
-             **json.loads((FIXTURE.parent / "failover.json").read_text())}]
+    return [
+        {
+            "label": "Healthy fabric",
+            "snapshot": json.loads(FIXTURE.read_text()),
+            "probes": json.loads((FIXTURE.parent / "probes.json").read_text()),
+        },
+        {
+            "label": "Link down · alternate path verified",
+            **json.loads((FIXTURE.parent / "failover.json").read_text()),
+        },
+    ]
 
 
 @app.get("/api/events")
@@ -142,6 +179,7 @@ async def events():
                 last = sample.timestamp
                 yield f"data: {sample.model_dump_json()}\n\n"
             await asyncio.sleep(1)
+
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
@@ -151,24 +189,43 @@ def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
         return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
     dest = f"10.212.{3-source}.2"
     results = {}
-    for protocol, args in {"ICMP": ["ping", "-c", "1", "-W", "2", dest],
-                           "HTTP": ["wget", "-T", "2", "-qO-", f"http://{dest}:8080/"]}.items():
+    for protocol, args in {
+        "ICMP": ["ping", "-c", "1", "-W", "2", dest],
+        "HTTP": ["wget", "-T", "2", "-qO-", f"http://{dest}:8080/"],
+    }.items():
         try:
             command(f"host-{source}", *args)
             results[protocol] = "success"
         except subprocess.CalledProcessError as exc:
-            results[protocol] = "failed" if exc.returncode == 1 and not exc.stderr.startswith("Error response from daemon") else "unavailable"
+            results[protocol] = (
+                "failed"
+                if exc.returncode == 1 and not exc.stderr.startswith("Error response from daemon")
+                else "unavailable"
+            )
         except (OSError, subprocess.SubprocessError):
             results[protocol] = "unavailable"
-    sample = app.state.snapshot if hasattr(app.state, "snapshot") else None
-    candidates = []
-    if sample:
-        leaf = next(r for r in sample.routers if r.name == f"leaf-{source}")
-        route = re.search(rf"^10\.212\.{3-source}\.0/28 [^\n]*(?:\n\s+nexthop[^\n]*)*", leaf.routes, re.M)
-        if route:
-            candidates = [i for i in (1, 2) if f"via 10.211.{10*i+source}.1 " in route.group()]
-    return {"timestamp": datetime.now(timezone.utc).isoformat(), "source": source,
-            "destination": dest, "candidates": candidates, "probes": results}
+    candidates = None
+    try:
+        routes = command(f"leaf-{source}", "ip", "-4", "route")
+        route = re.search(
+            rf"^10\.212\.{3-source}\.0/28 [^\n]*(?:\n\s+nexthop[^\n]*)*", routes, re.M
+        )
+        candidates = (
+            []
+            if route is None
+            else [i for i in (1, 2) if f"via 10.211.{10*i+source}.1 " in route.group()]
+        )
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        "destination": dest,
+        "candidates": candidates,
+        "probes": results,
+    }
 
 
-app.mount("/", StaticFiles(directory=ROOT / "web/dist", html=True, check_dir=False), name="dashboard")
+app.mount(
+    "/", StaticFiles(directory=ROOT / "web/dist", html=True, check_dir=False), name="dashboard"
+)
