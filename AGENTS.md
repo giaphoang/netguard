@@ -5,3 +5,7 @@ Commit each verified fix, completed approval-related change, and finished featur
 Use a brief subject that explains the change and its reason. Stage only the files or hunks belonging to that change. When a phase passes its acceptance checks, commit any remaining validation evidence and phase documentation together. If an approval or phase completion leaves the tree clean, report the existing commit that covers it.
 
 After each incremental commit, push the current work branch to its matching branch on origin. Set upstream tracking on the first push. If the push is rejected, report the reason and preserve both histories.
+
+# Commit results
+
+When reporting a completed commit, include its hash and an Action, Goal, and Result summary. Base the Result on verified behavior and recorded evidence, and state any material limits. Include a Result for the latest commit when summarizing work across multiple commits.
