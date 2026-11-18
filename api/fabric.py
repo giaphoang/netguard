@@ -107,6 +107,39 @@ def record(sample: Snapshot) -> None:
                 )
 
 
+def probe_spine(leaf: Router, source: int) -> int | None:
+    """Resolve a forwarded ICMP flow, including its source and incoming interface."""
+    access_ip = f"10.212.{source}.1/28"
+    for line in leaf.interfaces.splitlines():
+        fields = line.split()
+        if access_ip not in fields:
+            continue
+        ingress = fields[0].split("@")[0]
+        try:
+            (route,) = json.loads(
+                command(
+                    leaf.name,
+                    "ip",
+                    "-j",
+                    "route",
+                    "get",
+                    f"10.212.{3-source}.2",
+                    "from",
+                    f"10.212.{source}.2",
+                    "iif",
+                    ingress,
+                    "ipproto",
+                    "icmp",
+                )
+            )
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return None
+        for spine in (1, 2):
+            if route.get("gateway") == f"10.211.{spine}{source}.1":
+                return spine
+    return None
+
+
 async def poll(app: FastAPI) -> None:
     previous = {}
     while True:
@@ -114,7 +147,21 @@ async def poll(app: FastAPI) -> None:
             asyncio.to_thread(collect), *(asyncio.to_thread(trace, i) for i in (1, 2))
         )
         leaves = [int(r.name.split("-")[1]) for r in snapshot.routers if r.name.startswith("leaf-")]
-        current = await asyncio.to_thread(traffic.collect, leaves)
+        routers = {r.name: r for r in snapshot.routers}
+        successful = [
+            f
+            for f in flows
+            if f["probes"]["ICMP"] == "success" and f"leaf-{f['source']}" in routers
+        ]
+        current, *hops = await asyncio.gather(
+            asyncio.to_thread(traffic.collect, leaves),
+            *(
+                asyncio.to_thread(probe_spine, routers[f"leaf-{f['source']}"], f["source"])
+                for f in successful
+            ),
+        )
+        for flow, hop in zip(successful, hops):
+            flow["spine"] = hop
         app.state.traffic = traffic.rates(previous, current)
         previous = current
         app.state.snapshot = snapshot

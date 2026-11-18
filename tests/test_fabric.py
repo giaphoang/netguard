@@ -28,3 +28,31 @@ def test_persist_only_session_changes(tmp_path, monkeypatch):
     s.routers[0].error = "Telemetry unavailable"
     fabric.record(s)
     assert len(fabric.timeline()) == 5
+
+
+def test_probe_spine_uses_forwarded_flow_tuple(monkeypatch):
+    leaf = fabric.Router(
+        name="leaf-2", interfaces="eth1@if8 UP 10.212.2.1/28", routes="", peers={}, error=None
+    )
+
+    def lookup(*args):
+        assert args == (
+            "leaf-2",
+            "ip",
+            "-j",
+            "route",
+            "get",
+            "10.212.1.2",
+            "from",
+            "10.212.2.2",
+            "iif",
+            "eth1",
+            "ipproto",
+            "icmp",
+        )
+        return '[{"gateway":"10.211.22.1"}]'
+
+    monkeypatch.setattr(fabric, "command", lookup)
+    assert fabric.probe_spine(leaf, 2) == 2
+    monkeypatch.setattr(fabric, "command", lambda *_: '[{"dev":"lo"}]')
+    assert fabric.probe_spine(leaf, 2) is None
