@@ -215,7 +215,7 @@ export function Operator({
       <div className="operator-head">
         <b className="op-icon">✳</b>
         <div>
-          <h2>NetGuard AI Operator</h2>
+          <h2>NetGuard Agent</h2>
           <small>Local model · Policy controlled</small>
         </div>
         <b className="tag">ASSIST</b>
@@ -267,6 +267,18 @@ export function Operator({
           Infrastructure changes require a validated plan and authorization.
         </small>
       </div>
+      <details className="policy">
+        <summary>How to use NetGuard Agent</summary>
+        <p>Select a link, then enter one complete request. Include the target in each follow-up.</p>
+        <ul>
+          <li>Diagnose: “Why is this connection failing?” Open the evidence to inspect peers and probes.</li>
+          <li>Simulate: “Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.” Review the target before approving.</li>
+          <li>Repair: “Fix this network.” Review any eligible repair and check the timeline for verified closure.</li>
+          <li>Provision: “Expand this fabric.” Choose the number of leaves and inspect the configuration diff.</li>
+          <li>Measure: “Evaluate impact.” Review durations and sample counts.</li>
+        </ul>
+        <p>Use live mode to run tasks. Replay shows recorded events.</p>
+      </details>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -278,7 +290,7 @@ export function Operator({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           maxLength={500}
-          placeholder="Ask about the network…"
+          placeholder="Ask NetGuard Agent about a lab task…"
         />
         <button aria-label="Send request" disabled={busy || !input.trim()}>
           ↑

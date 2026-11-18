@@ -1,6 +1,8 @@
-# NetGuard operator workspace
+# Using NetGuard Agent
 
 Open the Ubuntu dashboard on port 3001 through its SSH tunnel, or run `make demo-up` for the local Docker dashboard on port 3000. Both use the same React Flow workspace and API. Install the local model with `ollama pull qwen2.5:1.5b`. When Ollama runs on the Mac, include `-R 127.0.0.1:11434:127.0.0.1:11434` in the SSH dashboard tunnel. [Ubuntu setup](UTM_ARM64_SETUP.md)
+
+In **Command Center**, find **NetGuard Agent** beside the topology. Select a link for context, enter one complete lab request, and press **Enter**. Start with a diagnosis to inspect the network without changing it. The agent handles the workflows below. Each message is processed independently, so repeat the target and duration when revising a request.
 
 | Try | Expected behavior |
 |---|---|
