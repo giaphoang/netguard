@@ -13,17 +13,33 @@ export type Run = {
   auto: boolean;
   attempts: number;
   ai?: boolean;
+  manual?: boolean;
+  leaf?: number;
+  spine?: number;
   review?: {
     model: string;
-    observation: {observed: number; facts: Record<string, unknown>};
-    decision?: {diagnosis: string; component: string; action: string; citations: string[]; next_check: string};
+    observation: { observed: number; facts: Record<string, unknown> };
+    decision?: {
+      diagnosis: string;
+      component: string;
+      action: string;
+      citations: string[];
+      next_check: string;
+    };
     error?: string;
   };
   metrics: Record<string, number>;
   latest: Flow[];
+  before?: Flow[];
+  repair_command?: string;
   events: { phase: string; reason: string; time: number }[];
 };
-type Status = { automatic: boolean; stopped: boolean; incidents: Run[] };
+type Status = {
+  automatic: boolean;
+  stopped: boolean;
+  incidents: Run[];
+  signal?: { text: string };
+};
 const labels: Record<string, string> = {
   link: "Leaf–spine link down",
   bgp: "BGP neighbor down",
@@ -39,9 +55,12 @@ const seconds = (val: number | undefined) =>
   val === undefined ? "—" : val.toFixed(2) + " s";
 
 export function IncidentPanel({
-  onRun, target,
+  onRun,
+  target,
+  onSignal,
 }: {
   target: string;
+  onSignal: (v: string) => void;
   onRun: (run: Run | undefined) => void;
 }) {
   const [state, setState] = useState<Status>(),
@@ -49,9 +68,12 @@ export function IncidentPanel({
     [error, setError] = useState(""),
     [token, setToken] = useState(""),
     [connected, setConnected] = useState(false);
-  const [ai, setAI] = useState(true);
+  const [engine, setEngine] = useState("ai");
+  const [timed, setTimed] = useState(30);
+  const [cause, setCause] = useState("link");
+  const edge = /^([12])-([12])$/.exec(target);
   const [linkFault, setLinkFault] = useState("link");
-  const fault = target === "1-1" ? linkFault : target === "host-2" ? "endpoint" : "";
+  const fault = edge ? linkFault : target === "host-2" ? "endpoint" : "";
   const [selected, setSelected] = useState("");
   const [comparison, setComparison] = useState<
     {
@@ -69,6 +91,7 @@ export function IncidentPanel({
     setState(next);
     setConnected(true);
     onRun(next.incidents[0]);
+    onSignal(next.signal?.text || "");
   }
   useEffect(() => {
     let alive = true;
@@ -144,20 +167,58 @@ export function IncidentPanel({
         </button>
       </div>
       <div className="presetRow">
-        <label>Diagnosis{" "}
-          <select value={ai ? "ai" : "rules"} onChange={e => setAI(e.target.value === "ai")}>
-            <option value="ai">Local AI</option><option value="rules">P1 rules</option>
+        <label>
+          Diagnosis{" "}
+          <select value={engine} onChange={(e) => setEngine(e.target.value)}>
+            <option value="ai">Local AI</option>
+            <option value="rules">P1 rules</option>
+            <option value="manual">Human operator</option>
           </select>
         </label>
-        {target === "1-1" && <label>Leaf-1 ↔ spine-1{" "}
-          <select value={linkFault} onChange={e => setLinkFault(e.target.value)}>
-            <option value="link">Disable interface</option><option value="bgp">Interrupt BGP peer</option>
-          </select>
-        </label>}
+        {edge && (
+          <label>
+            Leaf {edge[2]} ↔ Spine {edge[1]}{" "}
+            <select
+              value={linkFault}
+              onChange={(e) => setLinkFault(e.target.value)}
+            >
+              <option value="link">Disable interface</option>
+              <option value="bgp">Interrupt BGP peer</option>
+            </select>
+          </label>
+        )}
         {target === "host-2" && <span>Host-2 · pause endpoint</span>}
-        {fault ? <button disabled={locked || active || state?.stopped}
-          onClick={() => act("scenarios/" + fault + "/inject?ai=" + ai)}>Inject selected fault</button>
-          : <span>Select the leaf-1 ↔ spine-1 edge or host-2 on the graph.</span>}
+        {fault === "link" && (
+          <label>
+            Restore after{" "}
+            <select value={timed} onChange={(e) => setTimed(+e.target.value)}>
+              <option value={0}>Manual repair</option>
+              <option value={30}>30 seconds</option>
+              <option value={60}>60 seconds</option>
+            </select>
+          </label>
+        )}
+        {fault ? (
+          <button
+            disabled={locked || active || state?.stopped}
+            onClick={() =>
+              act(
+                "scenarios/" +
+                  fault +
+                  "/inject?ai=" +
+                  (engine === "ai") +
+                  "&manual=" +
+                  (engine === "manual") +
+                  (edge ? "&leaf=" + edge[2] + "&spine=" + edge[1] : "") +
+                  (fault === "link" && timed ? "&duration=" + timed : ""),
+              )
+            }
+          >
+            Inject selected fault
+          </button>
+        ) : (
+          <span>Select a base leaf–spine link or Host B on the graph.</span>
+        )}
         <button
           disabled={locked || !active || current?.phase === "verifying"}
           onClick={() => act("scenarios/reset")}
@@ -188,17 +249,93 @@ export function IncidentPanel({
             </label>
           </div>
           <p>{run.events[run.events.length - 1]?.reason}</p>
-          {run.ai && <div aria-label="AI assessment">
-            <strong>{run.review?.model || "Local AI"} · {run.review?.decision?.diagnosis || (run.phase === "handoff" || run.review?.error ? "Review unavailable" : "Awaiting diagnosis")}</strong>
-            {run.review?.decision && <>
-              <p>{run.review.decision.component} · {run.review.decision.action === "restore_link" ? "Requested link restoration" : "Requested human review"}</p>
-              <p>Next check · {run.review.decision.next_check}</p>
-              <details><summary>Cited evidence at {new Date(run.review.observation.observed * 1000).toLocaleTimeString()}</summary>
-                {run.review.decision.citations.map(key => <p key={key}>{key} · {JSON.stringify(run.review!.observation.facts[key])}</p>)}
-              </details>
-            </>}
-            <p>Restoration attempts · {run.attempts}</p>
-          </div>}
+          {run.manual && run.phase === "injected" && (
+            <label>
+              Operator diagnosis{" "}
+              <select value={cause} onChange={(e) => setCause(e.target.value)}>
+                {Object.entries(labels).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+              <button
+                disabled={locked}
+                onClick={() =>
+                  act("incidents/" + run.id + "/diagnose/" + cause)
+                }
+              >
+                Record diagnosis
+              </button>
+            </label>
+          )}
+          {run.ai && (
+            <div aria-label="AI assessment">
+              <strong>
+                {run.review?.model || "Local AI"} ·{" "}
+                {run.review?.decision?.diagnosis ||
+                  (run.phase === "handoff" || run.review?.error
+                    ? "Review unavailable"
+                    : "Awaiting diagnosis")}
+              </strong>
+              {run.review?.decision && (
+                <>
+                  <p>
+                    {run.review.decision.component} ·{" "}
+                    {run.review.decision.action === "restore_link"
+                      ? "Requested link restoration"
+                      : "Requested human review"}
+                  </p>
+                  <p>Next check · {run.review.decision.next_check}</p>
+                  <details>
+                    <summary>
+                      Cited evidence at{" "}
+                      {new Date(
+                        run.review.observation.observed * 1000,
+                      ).toLocaleTimeString()}
+                    </summary>
+                    {run.review.decision.citations.map((key) => (
+                      <p key={key}>
+                        {key} ·{" "}
+                        {JSON.stringify(run.review!.observation.facts[key])}
+                      </p>
+                    ))}
+                  </details>
+                </>
+              )}
+              <p>Restoration attempts · {run.attempts}</p>
+            </div>
+          )}
+          {run.repair_command && (
+            <details>
+              <summary>Repair plan and verification</summary>
+              <pre>{run.repair_command}</pre>
+              <p>
+                Transient routing changes are possible. The controller rechecks
+                the target and requires two healthy routing and probe rounds for
+                closure.
+              </p>
+              {[
+                ["Before", run.before],
+                ["Latest", run.latest],
+              ].map(([k, flows]) => (
+                <p key={String(k)}>
+                  {String(k)} ·{" "}
+                  {((flows as Flow[]) || [])
+                    .map(
+                      (f) =>
+                        "Host " +
+                        (f.source === 1 ? "A" : "B") +
+                        " HTTP " +
+                        f.probes.HTTP +
+                        " / ICMP " +
+                        f.probes.ICMP,
+                    )
+                    .join(" · ")}
+                </p>
+              ))}
+            </details>
+          )}
           <div className="stats">
             {[
               ["Detection", run.metrics.detection_s],
@@ -265,11 +402,7 @@ export function IncidentPanel({
           </details>
         </>
       )}
-      {!run && connected && (
-        <p>
-          No recorded incident.
-        </p>
-      )}
+      {!run && connected && <p>No recorded incident.</p>}
       {comparison.length > 0 && (
         <details>
           <summary>P1 link repair times</summary>

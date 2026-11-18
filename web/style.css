@@ -3,151 +3,305 @@
 }
 body {
   margin: 0;
-  background: #f1f4f3;
-  color: #18332e;
+  background: #fcfbfc;
+  color: #151518;
   font:
-    16px system-ui,
+    14px Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
 }
-header {
-  padding: 18px 4vw;
-  background: #12342d;
-  color: white;
+#root {
+  max-width: 1152px;
+  margin: auto;
+  padding: 0 clamp(8px, 2vw, 28px) 24px;
+}
+header,
+.brand,
+.fabric-head,
+.fabric-foot,
+nav,
+.incidentHeader,
+.presetRow,
+.stats,
+.chips,
+form {
   display: flex;
-  gap: 24px;
   align-items: center;
+  gap: 10px;
 }
-header strong {
-  font-size: 24px;
+header {
+  height: 65px;
 }
-header b,
-small {
-  font: 600 12px monospace;
-  letter-spacing: 1px;
+.brand {
+  margin-right: auto;
 }
-header span {
-  margin-left: auto;
+.brand > span {
+  font-size: 23px;
 }
-main {
-  padding: 32px 4vw;
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 18px;
+.brand strong {
+  font-size: 17px;
 }
-section,
-aside,
-footer {
-  background: white;
-  border: 1px solid #c7d4cf;
-  padding: 24px;
-  border-radius: 8px;
-  min-width: 0;
+.brand small,
+small,
+.kpis small {
+  display: block;
+  color: #5b5b62;
+  font-size: 11px;
 }
-footer {
-  grid-column: 1/-1;
+.brand small {
+  margin-top: 2px;
 }
-h1 {
-  font-size: 34px;
-  margin: 8px 0;
+.health,
+.tag,
+.warn {
+  font-size: 12px;
+  border-radius: 20px;
+  padding: 4px 9px;
 }
-h2 {
-  margin: 8px 0 16px;
+.health {
+  background: #edecef;
+  color: #595b60;
 }
-p {
-  line-height: 1.5;
-  color: #45615a;
+.healthy {
+  background: #d9f3e4;
+  color: #12703a;
 }
-.canvas {
-  height: 400px;
-  background: #f8fbfa;
+.degraded,
+.warn {
+  background: #ffeadf;
+  color: #924629;
 }
-.react-flow__node-default {
-  border-color: #618779;
-  font: 600 15px monospace;
-  padding: 14px;
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
 }
 button,
 select {
-  padding: 10px;
-  border: 1px solid #70867d;
-  border-radius: 4px;
-  font: inherit;
+  cursor: pointer;
+  border: 1px solid #dad9dc;
+  background: #fff;
+  border-radius: 7px;
+  padding: 6px 10px;
 }
-button {
-  margin: 10px;
-  background: #075d48;
-  color: white;
+button:hover:not(:disabled) {
+  background: #e9eee9;
 }
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
+  cursor: default;
 }
-hr {
+.settings {
   border: 0;
-  border-top: 1px solid #c7d4cf;
-  margin: 24px 0;
+  background: none;
+  font-size: 19px;
+  padding: 4px;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 8px 8px 17px;
+}
+.kpis strong {
+  display: block;
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.fabric,
+.drawer {
+  border: 1px solid #dedee1;
+  border-radius: 12px;
+}
+.fabric {
+  padding: 11px 9px;
+}
+.fabric-head,
+.fabric-foot {
+  justify-content: space-between;
+}
+.fabric h1,
+h2,
+h3 {
+  font-weight: 600;
+}
+.fabric h1 {
+  font-size: 15px;
+  margin: 0;
+}
+.canvas {
+  height: clamp(270px, 57vw, 450px);
+  margin: 7px 0;
+}
+.react-flow__node-default {
+  width: 116px;
+  padding: 8px 0;
+  border: 1.6px solid #359475;
+  border-radius: 12px;
+  background: #dcece5;
+  color: #21594b;
+  font-size: 16px;
+  box-shadow: none;
+}
+.react-flow__node-default span {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin-top: 3px;
+}
+.react-flow__node-default.host {
+  border-color: #8795bd;
+  background: #e3e7f5;
+  color: #35476c;
+}
+.host strong {
+  font-weight: 500;
+}
+.react-flow__node-default.impaired {
+  background: #f4eae2;
+  border-color: #c18b65;
+}
+.react-flow__node-default.pending {
+  background: #eef3fc;
+  border-style: dashed;
+  border-color: #5480bb;
+}
+.react-flow__handle {
+  opacity: 0;
+}
+.react-flow__attribution {
+  font-size: 7px;
+}
+.operator {
+  padding: 12px 10px 6px;
+}
+.operator h2,
+.drawer h2,
+.drawer h3 {
+  font-size: 15px;
+}
+.operator h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tag,
+.chips button {
+  background: #efeff0;
+  border: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.answer {
+  background: #f1f1f2;
+  padding: 12px;
+  border-radius: 8px;
+}
+.answer p {
+  margin: 5px 0 0;
+  white-space: pre-line;
+  font-size: 13px;
+  color: #505157;
+}
+.chips {
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.chips button {
+  border-radius: 12px;
+  padding: 4px 8px;
+}
+form {
+  border: 1px solid #d9d9dc;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+form input {
+  background: transparent;
+  border: 0;
+  min-width: 0;
+  flex: 1;
+  padding: 8px;
+}
+form button {
+  border: 0;
+  border-radius: 50%;
+  padding: 3px 7px;
+  font-size: 16px;
+}
+.drawer,
+nav {
+  margin: 10px 0;
+  padding: 10px;
+}
+.drawer summary,
+summary {
+  cursor: pointer;
+}
+.drawer summary {
+  font-weight: 550;
+}
+.drawer p {
+  line-height: 1.5;
 }
 pre {
-  font-size: 12px;
+  padding: 8px;
+  background: #f0f1f2;
   overflow: auto;
-}
-small {
-  color: #436d60;
-}
-@media (max-width: 800px) {
-  main {
-    grid-template-columns: 1fr;
-  }
-  header {
-    flex-wrap: wrap;
-  }
-  header span {
-    margin: 0;
-  }
-}
-header a {
-  color: white;
-}
-header select {
-  max-width: 250px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .incidents {
-  grid-column: 1/-1;
+  padding: 8px;
 }
 .incidentHeader,
 .presetRow,
 .stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
 }
-.incidentHeader h2,
-.incidentHeader h3 {
-  margin-right: auto;
-}
-.incidents button {
-  margin: 4px 0;
-}
-.stop {
-  color: #872a22;
-  background: white;
-}
 .stats {
-  gap: 28px;
+  gap: 20px;
 }
 .stats strong {
   display: block;
-  font: 600 19px monospace;
 }
-.incidents details {
-  margin: 12px 0;
+.incidentHeader h2 {
+  margin-right: auto;
 }
-.incidents summary {
-  cursor: pointer;
+a {
+  color: #246c57;
 }
-.incidents li {
-  margin: 7px 0;
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
 }
-.incidents time {
-  font-family: monospace;
+.impact-grid div {
+  padding: 10px;
+  background: #f2f3f4;
+  border-radius: 7px;
+}
+.impact-grid b {
+  display: block;
+}
+.bar {
+  background: #6390ed;
+  height: 9px;
+  border-radius: 5px;
+  min-width: 1px;
+}
+.bar.ai {
+  background: #63bb83;
+}
+nav {
+  flex-wrap: wrap;
+}
+.warn:empty {
+  display: none;
 }
