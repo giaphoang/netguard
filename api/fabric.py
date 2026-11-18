@@ -183,15 +183,17 @@ def timeline():
 
 
 @app.get("/api/recording")
-def recording(incident: bool = False):
-    if incident:
-        run = json.loads((FIXTURE.parent / "p1-link.json").read_text())
+def recording(incident: bool = False, handoff: bool = False):
+    if incident or handoff:
+        filename = "p2-handoff.json" if handoff else "p1-link.json"
+        run = json.loads((FIXTURE.parent / filename).read_text())
         frames = []
         for event in run["events"]:
             sample = next(s for s in reversed(run["samples"]) if s["observed"] <= event["time"])
             frames.append(
                 {
                     "label": event["phase"].capitalize(),
+                    "review": run.get("review") if event["phase"] == "handoff" else None,
                     "reason": event["reason"],
                     "eventTime": event["time"],
                     "snapshot": {

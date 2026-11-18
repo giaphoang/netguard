@@ -32,6 +32,7 @@ function App() {
   const [frames, setFrames] = useState<
       {
         label: string;
+        review?: Run["review"];
         reason?: string;
         eventTime?: number;
         snapshot: Sample;
@@ -48,8 +49,9 @@ function App() {
     async function connect() {
       const d = await (await fetch("/api/state")).json();
       if (!alive) return;
-      if (location.search === "?replay" || d.mode === "RECORDED REPLAY") {
-        const f = await (await fetch("/api/recording?incident=true")).json();
+      const query = new URLSearchParams(location.search);
+      if (query.has("replay") || d.mode === "RECORDED REPLAY") {
+        const f = await (await fetch(query.get("replay") === "handoff" ? "/api/recording?handoff=true" : "/api/recording?incident=true")).json();
         if (!alive) return;
         setMode("RECORDED REPLAY");
         setFrames(f);
@@ -196,7 +198,8 @@ function App() {
       <header>
         <strong>NetGuard</strong>
         <b>{mode}</b>
-        {!frames.length && <a href="?replay">Replay demo</a>}
+        <a href="?replay">Replay link repair</a>
+        <a href="?replay=handoff">Replay AI handoff</a>
         {frames.length > 0 && (
           <select
             aria-label="Recording stage"
@@ -316,6 +319,12 @@ function App() {
           <section className="incidents">
             <h2>Recorded incident · {frames[frame].label}</h2>
             <p>{frames[frame].reason}</p>
+            {frames[frame].review?.decision && <details>
+              <summary>Model diagnosis and cited evidence</summary>
+              <p>{frames[frame].review?.model} · {frames[frame].review?.decision?.diagnosis}</p>
+              {frames[frame].review?.decision?.citations.map(key =>
+                <p key={key}>{key} · {JSON.stringify(frames[frame].review?.observation.facts[key])}</p>)}
+            </details>}
             <p>
               {frames[frame].probes
                 .map(
