@@ -7,12 +7,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-VERSION = "fabric-triage-v1"
+VERSION = "fabric-triage-v2"
 MODEL = "qwen2.5:1.5b"
 PROMPT = """Diagnose one observation from a two-spine lab. Each link record reports
 the leaf interface state and both BGP peer observations. Each host record reports
 its outbound probes and candidate spine numbers. A DOWN interface indicates a link
-fault. An UP interface with a failed peer indicates a BGP fault. Failed HTTP with
+fault even when host probes also fail during reconvergence. Classify the DOWN
+link first and cite it. If any transit interface or peer is missing, hand off. An UP interface with a failed peer indicates a BGP fault. Failed HTTP with
 healthy routing suggests an endpoint fault at the destination. Missing evidence
 or conflicting symptoms require unknown and handoff. Cite exact observation keys.
 The only supported repair is restoring leaf-1/spine-1 after a physical link fault.
@@ -61,10 +62,14 @@ def model_name():
 
 
 def assess(observation):
+    schema = Decision.model_json_schema()
+    keys = list(observation["facts"])
+    schema["properties"]["citations"]["items"]["enum"] = keys
+    schema["properties"]["component"]["enum"] = [*keys, "unknown"]
     request = {
         "model": model_name(),
         "stream": False,
-        "format": Decision.model_json_schema(),
+        "format": schema,
         "options": {"temperature": 0, "num_predict": 256},
         "messages": [
             {"role": "system", "content": PROMPT},
