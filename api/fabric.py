@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
+from .controls import router as control_routes, running_controls
+
 from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -115,15 +117,17 @@ async def lifespan(app: FastAPI):
         app.state.snapshot = Snapshot.model_validate_json(FIXTURE.read_text())
         yield
     else:
-        task = asyncio.create_task(poll(app))
-        try:
-            yield
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        async with running_controls(app, DB):
+            task = asyncio.create_task(poll(app))
+            try:
+                yield
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(control_routes)
 
 
 @app.get("/api/state")
