@@ -7,7 +7,7 @@ import subprocess
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -31,6 +31,15 @@ async def monitor(controller, done):
         await asyncio.sleep(1)
 
 
+async def deadlines(controller, done):
+    while not done.is_set():
+        try:
+            await asyncio.to_thread(controller.expire_simulation)
+        except Exception:
+            logging.exception("Timed restoration needs operator review")
+        await asyncio.sleep(0.25)
+
+
 @asynccontextmanager
 async def running_controls(app, database):
     database.parent.mkdir(parents=True, exist_ok=True)
@@ -41,11 +50,12 @@ async def running_controls(app, database):
         app.state.token = secrets.token_urlsafe(32)
         done = asyncio.Event()
         task = asyncio.create_task(monitor(controller, done))
+        timer = asyncio.create_task(deadlines(controller, done))
         try:
             yield
         finally:
             done.set()
-            await task
+            await asyncio.gather(task, timer)
             app.state.controller = None
 
 
@@ -104,8 +114,15 @@ def perform(fn, *args):
 
 
 @router.post("/api/scenarios/{scenario}/inject")
-def inject(scenario: Scenario, ai: bool = False, controller=Depends(authorized)):
-    return perform(controller.inject, scenario, ai)
+def inject(
+    scenario: Scenario,
+    ai: bool = False,
+    leaf: int = Query(1, ge=1, le=2),
+    spine: int = Query(1, ge=1, le=2),
+    duration: int | None = Query(None, ge=5, le=120),
+    controller=Depends(authorized),
+):
+    return perform(controller.inject, scenario, ai, leaf, spine, duration)
 
 
 @router.post("/api/scenarios/reset")
