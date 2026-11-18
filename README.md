@@ -2,6 +2,8 @@
 
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
+The [post-P1 plan](docs/AI_PLAN.md) covers AI-assisted incident response and prompt-driven fabric provisioning.
+
 ## Incident walkthrough
 
 On the Ubuntu guest, open the tunneled dashboard at http://127.0.0.1:3001. Trace traffic, inject the leaf–spine link failure, watch BGP fail over, and approve restoration of redundancy. The BGP-session and endpoint presets exercise manual handoff. Auto-repair is off by default. [P1 controls, measurements and replay](docs/P1_INCIDENTS.md)
