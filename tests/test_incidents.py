@@ -164,3 +164,21 @@ def test_replaced_target_requires_healthy_observation_and_never_actuates(tmp_pat
     restarted.step()
     restarted.step()
     assert restarted.run["phase"] == "resolved" and restarted.run["attempts"] == 0
+
+
+def test_unavailable_probe_does_not_start_a_loss_clock(tmp_path, monkeypatch):
+    c = Controller(tmp_path / "run")
+    monkeypatch.setattr(incidents.presets, "identify", lambda _: Target(container="test"))
+    monkeypatch.setattr(incidents.presets, "fault_present", lambda *_: False)
+    monkeypatch.setattr(incidents.presets, "change", lambda *_: None)
+    monkeypatch.setattr(incidents, "observe", lambda: sample())
+    c.inject("link")
+    unknown = sample(True)
+    unknown["flows"][0]["probes"]["HTTP"] = "unavailable"
+    monkeypatch.setattr(incidents, "observe", lambda: unknown)
+    c.step()
+    assert not c.run["loss"]
+    monkeypatch.setattr(incidents, "observe", lambda: sample(True))
+    c.step()
+    c.step()
+    assert "traffic_recovery_s" not in c.run["metrics"]

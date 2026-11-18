@@ -239,7 +239,7 @@ class Controller:
             now = sample["observed"]
             elapsed = now - (r["t0"] or now)
             ok = reachable(sample)
-            if not ok:
+            if any("failed" in f["probes"].values() for f in sample["flows"]):
                 r["loss"] = True
             r["streak"] = r["streak"] + 1 if ok else 0
             metrics = r["metrics"]
