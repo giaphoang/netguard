@@ -39,6 +39,7 @@ function App() {
       }[]
     >([]),
     [frame, setFrame] = useState(0);
+  const [faultTarget, setFaultTarget] = useState("");
   const [incident, setIncident] = useState<Run>();
   const [history, setHistory] = useState<string[]>([]);
   useEffect(() => {
@@ -251,7 +252,12 @@ function App() {
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
-              onNodeClick={(_, n) => select(n.id)}
+              onNodeClick={(_, n) => {
+                select(n.id);
+                setFaultTarget(n.id);
+              }}
+              onEdgeClick={(_, edge) => setFaultTarget(edge.id)}
+              onPaneClick={() => setFaultTarget("")}
               fitView
               nodesConnectable={false}
             >
@@ -262,7 +268,7 @@ function App() {
           <p>
             Links show configured adjacency. Blue shows candidate next hops from
             the source leaf’s kernel route at trace time. Session labels report
-            the leaf’s BGP observation.
+            the leaf’s BGP observation. Select the spine-1 to leaf-1 link or host-2 to configure a fault.
           </p>
         </section>
         <aside>
@@ -325,7 +331,7 @@ function App() {
             </p>
           </section>
         )}
-        {mode === "LOCAL LAB / LIVE" && <IncidentPanel onRun={setIncident} />}
+        {mode === "LOCAL LAB / LIVE" && <IncidentPanel onRun={setIncident} target={faultTarget} />}
         <footer>
           <small>COLLECTOR LOG</small>
           <p>
