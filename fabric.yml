@@ -1,0 +1,141 @@
+name: netguard
+services:
+  spine-1:
+    networks:
+      s1l1:
+        ipv4_address: 10.211.11.1
+      s1l2:
+        ipv4_address: 10.211.12.1
+    cap_add:
+    - NET_ADMIN
+    - SYS_ADMIN
+    image: quay.io/frrouting/frr:10.1.1
+    sysctls:
+      net.ipv4.ip_forward: '1'
+    volumes:
+    - ./configs/frr/edge-malmo/vtysh.conf:/etc/frr/vtysh.conf:ro
+    - ./lab/daemons:/etc/frr/daemons:ro
+    - ./lab/spine-1.conf:/etc/frr/frr.conf:ro
+  leaf-1:
+    networks:
+      s1l1:
+        ipv4_address: 10.211.11.2
+      access1:
+        ipv4_address: 10.212.1.1
+      s2l1:
+        ipv4_address: 10.211.21.2
+    cap_add:
+    - NET_ADMIN
+    - SYS_ADMIN
+    image: quay.io/frrouting/frr:10.1.1
+    sysctls:
+      net.ipv4.ip_forward: '1'
+    volumes:
+    - ./configs/frr/edge-malmo/vtysh.conf:/etc/frr/vtysh.conf:ro
+    - ./lab/daemons:/etc/frr/daemons:ro
+    - ./lab/leaf-1.conf:/etc/frr/frr.conf:ro
+  leaf-2:
+    networks:
+      s1l2:
+        ipv4_address: 10.211.12.2
+      s2l2:
+        ipv4_address: 10.211.22.2
+      access2:
+        ipv4_address: 10.212.2.1
+    cap_add:
+    - NET_ADMIN
+    - SYS_ADMIN
+    image: quay.io/frrouting/frr:10.1.1
+    sysctls:
+      net.ipv4.ip_forward: '1'
+    volumes:
+    - ./configs/frr/edge-malmo/vtysh.conf:/etc/frr/vtysh.conf:ro
+    - ./lab/daemons:/etc/frr/daemons:ro
+    - ./lab/leaf-2.conf:/etc/frr/frr.conf:ro
+  host-1:
+    networks:
+      access1:
+        ipv4_address: 10.212.1.2
+    cap_add:
+    - NET_ADMIN
+    image: busybox:1.36.1
+    command:
+    - sh
+    - -ec
+    - ip route replace 10.212.2.0/28 via 10.212.1.1; exec busybox httpd -f -p 8080
+      -h /srv
+    volumes:
+    - ./demo-sites/malmo:/srv:ro
+  spine-2:
+    networks:
+      s2l1:
+        ipv4_address: 10.211.21.1
+      s2l2:
+        ipv4_address: 10.211.22.1
+    cap_add:
+    - NET_ADMIN
+    - SYS_ADMIN
+    image: quay.io/frrouting/frr:10.1.1
+    sysctls:
+      net.ipv4.ip_forward: '1'
+    volumes:
+    - ./configs/frr/edge-malmo/vtysh.conf:/etc/frr/vtysh.conf:ro
+    - ./lab/daemons:/etc/frr/daemons:ro
+    - ./lab/spine-2.conf:/etc/frr/frr.conf:ro
+  host-2:
+    networks:
+      access2:
+        ipv4_address: 10.212.2.2
+    cap_add:
+    - NET_ADMIN
+    image: busybox:1.36.1
+    command:
+    - sh
+    - -ec
+    - ip route replace 10.212.1.0/28 via 10.212.2.1; exec busybox httpd -f -p 8080
+      -h /srv
+    volumes:
+    - ./demo-sites/malmo:/srv:ro
+networks:
+  s1l1:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.211.11.0/28
+        gateway: 10.211.11.14
+  s1l2:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.211.12.0/28
+        gateway: 10.211.12.14
+  access1:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.212.1.0/28
+        gateway: 10.212.1.14
+  s2l1:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.211.21.0/28
+        gateway: 10.211.21.14
+  s2l2:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.211.22.0/28
+        gateway: 10.211.22.14
+  access2:
+    internal: true
+    driver: macvlan
+    ipam:
+      config:
+      - subnet: 10.212.2.0/28
+        gateway: 10.212.2.14

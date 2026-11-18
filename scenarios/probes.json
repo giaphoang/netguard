@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-11-18T17:55:17.176283+00:00",
+    "source": 1,
+    "destination": "10.212.2.2",
+    "probes": {
+      "ICMP": "success",
+      "HTTP": "success"
+    }
+  },
+  {
+    "timestamp": "2026-11-18T17:55:17.284316+00:00",
+    "source": 2,
+    "destination": "10.212.1.2",
+    "probes": {
+      "ICMP": "success",
+      "HTTP": "success"
+    }
+  }
+]
