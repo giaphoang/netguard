@@ -110,7 +110,7 @@ def test_recorded_walkthrough_and_comparison():
     next(e for e in reset["events"] if e["phase"] == "applying")["reason"] = (
         "reset: RESTORE_INJECTED_LINK"
     )
-    rows = comparison([run, reset])
+    rows = comparison([run, reset, {**run, "ai": True}])
     assert rows[0]["n"] == 1 and rows[0]["automatic"]
 
 
@@ -197,3 +197,47 @@ def test_unavailable_probe_does_not_start_a_loss_clock(tmp_path, monkeypatch):
     c.step()
     c.step()
     assert "traffic_recovery_s" not in c.run["metrics"]
+
+
+@pytest.mark.parametrize("case", ["missing", "wrong_target", "unavailable", "stop"])
+def test_ai_cannot_restore_on_unsupported_or_stale_evidence(tmp_path, monkeypatch, case):
+    c = Controller(tmp_path / "run")
+    down = False
+
+    def change(_, __, inject):
+        nonlocal down
+        assert inject, "Unexpected restoration"
+        down = True
+
+    def observe():
+        reading = sample(down)
+        if down and case == "missing":
+            reading["routers"][0]["peers"] = None
+        return reading
+
+    def assess(observation):
+        if case == "unavailable":
+            raise OSError("Model offline")
+        if case == "stop":
+            c.emergency_stop(True)
+        target = "leaf-1/spine-2" if case == "wrong_target" else "leaf-1/spine-1"
+        return incidents.advisor.Decision(
+            diagnosis="link",
+            component=target,
+            action="restore_link",
+            citations=[target],
+            next_check="Inspect the interface and its peer.",
+        )
+
+    monkeypatch.setattr(incidents.presets, "identify", lambda _: Target(container="test"))
+    monkeypatch.setattr(incidents.presets, "fault_present", lambda *_: down)
+    monkeypatch.setattr(incidents.presets, "change", change)
+    monkeypatch.setattr(incidents, "observe", observe)
+    monkeypatch.setattr(incidents.advisor, "assess", assess)
+    c.auto = True
+    c.inject("link", ai=True)
+    c.step()
+    c.step()
+    assert down and c.run["phase"] == "handoff" and c.run["attempts"] == 0
+    with pytest.raises(ValueError):
+        c.restore("approved", c.run["id"])

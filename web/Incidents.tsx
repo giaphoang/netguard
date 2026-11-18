@@ -189,7 +189,7 @@ export function IncidentPanel({
           </div>
           <p>{run.events[run.events.length - 1]?.reason}</p>
           {run.ai && <div aria-label="AI assessment">
-            <strong>{run.review?.model || "Local AI"} · {run.review?.decision?.diagnosis || "Awaiting diagnosis"}</strong>
+            <strong>{run.review?.model || "Local AI"} · {run.review?.decision?.diagnosis || (run.phase === "handoff" || run.review?.error ? "Review unavailable" : "Awaiting diagnosis")}</strong>
             {run.review?.decision && <>
               <p>{run.review.decision.component} · {run.review.decision.action === "restore_link" ? "Requested link restoration" : "Requested human review"}</p>
               <p>Next check · {run.review.decision.next_check}</p>
@@ -272,7 +272,7 @@ export function IncidentPanel({
       )}
       {comparison.length > 0 && (
         <details>
-          <summary>Measured link repair times</summary>
+          <summary>P1 link repair times</summary>
           <p>
             Injection confirmation to verified closure. Automatic and approved
             link restores only.

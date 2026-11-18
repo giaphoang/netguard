@@ -24,6 +24,8 @@ def summaries(db):
 def comparison(runs):
     groups = {False: [], True: []}
     for r in runs:
+        if r.get("ai"):
+            continue
         if r["scenario"] == "link" and r["phase"] == "resolved" and r["attempts"] == 1:
             expected = "automatic" if r["auto"] else "approved"
             if any(e["reason"] == expected + ": RESTORE_INJECTED_LINK" for e in r["events"]):
