@@ -51,6 +51,18 @@ def identify(scenario: Scenario) -> Target:
         or not info["State"]["Running"]
     ):
         raise ValueError("Lab identity or network membership mismatch")
+    attached = info["NetworkSettings"]["Networks"]
+    inspected = json.loads(
+        docker("network", "inspect", *(attached[n]["NetworkID"] for n in sorted(networks)))
+    )
+    if {n["Name"] for n in inspected} != networks or any(
+        not n["Internal"]
+        or n["Driver"] != "macvlan"
+        or (n.get("Options") or {}).get("parent")
+        or (n.get("Labels") or {}).get("com.docker.compose.project") != "netguard"
+        for n in inspected
+    ):
+        raise ValueError("Preset requires isolated parentless NetGuard networks")
     cid = info["Id"]
     if not re.fullmatch("[a-f0-9]{64}", cid):
         raise ValueError("Invalid container identity")

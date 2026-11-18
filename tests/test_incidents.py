@@ -97,3 +97,44 @@ def test_recorded_walkthrough_and_comparison():
     )
     rows = comparison([run, reset])
     assert rows[0]["n"] == 1 and rows[0]["automatic"]
+
+
+@pytest.mark.parametrize(
+    "override", [{"Internal": False}, {"Options": {"parent": "eth0"}}, {"Driver": "bridge"}]
+)
+def test_network_boundary_rejects_misconfigured_target(monkeypatch, override):
+    from api import presets
+
+    name = "netguard_access2"
+    info = {
+        "Config": {
+            "Labels": {
+                "com.docker.compose.project": "netguard",
+                "com.docker.compose.service": "host-2",
+                "com.docker.compose.project.config_files": str(presets.ROOT / "fabric.yml"),
+            }
+        },
+        "NetworkSettings": {"Networks": {name: {"NetworkID": "net-id"}}},
+        "HostConfig": {"Privileged": False},
+        "State": {"Running": True},
+    }
+    net = {
+        "Name": name,
+        "Driver": "macvlan",
+        "Internal": True,
+        "Options": {},
+        "Labels": {"com.docker.compose.project": "netguard"},
+        **override,
+    }
+
+    def read(*args):
+        if args[0] == "context":
+            return "unix:///var/run/docker.sock"
+        if args[0] == "inspect":
+            return json.dumps([info])
+        assert args == ("network", "inspect", "net-id")
+        return json.dumps([net])
+
+    monkeypatch.setattr(presets, "docker", read)
+    with pytest.raises(ValueError, match="isolated"):
+        presets.identify("endpoint")
