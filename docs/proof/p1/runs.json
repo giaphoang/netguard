@@ -1,0 +1,796 @@
+[
+  {
+    "scenario": "bgp",
+    "automatic": false,
+    "id": "08b0e56f97fc43b790a842859445dc5b",
+    "events": [
+      {
+        "time": 1795030706.9334452,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030707.079184,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030707.6790402,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is UP, its spine-1 peer is Idle (Admin), and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030707.7003121,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is UP, its spine-1 peer is Idle (Admin), and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030707.720492,
+        "phase": "handoff",
+        "reason": "Manual preset reset required. Only injected links are eligible for repair."
+      },
+      {
+        "time": 1795030707.753229,
+        "phase": "applying",
+        "reason": "reset: RESET_BGP_PRESET"
+      },
+      {
+        "time": 1795030707.9389894,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030711.4844987,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 0.5998020172119141,
+      "closure_s": 4.405281066894531
+    }
+  },
+  {
+    "scenario": "endpoint",
+    "automatic": false,
+    "id": "1332b5007c534832878ca6868ade26ea",
+    "events": [
+      {
+        "time": 1795030711.889942,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030711.9684951,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030714.6929107,
+        "phase": "detected",
+        "reason": "Host 2 HTTP probe failed while all routing sessions remained established."
+      },
+      {
+        "time": 1795030714.7156553,
+        "phase": "diagnosed",
+        "reason": "Host 2 HTTP probe failed while all routing sessions remained established."
+      },
+      {
+        "time": 1795030714.7335546,
+        "phase": "handoff",
+        "reason": "Manual preset reset required. Only injected links are eligible for repair."
+      },
+      {
+        "time": 1795030714.750328,
+        "phase": "applying",
+        "reason": "reset: RESUME_ENDPOINT"
+      },
+      {
+        "time": 1795030714.844441,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030717.2329638,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 2.724318742752075,
+      "traffic_recovery_s": 5.264425039291382,
+      "closure_s": 5.264425039291382
+    }
+  },
+  {
+    "scenario": "bgp",
+    "automatic": false,
+    "id": "d21808c7c5364db2a5f8869f87c6212f",
+    "events": [
+      {
+        "time": 1795030717.5856643,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030717.7150676,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030718.4979503,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is UP, its spine-1 peer is Idle (Admin), and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030718.516412,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is UP, its spine-1 peer is Idle (Admin), and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030718.529446,
+        "phase": "handoff",
+        "reason": "Manual preset reset required. Only injected links are eligible for repair."
+      },
+      {
+        "time": 1795030718.5573921,
+        "phase": "applying",
+        "reason": "reset: RESET_BGP_PRESET"
+      },
+      {
+        "time": 1795030718.8278544,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030722.2974026,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 0.7828443050384521,
+      "closure_s": 4.582303524017334
+    }
+  },
+  {
+    "scenario": "endpoint",
+    "automatic": false,
+    "id": "f3e9efdab5b9467baddb8c4e19ce2c14",
+    "events": [
+      {
+        "time": 1795030722.6163278,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030722.6898248,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030725.5418649,
+        "phase": "detected",
+        "reason": "Host 2 HTTP probe failed while all routing sessions remained established."
+      },
+      {
+        "time": 1795030725.5636373,
+        "phase": "diagnosed",
+        "reason": "Host 2 HTTP probe failed while all routing sessions remained established."
+      },
+      {
+        "time": 1795030725.5826674,
+        "phase": "handoff",
+        "reason": "Manual preset reset required. Only injected links are eligible for repair."
+      },
+      {
+        "time": 1795030725.6056528,
+        "phase": "applying",
+        "reason": "reset: RESUME_ENDPOINT"
+      },
+      {
+        "time": 1795030725.7108998,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030728.1059043,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 2.8519153594970703,
+      "traffic_recovery_s": 5.416048288345337,
+      "closure_s": 5.416048288345337
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "fa177f789bf54494bf5f69b8f708c966",
+    "events": [
+      {
+        "time": 1795030728.5374343,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030728.6404672,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030733.3416731,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030733.3670182,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030739.2326148,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030739.3099375,
+        "phase": "handoff",
+        "reason": "Operator rejected repair. Manual reset required."
+      },
+      {
+        "time": 1795030739.3356168,
+        "phase": "applying",
+        "reason": "reset: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030739.5081491,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030743.1436641,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.701144218444824,
+      "traffic_recovery_s": 10.592096328735352,
+      "verified_failover_s": 10.592096328735352,
+      "closure_s": 14.503166437149048
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "7b27a068d6b642f1ac66d4f7f2fcd94d",
+    "events": [
+      {
+        "time": 1795030743.7667475,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030743.868245,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030748.361708,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030748.3778589,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030755.5168376,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030755.7522795,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030755.9312904,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030759.3639169,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.49338173866272,
+      "traffic_recovery_s": 11.648552656173706,
+      "verified_failover_s": 11.648552656173706,
+      "closure_s": 15.495608806610107
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "6b46efea57d841eda619b4890e15f684",
+    "events": [
+      {
+        "time": 1795030759.8364224,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030759.9616299,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030764.5925279,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030764.610837,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030771.4889216,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030771.899159,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030772.089375,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030775.546248,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.630810499191284,
+      "traffic_recovery_s": 11.527245998382568,
+      "verified_failover_s": 11.527245998382568,
+      "closure_s": 15.584577322006226
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "5fcb5462fa084792b8e8fe169043ad8d",
+    "events": [
+      {
+        "time": 1795030776.0628428,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030776.1856904,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030780.8027773,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030780.8158703,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030787.6667626,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030787.9094143,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030788.0792255,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030791.6327236,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.617027282714844,
+      "traffic_recovery_s": 11.481031894683838,
+      "verified_failover_s": 11.481031894683838,
+      "closure_s": 15.446997880935669
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "c129a94aac354b7ca0f63afb2f030f0b",
+    "events": [
+      {
+        "time": 1795030792.0038617,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030792.1167858,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030797.0052102,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030797.0366092,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030802.9360533,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030803.1506293,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030803.316772,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030806.992053,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.888284206390381,
+      "traffic_recovery_s": 10.819220304489136,
+      "verified_failover_s": 10.819220304489136,
+      "closure_s": 14.874826192855835
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": false,
+    "id": "28a11490d59243e096accb22fa42fa43",
+    "events": [
+      {
+        "time": 1795030807.5600247,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030807.687023,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030812.24995,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030812.2625458,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030819.1118321,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030819.4034915,
+        "phase": "applying",
+        "reason": "approved: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030819.6051333,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030823.115142,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.562875270843506,
+      "traffic_recovery_s": 11.424760341644287,
+      "verified_failover_s": 11.424760341644287,
+      "closure_s": 15.428033351898193
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": true,
+    "id": "9a13632178254a789c50166f190d1a61",
+    "events": [
+      {
+        "time": 1795030824.0338612,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030824.1571639,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030828.3636343,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030828.3795667,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030835.1309931,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030835.3420327,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030835.5128531,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030838.259891,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.206321477890015,
+      "traffic_recovery_s": 10.973781108856201,
+      "verified_failover_s": 10.973781108856201,
+      "closure_s": 14.102695941925049
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": true,
+    "id": "f776d1c7b8db4a1189bc639c5749a8ca",
+    "events": [
+      {
+        "time": 1795030838.7053015,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030838.81244,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030844.3866928,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030844.4131193,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030851.2187054,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030851.4366105,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030851.63181,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030854.3960347,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 5.573964357376099,
+      "traffic_recovery_s": 12.406222820281982,
+      "verified_failover_s": 12.406222820281982,
+      "closure_s": 15.583528280258179
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": true,
+    "id": "6c1dda9e28c6434ebf56c7312930e600",
+    "events": [
+      {
+        "time": 1795030854.8363948,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030854.9414613,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030859.5980403,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030859.6190126,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030866.4044378,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030866.6225715,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030866.795014,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030870.6881485,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.65647292137146,
+      "traffic_recovery_s": 11.462938785552979,
+      "verified_failover_s": 11.462938785552979,
+      "closure_s": 15.74665379524231
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": true,
+    "id": "76789cde359b43f885e5cdc5bea22255",
+    "events": [
+      {
+        "time": 1795030871.1116183,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030871.2245631,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030875.908747,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030875.9265406,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030881.7179945,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030881.9250717,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030882.0926728,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030885.8899827,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.684048652648926,
+      "traffic_recovery_s": 10.493391990661621,
+      "verified_failover_s": 10.493391990661621,
+      "closure_s": 14.665387868881226
+    }
+  },
+  {
+    "scenario": "link",
+    "automatic": true,
+    "id": "999679d927a5470cb89bb9865ed4c88c",
+    "events": [
+      {
+        "time": 1795030886.3306608,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795030886.4474745,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795030891.0693088,
+        "phase": "detected",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030891.0845046,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 transit interface is DOWN, its spine-1 peer is Idle, and its remote prefix uses spine-2."
+      },
+      {
+        "time": 1795030897.9363718,
+        "phase": "proposed",
+        "reason": "BGP restored traffic via spine-2. Restore the injected link to regain redundancy."
+      },
+      {
+        "time": 1795030898.1649652,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795030898.3344483,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795030902.1091075,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "detection_s": 4.621765375137329,
+      "traffic_recovery_s": 11.488854885101318,
+      "verified_failover_s": 11.488854885101318,
+      "closure_s": 15.661600828170776
+    }
+  }
+]
