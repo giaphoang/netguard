@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import platform
 import re
 import sqlite3
 import subprocess
@@ -12,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from . import measurements, operator, provision
+from . import measurements, operator, provision, traffic
 from .controls import router as control_routes, running_controls
 
 from fastapi import FastAPI, Query
@@ -107,10 +108,15 @@ def record(sample: Snapshot) -> None:
 
 
 async def poll(app: FastAPI) -> None:
+    previous = {}
     while True:
         snapshot, *flows = await asyncio.gather(
             asyncio.to_thread(collect), *(asyncio.to_thread(trace, i) for i in (1, 2))
         )
+        leaves = [int(r.name.split("-")[1]) for r in snapshot.routers if r.name.startswith("leaf-")]
+        current = await asyncio.to_thread(traffic.collect, leaves)
+        app.state.traffic = traffic.rates(previous, current)
+        previous = current
         app.state.snapshot = snapshot
         app.state.flows = flows
         await asyncio.to_thread(record, app.state.snapshot)
@@ -121,6 +127,7 @@ async def poll(app: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     app.state.snapshot = None
     app.state.flows = []
+    app.state.traffic = {}
     if REPLAY:
         app.state.snapshot = Snapshot.model_validate_json(FIXTURE.read_text())
         yield
@@ -144,6 +151,12 @@ def state():
     return {
         "mode": "RECORDED REPLAY" if REPLAY else "LOCAL LAB / LIVE",
         "snapshot": app.state.snapshot,
+        "environment": platform.freedesktop_os_release().get("NAME", "Linux")
+        + " "
+        + platform.machine()
+        if platform.system() == "Linux" and os.path.exists("/etc/os-release")
+        else platform.system() + " " + platform.machine(),
+        "traffic": app.state.traffic,
         "flows": app.state.flows,
     }
 
@@ -237,7 +250,11 @@ async def events():
             sample = app.state.snapshot
             if sample and sample.timestamp != last:
                 last = sample.timestamp
-                payload = {**sample.model_dump(), "flows": app.state.flows}
+                payload = {
+                    **sample.model_dump(),
+                    "flows": app.state.flows,
+                    "traffic": app.state.traffic,
+                }
                 yield f"data: {json.dumps(payload)}\n\n"
             await asyncio.sleep(1)
 
