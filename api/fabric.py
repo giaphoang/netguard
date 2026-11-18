@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from . import measurements
+from . import measurements, operator, provision
 from .controls import router as control_routes, running_controls
 
 from fastapi import FastAPI, Query
@@ -82,7 +82,9 @@ def router(node: str) -> Router:
 
 def collect() -> Snapshot:
     with ThreadPoolExecutor(max_workers=4) as pool:
-        routers = list(pool.map(router, ROUTERS))
+        plan = provision.latest(DB)
+        leaves = plan["leaves"] if plan and plan["phase"] in provision.ACTIVE else []
+        routers = list(pool.map(router, [*ROUTERS, *(f"leaf-{n}" for n in leaves)]))
     return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers)
 
 
@@ -134,6 +136,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(control_routes)
+app.include_router(operator.router)
 
 
 @app.get("/api/state")
@@ -153,6 +156,13 @@ def fabric_metrics():
         measurements.export(DB, app.state.snapshot, app.state.flows),
         media_type="text/plain; version=0.0.4",
     )
+
+
+@app.get("/api/impact")
+def impact():
+    if REPLAY:
+        return {"recorded": True}
+    return measurements.impact(DB)
 
 
 @app.get("/api/comparison")

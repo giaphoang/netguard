@@ -9,13 +9,13 @@ dashboard:
 	cd web && npm run build
 
 demo-up: dashboard
-	@ctx=$$(scripts/local-context) && docker --context "$$ctx" compose -f fabric.yml up -d && NETGUARD_CONTEXT="$$ctx" $(PY) -m uvicorn api.fabric:app --host 127.0.0.1 --port 3000 --timeout-graceful-shutdown 5
+	@ctx=$$(scripts/local-context) && NETGUARD_CONTEXT="$$ctx" $(PY) -m scripts.fabric_compose up && NETGUARD_CONTEXT="$$ctx" $(PY) -m uvicorn api.fabric:app --host 127.0.0.1 --port 3000 --timeout-graceful-shutdown 5
 
 demo-down:
-	@ctx=$$(scripts/local-context) && docker --context "$$ctx" compose -f fabric.yml down
+	@ctx=$$(scripts/local-context) && NETGUARD_CONTEXT="$$ctx" $(PY) -m scripts.fabric_compose down
 
 demo-reset:
-	@ctx=$$(scripts/local-context) && docker --context "$$ctx" compose -f fabric.yml up -d --force-recreate
+	@ctx=$$(scripts/local-context) && NETGUARD_CONTEXT="$$ctx" $(PY) -m scripts.fabric_compose reset
 
 demo-replay: dashboard
 	NETGUARD_REPLAY=1 $(PY) -m uvicorn api.fabric:app --host 127.0.0.1 --port 3000 --timeout-graceful-shutdown 5

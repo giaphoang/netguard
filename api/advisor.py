@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-VERSION = "fabric-triage-v2"
+VERSION = "fabric-triage-v3"
 MODEL = "qwen2.5:1.5b"
 PROMPT = """Diagnose one observation from a two-spine lab. Each link record reports
 the leaf interface state and both BGP peer observations. Each host record reports
@@ -16,7 +16,8 @@ fault even when host probes also fail during reconvergence. Classify the DOWN
 link first and cite it. If any transit interface or peer is missing, hand off. An UP interface with a failed peer indicates a BGP fault. Failed HTTP with
 healthy routing suggests an endpoint fault at the destination. Missing evidence
 or conflicting symptoms require unknown and handoff. Cite exact observation keys.
-The only supported repair is restoring leaf-1/spine-1 after a physical link fault.
+A single DOWN transit interface with established alternate peers may warrant restore_link.
+Name the actual leaf/spine pair in the observation. The controller checks eligibility.
 Other faults require handoff. Identify the affected component using its observation
 key (for an endpoint, use the destination host). Give the operator one next check."""
 
@@ -33,7 +34,7 @@ class Decision(BaseModel):
 def evidence(sample):
     routers = {r["name"]: r for r in sample["routers"]}
     facts = {}
-    for leaf in (1, 2):
+    for leaf in (int(name.split("-")[1]) for name in routers if name.startswith("leaf-")):
         local = routers.get(f"leaf-{leaf}", {})
         for spine in (1, 2):
             net = f"10.211.{10 * spine + leaf}"
@@ -66,14 +67,30 @@ def assess(observation):
     keys = list(observation["facts"])
     schema["properties"]["citations"]["items"]["enum"] = keys
     schema["properties"]["component"]["enum"] = [*keys, "unknown"]
+    decision = Decision.model_validate_json(infer(PROMPT, observation, schema))
+    if not set(decision.citations) <= observation["facts"].keys():
+        raise ValueError("Model cited an unknown observation")
+    return decision
+
+
+def supports_restore(decision, target="leaf-1/spine-1"):
+    return (
+        decision.diagnosis == "link"
+        and decision.component == target
+        and target in decision.citations
+        and decision.action == "restore_link"
+    )
+
+
+def infer(instruction, context, schema):
     request = {
         "model": model_name(),
         "stream": False,
         "format": schema,
         "options": {"temperature": 0, "num_predict": 256},
         "messages": [
-            {"role": "system", "content": PROMPT},
-            {"role": "user", "content": json.dumps(observation)},
+            {"role": "system", "content": instruction},
+            {"role": "user", "content": json.dumps(context)},
         ],
     }
     client = http.client.HTTPConnection("127.0.0.1", 11434, timeout=45)
@@ -84,21 +101,6 @@ def assess(observation):
         response = client.getresponse()
         if response.status != 200:
             raise ValueError(f"Ollama returned HTTP {response.status}")
-        decision = Decision.model_validate_json(
-            json.loads(response.read(32768))["message"]["content"]
-        )
+        return json.loads(response.read(32768))["message"]["content"]
     finally:
         client.close()
-    if not set(decision.citations) <= observation["facts"].keys():
-        raise ValueError("Model cited an unknown observation")
-    return decision
-
-
-def supports_restore(decision):
-    target = "leaf-1/spine-1"
-    return (
-        decision.diagnosis == "link"
-        and decision.component == target
-        and target in decision.citations
-        and decision.action == "restore_link"
-    )

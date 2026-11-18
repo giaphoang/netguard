@@ -50,12 +50,15 @@ async def running_controls(app, database):
         app.state.token = secrets.token_urlsafe(32)
         done = asyncio.Event()
         task = asyncio.create_task(monitor(controller, done))
+        from .operator import watch
+
+        observer = asyncio.create_task(watch(controller, done))
         timer = asyncio.create_task(deadlines(controller, done))
         try:
             yield
         finally:
             done.set()
-            await asyncio.gather(task, timer)
+            await asyncio.gather(task, timer, observer)
             app.state.controller = None
 
 
@@ -117,12 +120,13 @@ def perform(fn, *args):
 def inject(
     scenario: Scenario,
     ai: bool = False,
+    manual: bool = False,
     leaf: int = Query(1, ge=1, le=2),
     spine: int = Query(1, ge=1, le=2),
     duration: int | None = Query(None, ge=5, le=120),
     controller=Depends(authorized),
 ):
-    return perform(controller.inject, scenario, ai, leaf, spine, duration)
+    return perform(controller.inject, scenario, ai, leaf, spine, duration, manual)
 
 
 @router.post("/api/scenarios/reset")
@@ -165,3 +169,8 @@ def automation(mode: Mode, controller=Depends(authorized)):
 def stop(mode: Mode, controller=Depends(authorized)):
     controller.emergency_stop(mode.enabled)
     return {"stopped": mode.enabled}
+
+
+@router.post("/api/incidents/{identity}/diagnose/{cause}")
+def manual(identity: str, cause: Scenario, controller=Depends(authorized)):
+    return perform(controller.manual_diagnosis, identity, cause)
