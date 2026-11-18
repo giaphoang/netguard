@@ -17,8 +17,8 @@ from .presets import Scenario
 router = APIRouter()
 
 
-async def monitor(controller):
-    while True:
+async def monitor(controller, done):
+    while not done.is_set():
         try:
             await asyncio.to_thread(controller.step)
         except Exception:
@@ -39,12 +39,13 @@ async def running_controls(app, database):
         controller = Controller(database)
         app.state.controller = controller
         app.state.token = secrets.token_urlsafe(32)
-        task = asyncio.create_task(monitor(controller))
+        done = asyncio.Event()
+        task = asyncio.create_task(monitor(controller, done))
         try:
             yield
         finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+            done.set()
+            await task
             app.state.controller = None
 
 
@@ -145,11 +146,5 @@ def automation(mode: Mode, controller=Depends(authorized)):
 
 @router.post("/api/automation/stop")
 def stop(mode: Mode, controller=Depends(authorized)):
-    with controller.lock:
-        controller.stopped = mode.enabled
-        controller.auto = False
-        if mode.enabled and controller.active:
-            controller.event(
-                "handoff", "Emergency stop. Automatic actions disabled; manual reset available."
-            )
+    controller.emergency_stop(mode.enabled)
     return {"stopped": mode.enabled}

@@ -69,3 +69,31 @@ def test_ambiguous_peers_block_diagnosis():
     bad["routers"][1]["peers"] = {}
     assert not diagnose("link", bad)
     assert not healthy(bad)
+
+
+def test_emergency_stop_survives_restart(tmp_path):
+    db = tmp_path / "run.sqlite"
+    Controller(db).emergency_stop(True)
+    c = Controller(db)
+    assert c.stopped and not c.auto
+    with pytest.raises(ValueError):
+        c.inject("link")
+    c.emergency_stop(False)
+    assert not Controller(db).stopped
+
+
+def test_recorded_walkthrough_and_comparison():
+    from api.fabric import recording
+    from api.measurements import comparison
+
+    run = json.loads((CAP / "p1-link.json").read_text())
+    frames = recording(True)
+    assert frames[0]["label"] == "Injecting" and frames[-1]["label"] == "Resolved"
+    assert any(f["label"] == "Proposed" for f in frames)
+    assert all(f["probes"] and f["snapshot"]["routers"] for f in frames)
+    reset = deepcopy(run)
+    next(e for e in reset["events"] if e["phase"] == "applying")["reason"] = (
+        "reset: RESTORE_INJECTED_LINK"
+    )
+    rows = comparison([run, reset])
+    assert rows[0]["n"] == 1 and rows[0]["automatic"]

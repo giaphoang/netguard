@@ -95,6 +95,11 @@ class Controller:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS incidents(id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
             )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS safety (singleton INTEGER PRIMARY KEY, stopped INTEGER NOT NULL)"
+            )
+            flag = conn.execute("SELECT stopped FROM safety WHERE singleton=1").fetchone()
+            self.stopped = bool(flag and flag[0])
             row = conn.execute(
                 "SELECT payload FROM incidents ORDER BY rowid DESC LIMIT 1"
             ).fetchone()
@@ -107,6 +112,17 @@ class Controller:
     @property
     def active(self):
         return self.run and self.run["phase"] != "resolved"
+
+    def emergency_stop(self, enabled):
+        with self.lock, sqlite3.connect(self.db) as conn:
+            conn.execute("INSERT OR REPLACE INTO safety VALUES(1,?)", (int(enabled),))
+            conn.commit()
+            self.stopped = enabled
+            self.auto = False
+            if enabled and self.active:
+                self.event(
+                    "handoff", "Emergency stop. Automatic actions disabled; manual reset available."
+                )
 
     def save(self):
         with sqlite3.connect(self.db) as conn:
@@ -158,6 +174,8 @@ class Controller:
             r = self.run
             if not self.active or (incident_id and r["id"] != incident_id):
                 raise ValueError("Incident is no longer active")
+            if r["phase"] == "verifying":
+                raise ValueError("Verification is already in progress")
             if action != "reset" and (
                 r["phase"] != "proposed" or r["scenario"] != "link" or r["attempts"] or self.stopped
             ):
@@ -193,7 +211,12 @@ class Controller:
 
     def step(self):
         with self.lock:
-            if not self.active or self.run["phase"] in {"handoff", "applying", "injecting"}:
+            if not self.active or self.run["phase"] in {"applying", "injecting"}:
+                return
+            if (
+                self.run["phase"] == "handoff"
+                and time.time() - self.run["events"][-1]["time"] > 120
+            ):
                 return
             identity, phase = self.run["id"], self.run["phase"]
         sample = observe()
@@ -224,6 +247,9 @@ class Controller:
                         "handoff",
                         "Verification deadline exceeded; inspect evidence before another reset.",
                     )
+            elif phase == "handoff":
+                self.save()
+                return
             elif elapsed > 120:
                 self.event("handoff", "Operator review deadline exceeded.")
             else:
