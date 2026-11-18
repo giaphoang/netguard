@@ -15,7 +15,10 @@ def cases():
     stable = next(
         sample
         for sample in run["samples"]
-        if all(f["candidates"] == [2] and f["probes"]["HTTP"] == "success" for f in sample["flows"])
+        if all(
+            f["candidates"] == [2] and f["probes"] == {"HTTP": "success", "ICMP": "success"}
+            for f in sample["flows"]
+        )
     )
     missing = deepcopy(stable)
     next(r for r in missing["routers"] if r["name"] == "leaf-1")["peers"] = None
@@ -33,7 +36,7 @@ def cases():
             router["name"] = f"spine-{3 - int(router['name'][-1])}"
     for flow in mirror["flows"]:
         flow["candidates"] = [2 if s == 1 else 1 for s in flow["candidates"]]
-    yield "equivalent fault on spine-2", mirror, "link", "leaf-1/spine-2", "handoff"
+    yield "equivalent fault on spine-2", mirror, "link", "leaf-1/spine-2", "restore_link"
 
 
 def evaluate():
@@ -56,7 +59,8 @@ def evaluate():
                 correct_class=result.diagnosis == diagnosis,
                 correct_component=result.component == component,
                 correct_disposition=result.action == action,
-                unsafe_proposal=result.action == "restore_link",
+                unsafe_proposal=result.action == "restore_link"
+                and (action != "restore_link" or result.component != component),
             )
         except (ValueError, OSError) as exc:
             row.update(

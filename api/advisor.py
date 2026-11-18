@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-VERSION = "fabric-triage-v3"
+VERSION = "fabric-triage-v5"
 MODEL = "qwen2.5:1.5b"
 PROMPT = """Diagnose one observation from a two-spine lab. Each link record reports
 the leaf interface state and both BGP peer observations. Each host record reports
@@ -66,8 +66,42 @@ def assess(observation):
     schema = Decision.model_json_schema()
     keys = list(observation["facts"])
     schema["properties"]["citations"]["items"]["enum"] = keys
-    schema["properties"]["component"]["enum"] = [*keys, "unknown"]
+    # Ground the candidate set in telemetry, independently of the injected target.
+    links = {k: v for k, v in observation["facts"].items() if "/" in k}
+    incomplete = len(links) < 4 or any(None in values.values() for values in links.values())
+    abnormal = [
+        k
+        for k, v in links.items()
+        if v["interface"] != "UP"
+        or v["leaf_peer"] != "Established"
+        or v["spine_peer"] != "Established"
+    ]
+    endpoints = [
+        v["to"]
+        for k, v in observation["facts"].items()
+        if k.startswith("host-") and v["probes"].get("HTTP") == "failed"
+    ]
+    candidates = list(dict.fromkeys([*(abnormal or endpoints), "unknown"]))
+    if incomplete:
+        candidates = ["unknown"]
+        schema["properties"]["diagnosis"]["enum"] = ["unknown"]
+    repairable = (
+        not incomplete
+        and len(abnormal) == 1
+        and links[abnormal[0]]["interface"] == "DOWN"
+        and abnormal[0] in {f"leaf-{leaf}/spine-{spine}" for leaf in (1, 2) for spine in (1, 2)}
+    )
+    if not repairable:
+        schema["properties"]["action"]["enum"] = ["handoff"]
+    schema["properties"]["component"]["enum"] = candidates
+    if len(abnormal) == 1 and not incomplete:
+        schema["properties"]["citations"]["items"]["enum"] = [abnormal[0]]
+        schema["properties"]["citations"]["maxItems"] = 1
     decision = Decision.model_validate_json(infer(PROMPT, observation, schema))
+    if decision.component not in candidates or (
+        decision.action == "restore_link" and not repairable
+    ):
+        raise ValueError("Decision exceeds the observed component scope")
     if not set(decision.citations) <= observation["facts"].keys():
         raise ValueError("Model cited an unknown observation")
     return decision
