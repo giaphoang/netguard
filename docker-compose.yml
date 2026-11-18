@@ -8,7 +8,7 @@ services:
     volumes:
       - ./configs/frr:/workspace/configs/frr:ro
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"
     healthcheck:
       test:
         - CMD
@@ -62,7 +62,7 @@ services:
     volumes:
       - ./demo-sites/malmo:/usr/share/nginx/html:ro
     ports:
-      - "8081:80"
+      - "127.0.0.1:8081:80"
     networks:
       malmo:
         ipv4_address: 10.10.1.10
@@ -73,7 +73,7 @@ services:
     volumes:
       - ./demo-sites/london:/usr/share/nginx/html:ro
     ports:
-      - "8082:80"
+      - "127.0.0.1:8082:80"
     networks:
       london:
         ipv4_address: 10.20.1.10
@@ -88,7 +88,7 @@ services:
       - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./configs/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       management:
         ipv4_address: 172.30.0.30
@@ -119,7 +119,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
     networks:
