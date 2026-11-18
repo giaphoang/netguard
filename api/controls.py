@@ -104,8 +104,8 @@ def perform(fn, *args):
 
 
 @router.post("/api/scenarios/{scenario}/inject")
-def inject(scenario: Scenario, controller=Depends(authorized)):
-    return perform(controller.inject, scenario)
+def inject(scenario: Scenario, ai: bool = False, controller=Depends(authorized)):
+    return perform(controller.inject, scenario, ai)
 
 
 @router.post("/api/scenarios/reset")

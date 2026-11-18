@@ -1,5 +1,6 @@
 """Persistent, single-worker P1 controller. Every actuation is preceded by a journal entry."""
 
+import http.client
 import json
 import sqlite3
 import threading
@@ -8,7 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import presets
+from . import advisor, presets
 
 RUNBOOK = {
     "link": "RESTORE_INJECTED_LINK",
@@ -136,7 +137,7 @@ class Controller:
         self.run["events"].append({"time": time.time(), "phase": phase, "reason": reason})
         self.save()
 
-    def inject(self, scenario):
+    def inject(self, scenario, ai=False):
         with self.lock:
             if self.active or self.stopped:
                 raise ValueError("Reset the active incident or release the emergency stop first")
@@ -149,6 +150,7 @@ class Controller:
             self.run = {
                 "id": uuid.uuid4().hex,
                 "scenario": scenario,
+                "ai": ai,
                 "phase": "baseline",
                 "target": target.model_dump(),
                 "events": [],
@@ -230,7 +232,24 @@ class Controller:
             ):
                 return
             identity, phase = self.run["id"], self.run["phase"]
+            request_review = (
+                phase == "injected" and self.run.get("ai") and len(self.run["samples"]) >= 2
+            )
         sample = observe()
+        review = None
+        if request_review:
+            observation = advisor.evidence(sample)
+            review = {
+                "version": advisor.VERSION,
+                "model": advisor.model_name(),
+                "observation": observation,
+            }
+            try:
+                review["decision"] = advisor.assess(observation).model_dump()
+            except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+                review["error"] = (
+                    "Local model unavailable or invalid response. Check Ollama and the observations."
+                )
         with self.lock:
             r = self.run
             if r["id"] != identity or r["phase"] != phase:
@@ -265,6 +284,20 @@ class Controller:
                 self.event("handoff", "Operator review deadline exceeded.")
             else:
                 reason = diagnose(r["scenario"], sample)
+                if r.get("ai") and phase == "injected":
+                    if review is None:
+                        self.save()
+                        return
+                    r["review"] = review
+                    if "error" in review:
+                        self.event("handoff", review["error"])
+                        return
+                    decision = advisor.Decision(**review["decision"])
+                    if not (
+                        advisor.supports_restore(decision) and r["scenario"] == "link" and reason
+                    ):
+                        self.event("handoff", "Human review required. " + decision.next_check)
+                        return
                 if reason and phase == "injected":
                     metrics["detection_s"] = elapsed
                     self.event("detected", reason)

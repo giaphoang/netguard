@@ -22,17 +22,19 @@ def sample(failed=False):
         "routers": routers,
         "flows": [
             {
+                "source": source,
                 "probes": {"ICMP": "success", "HTTP": "success"},
                 "candidates": [2] if failed else [1, 2],
             }
-            for _ in range(2)
+            for source in (1, 2)
         ],
         "observed": incidents.time.time(),
     }
 
 
 @pytest.mark.parametrize("auto", [False, True])
-def test_link_workflow(tmp_path, monkeypatch, auto):
+@pytest.mark.parametrize("ai", [False, True])
+def test_link_workflow(tmp_path, monkeypatch, auto, ai):
     down = False
 
     def change(s, t, inject):
@@ -47,7 +49,20 @@ def test_link_workflow(tmp_path, monkeypatch, auto):
     monkeypatch.setattr(incidents, "observe", lambda: sample(down))
     c = Controller(tmp_path / "test.db")
     c.auto = auto
-    c.inject("link")
+
+    def review(observation):
+        assert set(observation) == {"observed", "facts"}
+        assert observation["facts"]["leaf-1/spine-1"]["interface"] == "DOWN"
+        return incidents.advisor.Decision(
+            diagnosis="link",
+            component="leaf-1/spine-1",
+            citations=["leaf-1/spine-1"],
+            action="restore_link",
+            next_check="Verify both next hops.",
+        )
+
+    monkeypatch.setattr(incidents.advisor, "assess", review)
+    c.inject("link", ai=ai)
     with pytest.raises(ValueError):
         c.inject("link")
     c.step()
