@@ -12,6 +12,10 @@ Open the Ubuntu dashboard on port 3001 through its SSH tunnel, or run `make demo
 
 A single API orchestrates observation, inference and execution. Changes use fixed tools and explicit target parameters. Expansion adds up to two leaves with isolated transit segments, 192 MiB and half a CPU per leaf. Applying or rolling back an expansion recreates both spines and can interrupt traffic. The preview and event log persist across reloads. Use the Makefile lifecycle commands for an expanded Desktop fabric. On Ubuntu, use the guest Python and the dashboard's same `NETGUARD_TIMELINE_DB` with `python -m scripts.fabric_compose up|down|reset`.
 
+## Reading live transmission
+
+The Command Center samples Linux packet and byte counters at each leaf. Blue markers animate only in directions with a positive packet delta during the latest valid interval. Select a link to read its received and transmitted packet counts. The byte rate sums measured interfaces and can count forwarded traffic at multiple links. BGP session state and bidirectional ICMP and HTTP probe outcomes appear separately. Historical replay has no live counter animation.
+
 ## Reading the impact panel
 
 Choose **Human operator** or **Local AI** when starting a graph-selected fault. A manual run requires the operator to record a diagnosis. Diagnosis timing runs from the first observed signal to a correct decision. Recovery requires observed loss followed by two successful probe rounds. Verified closure includes the restoration and checks. Provisioning starts when the request arrives and ends after verification.
