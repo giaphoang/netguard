@@ -14,7 +14,7 @@ A single API orchestrates observation, inference and execution. Changes use fixe
 
 ## Reading live transmission
 
-The Command Center samples Linux packet and byte counters at each leaf. Blue markers animate only in directions with a positive packet delta during the latest valid interval. Select a link to read its received and transmitted packet counts. The byte rate sums measured interfaces and can count forwarded traffic at multiple links. BGP session state and bidirectional ICMP and HTTP probe outcomes appear separately. Historical replay has no live counter animation.
+The Command Center samples Linux packet and byte counters at each leaf. One blue marker follows the selected ICMP probe from host to host via both leaves and the spine selected by the source leaf’s Linux forwarding lookup. Use **Probe route** to reverse direction. Playback requires a fresh successful probe and a known next hop. Its speed is illustrative. Select a link to read its received and transmitted packet counts. The byte rate sums measured interfaces and can count forwarded traffic at multiple links. BGP session state and bidirectional ICMP and HTTP probe outcomes appear separately. Historical replay shows recorded probe outcomes.
 
 ## Reading the impact panel
 

@@ -1,5 +1,11 @@
-import React from "react";
-import { BaseEdge, EdgeProps, getStraightPath } from "@xyflow/react";
+import React, { useLayoutEffect, useRef } from "react";
+import {
+  BaseEdge,
+  EdgeProps,
+  getStraightPath,
+  useInternalNode,
+  ViewportPortal,
+} from "@xyflow/react";
 
 export type LinkActivity = {
   rx: number;
@@ -10,8 +16,6 @@ export type LinkActivity = {
 
 export function TrafficEdge(props: EdgeProps) {
   const [path, x, y] = getStraightPath(props);
-  const activity = props.data?.activity as LinkActivity | undefined;
-  const access = props.id.startsWith("access");
   return (
     <>
       <BaseEdge
@@ -25,26 +29,82 @@ export function TrafficEdge(props: EdgeProps) {
           {props.label}
         </text>
       )}
-      {activity &&
-        [
-          access ? activity.tx : activity.rx,
-          access ? activity.rx : activity.tx,
-        ].map(
-          (packets, i) =>
-            packets > 0 && (
-              <circle key={i} className="packet" r={3.7} pointerEvents="none">
-                <animateMotion
-                  path={path}
-                  dur={i ? "2.1s" : "1.8s"}
-                  keyPoints={i ? "1;0" : "0;1"}
-                  keyTimes="0;1"
-                  calcMode="linear"
-                  repeatCount="indefinite"
-                />
-              </circle>
-            ),
-        )}
     </>
   );
 }
 export const edgeTypes = { traffic: TrafficEdge };
+
+function usePorts(id: string) {
+  const node = useInternalNode(id);
+  const width = node?.measured.width;
+  const height = node?.measured.height;
+  if (!node || !width || !height) return null;
+  const { x, y } = node.internals.positionAbsolute;
+  const center = x + width / 2;
+  return { top: `${center},${y}`, bottom: `${center},${y + height}` };
+}
+
+function MovingPacket({ path, route }: { path: string; route: string }) {
+  const line = useRef<SVGPathElement>(null);
+  const dot = useRef<SVGCircleElement>(null);
+  useLayoutEffect(() => {
+    const guide = line.current,
+      marker = dot.current;
+    if (!guide || !marker) return;
+    const length = guide.getTotalLength();
+    let frame = 0;
+    function move(now: number) {
+      const fraction = Math.max(0, Math.min(1, ((now % 3400) - 200) / 3000));
+      const p = guide!.getPointAtLength(fraction * length);
+      marker!.setAttribute("cx", String(p.x));
+      marker!.setAttribute("cy", String(p.y));
+      frame = requestAnimationFrame(move);
+    }
+    move(performance.now());
+    return () => cancelAnimationFrame(frame);
+  }, [path]);
+  return (
+    <svg
+      className="route-overlay"
+      width="100%"
+      height="100%"
+      aria-hidden="true"
+    >
+      <path ref={line} d={path} fill="none" stroke="none" />
+      <circle ref={dot} className="packet" r={5} data-route={route} />
+    </svg>
+  );
+}
+
+export function ProbePacket({
+  source,
+  spine,
+}: {
+  source: number;
+  spine: number;
+}) {
+  const from = usePorts("host-" + source);
+  const first = usePorts("leaf-" + source);
+  const via = usePorts("spine-" + spine);
+  const last = usePorts("leaf-" + (3 - source));
+  const to = usePorts("host-" + (3 - source));
+  const points = [
+    from?.top,
+    first?.bottom,
+    first?.top,
+    via?.bottom,
+    last?.top,
+    last?.bottom,
+    to?.top,
+  ];
+  if (points.some((p) => !p)) return null;
+  const path = "M" + points.join(" L");
+  return (
+    <ViewportPortal>
+      <MovingPacket
+        path={path}
+        route={source + "-" + spine + "-" + (3 - source)}
+      />
+    </ViewportPortal>
+  );
+}

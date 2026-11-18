@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Background, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
-import { edgeTypes, LinkActivity } from "./TrafficEdge";
+import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
 import { Operator } from "./Operator";
 import { IncidentPanel, Run } from "./Incidents";
 
@@ -14,7 +14,11 @@ type Router = {
   interfaces: string;
   error: string | null;
 };
-type Probe = { probes: Record<string, string> };
+type Probe = {
+  source?: number;
+  spine?: number | null;
+  probes: Record<string, string>;
+};
 type Sample = {
   timestamp: string;
   routers: Router[];
@@ -232,6 +236,13 @@ function App() {
     sample &&
     clock - Date.parse(sample.timestamp) < 18000;
   const activity = fresh ? sample.traffic || {} : {};
+  const flow = fresh
+    ? sample.flows?.find((f) => f.source === source)
+    : undefined;
+  const spine =
+    flow?.probes.ICMP === "success" && (flow.spine === 1 || flow.spine === 2)
+      ? flow.spine
+      : undefined;
   const edges = [];
   let warnings = 0;
   for (const l of leaves)
@@ -252,14 +263,14 @@ function App() {
         source: "spine-" + s,
         target: "leaf-" + l,
         type: "traffic",
-        data: { activity: activity[s + "-" + l] },
+
         label: failed ? "Link warning" : undefined,
         labelStyle: { fill: "#87431a", fontSize: 12 },
         labelBgStyle: { fill: "#ffead4" },
         labelBgPadding: [6, 4] as [number, number],
         style: {
           stroke: failed ? "#c25137" : live ? "#309276" : "#a4acb7",
-          strokeWidth: chosen && live ? 4.5 : 3,
+          strokeWidth: ((spine === s && l <= 2) || chosen) && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
@@ -270,7 +281,7 @@ function App() {
       source: "leaf-" + n,
       target: "host-" + n,
       type: "traffic",
-      data: { activity: activity["access" + n] },
+
       style: { stroke: "#606f89", strokeWidth: 2 },
     });
   const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
@@ -369,13 +380,11 @@ function App() {
     }
   }
   const timeline = frames.length
-    ? frames
-        .slice(0, frame + 1)
-        .map((f) => ({
-          time: (f.eventTime || 0) * 1000,
-          type: f.label,
-          text: f.reason || "",
-        }))
+    ? frames.slice(0, frame + 1).map((f) => ({
+        time: (f.eventTime || 0) * 1000,
+        type: f.label,
+        text: f.reason || "",
+      }))
     : [
         ...(incident?.events || []).map((e) => ({
           time: e.time * 1000,
@@ -560,13 +569,14 @@ function App() {
                   fitView
                   nodesConnectable={false}
                 >
+                  {spine && <ProbePacket source={source} spine={spine} />}
                   <Background gap={18} size={1.4} color="#cedaff" />
                 </ReactFlow>
               </div>
               <div className="legend">
                 <span>● Healthy</span>
                 <span>● Degraded</span>
-                <span>● Traffic</span>
+                <span>● ICMP probe</span>
               </div>
               <div className="fabric-actions">
                 <button
@@ -612,6 +622,35 @@ function App() {
                         " B/s across measured links"
                       : "Select a link to inspect its state."}
                 </p>
+                {liveMode && (
+                  <div className="route-readout">
+                    <label>
+                      Probe route{" "}
+                      <select
+                        aria-label="Animated probe direction"
+                        value={source}
+                        onChange={(e) => {
+                          setSource(+e.target.value);
+                          setPaths([]);
+                          setProbe("");
+                        }}
+                      >
+                        <option value={1}>Host A → Host B</option>
+                        <option value={2}>Host B → Host A</option>
+                      </select>
+                    </label>
+                    <small>
+                      {spine
+                        ? "Leaf " +
+                          source +
+                          " → Spine " +
+                          spine +
+                          " → Leaf " +
+                          (3 - source)
+                        : "Awaiting a successful probe and route lookup"}
+                    </small>
+                  </div>
+                )}
                 {observed.map((f, i) => (
                   <small key={i}>
                     Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
