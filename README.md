@@ -2,6 +2,8 @@
 
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
+[Open the operator walkthrough](docs/OPERATOR.md) for live diagnosis, timed link simulation, approved BGP expansion, rollback and measured workflow comparisons.
+
 P2 adds local AI incident diagnosis, evidence citations and human handoff. [Run or replay P2](docs/P2_AI.md) · [Roadmap](docs/AI_PLAN.md)
 
 ## Incident walkthrough

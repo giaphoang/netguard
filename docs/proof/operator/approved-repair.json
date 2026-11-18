@@ -1,0 +1,171 @@
+{
+  "review": {
+    "version": "fabric-triage-v5",
+    "model": "qwen2.5:1.5b",
+    "observation": {
+      "observed": 1795041267.3228326,
+      "facts": {
+        "leaf-1/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-1/spine-2": {
+          "interface": "DOWN",
+          "leaf_peer": "Active",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "host-1": {
+          "to": "host-2",
+          "via": [
+            1
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        "host-2": {
+          "to": "host-1",
+          "via": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      }
+    },
+    "decision": {
+      "diagnosis": "link",
+      "component": "leaf-1/spine-2",
+      "action": "restore_link",
+      "citations": [
+        "leaf-1/spine-2"
+      ],
+      "next_check": "Check the connectivity between leaf-1 and spine-2."
+    }
+  },
+  "plan": {
+    "text": "Restore redundancy on Leaf 1. Command: ip link set dev eth2 up. The controller rechecks the target and surviving route, then verifies both paths and bidirectional probes. Risk: transient route reconvergence.",
+    "action": "incidents/d92084fdd8884f8bb3361f61e7210b5d/approve",
+    "label": "Approve repair"
+  },
+  "id": "d92084fdd8884f8bb3361f61e7210b5d",
+  "events": [
+    {
+      "time": 1795041265.7256727,
+      "phase": "injecting",
+      "reason": "Saved verified baseline and target before injection"
+    },
+    {
+      "time": 1795041265.8511596,
+      "phase": "injected",
+      "reason": "Preset actuator confirmed"
+    },
+    {
+      "time": 1795041268.3324769,
+      "phase": "detected",
+      "reason": "Leaf 1 interface is DOWN, its spine-2 peer is Active, and its route uses spine-1."
+    },
+    {
+      "time": 1795041268.3501031,
+      "phase": "diagnosed",
+      "reason": "Leaf 1 interface is DOWN, its spine-2 peer is Active, and its route uses spine-1."
+    },
+    {
+      "time": 1795041274.8328009,
+      "phase": "proposed",
+      "reason": "BGP restored traffic via spine-1. Restore the selected link to regain redundancy."
+    },
+    {
+      "time": 1795041275.537288,
+      "phase": "applying",
+      "reason": "approved: RESTORE_INJECTED_LINK"
+    },
+    {
+      "time": 1795041275.7525754,
+      "phase": "verifying",
+      "reason": "Waiting for two consecutive healthy routing and traffic samples"
+    },
+    {
+      "time": 1795041279.4892292,
+      "phase": "resolved",
+      "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+    }
+  ],
+  "metrics": {
+    "detection_s": 1.4716756343841553,
+    "verified_failover_s": 8.981581449508667,
+    "closure_s": 13.638013124465942
+  },
+  "before": [
+    {
+      "timestamp": "2026-11-18T22:34:25.587113+00:00",
+      "source": 1,
+      "destination": "10.212.2.2",
+      "candidates": [
+        1,
+        2
+      ],
+      "probes": {
+        "ICMP": "success",
+        "HTTP": "success"
+      }
+    },
+    {
+      "timestamp": "2026-11-18T22:34:25.590785+00:00",
+      "source": 2,
+      "destination": "10.212.1.2",
+      "candidates": [
+        1,
+        2
+      ],
+      "probes": {
+        "ICMP": "success",
+        "HTTP": "success"
+      }
+    }
+  ],
+  "latest": [
+    {
+      "timestamp": "2026-11-18T22:34:39.433699+00:00",
+      "source": 1,
+      "destination": "10.212.2.2",
+      "candidates": [
+        1,
+        2
+      ],
+      "probes": {
+        "ICMP": "success",
+        "HTTP": "success"
+      }
+    },
+    {
+      "timestamp": "2026-11-18T22:34:39.437389+00:00",
+      "source": 2,
+      "destination": "10.212.1.2",
+      "candidates": [
+        1,
+        2
+      ],
+      "probes": {
+        "ICMP": "success",
+        "HTTP": "success"
+      }
+    }
+  ],
+  "phase": "resolved"
+}
