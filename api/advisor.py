@@ -36,7 +36,7 @@ def evidence(sample):
     facts = {}
     for leaf in (int(name.split("-")[1]) for name in routers if name.startswith("leaf-")):
         local = routers.get(f"leaf-{leaf}", {})
-        for spine in (1, 2):
+        for spine in (int(name.split("-")[1]) for name in routers if name.startswith("spine-")):
             net = f"10.211.{10 * spine + leaf}"
             remote = routers.get(f"spine-{spine}", {})
             states = [

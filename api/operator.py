@@ -1,117 +1,47 @@
 """Single local orchestration entry point. Model outputs are previews or observations."""
 
 import http.client
-import re
 import time
-import unicodedata
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import advisor, provision, investigations as inv
+from . import advisor, provision, intents, topology, investigations as inv
 from .controls import authorized, local, perform
 from .incidents import healthy, observe
 
 router = APIRouter()
-SPINE_TARGET = r"\bspines?[\s_\-‐‑‒–—]+(\d+|one|two)\b"
 
 
 class Request(BaseModel):
     prompt: str = Field(min_length=1, max_length=500)
-    selection: str = Field(default="", max_length=30)
-
-
-class Intent(BaseModel):
-    tool: Literal["diagnose", "repair", "simulate", "provision", "evaluate", "risk", "clarify"]
-    leaf: int = Field(ge=0, le=4)
-    spine: int = Field(ge=0, le=2)
-    count: int = Field(ge=0, le=9)
-    seconds: int = Field(ge=0, le=600)
-
-
-def spine_risk(prompt):
-    targets = {
-        {"one": "1", "two": "2"}.get(name, name) for name in re.findall(SPINE_TARGET, prompt)
-    }
-    multiple = re.search(SPINE_TARGET + r"(?:\s+(?:and|or)\s+|,\s*)(?:\d+|one|two)\b", prompt)
-    if targets in ({"1"}, {"2"}) and not multiple:
-        return "risk", {"spine": int(targets.pop())}
-    return "risk_clarify", {}
-
-
-def interpret(req):
-    q = unicodedata.normalize("NFKC", req.prompt).casefold()
-    if "test suite" in q or "compare diagnostic workflows" in q:
-        return "benchmark", {}
-    if "monitor" in q or "investigation history" in q:
-        return "monitor", {}
-    if "drift" in q:
-        return "drift", {}
-    if "postmortem" in q or "previous incidents" in q:
-        return "postmortem", {}
-    if re.search(r"\bspines?\b", q) and re.search(
-        r"\b(?:remov(?:e|ing|al)|decommission(?:ing)?|without|blast radius|take .+ offline)\b", q
-    ):
-        return spine_risk(q)
-    if re.search(r"\b(?:if|suppose|imagine|assuming)\b", q) and re.search(
-        SPINE_TARGET + r"\s+(?:fails|disappears|goes (?:down|offline)|is (?:down|offline))\b", q
-    ):
-        return spine_risk(q)
-    if q in {"explain root cause", "why is this connection failing?"} or q.startswith("why "):
-        return "diagnose", {}
-    if q in {
-        "preview repair",
-        "fix this network",
-        "fix this network.",
-        "restore connectivity between host a and host b.",
-    }:
-        return "repair", {}
-    if q.strip(" .") in {"expand this fabric", "expand the fabric"}:
-        return "size", {}
-    if q.startswith("compare ") or q == "evaluate impact":
-        return "evaluate", {}
-    # Bind mutation parameters to explicit user text before any proposal exists.
-    count = re.fullmatch(
-        r"(?:add|provision|create) (one|two|a|[0-9]+) (?:new )?leaf(?: routers?| switches|s| nodes)?(?: (?:connected to|on|with) both spines)?(?: (?:using|with) (?:e?bgp))?[.!]?",
-        q.strip(),
-    )
-    if count:
-        value = count[1]
-        return "provision", {
-            "count": {"one": 1, "two": 2, "a": 1}.get(value, int(value) if value.isdigit() else 0)
-        }
-    timed = re.fullmatch(
-        r"(?:simulate|inject) (?:a )?leaf[- ]([12])\s*(?:→|->|to|[-–])\s*spine[- ]([12]) link (?:failure|fault) for (\d{1,3}) (?:seconds?|s)[.!]?",
-        q.strip(),
-    )
-    if timed:
-        leaf, spine, seconds = map(int, timed.groups())
-        return "simulate", {"leaf": leaf, "spine": spine, "seconds": seconds}
-    spec = Intent.model_validate_json(
-        advisor.infer(
-            "Classify a network operator request. Use risk for a what-if question about losing "
-            "or removing an entire spine router. Use simulate for a timed link failure, provision "
-            "for adding BGP leaves, diagnose for questions about connectivity, repair for recovery, "
-            "and evaluate for metrics. Use zero for unspecified numbers. For an unspecified "
-            "target, use the graph selection (spine-leaf edge ID). Use clarify for unsupported "
-            "or ambiguous requests. Do not invent parameters.",
-            req.model_dump(),
-            Intent.model_json_schema(),
-        )
-    )
-    if spec.tool == "risk":
-        return spine_risk(q)
-    if spec.tool in {"provision", "simulate"}:
-        return "clarify", {}
-    return spec.tool, spec.model_dump()
+    selection: str = Field(default="", max_length=60)
 
 
 @router.post("/api/operator")
 def operator(req: Request, c=Depends(authorized)):
     started = time.time()
     try:
-        tool, args = interpret(req)
+        sample = observe()
+        spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
+        tool = spec.intent
+        args = {"count": spec.quantity, "seconds": spec.duration_s}
+        inv.record(
+            c.db,
+            "intent",
+            f"{tool}: {', '.join(targets) or spec.scope}",
+            {
+                "request": req.model_dump(),
+                "intent": spec.model_dump(),
+                "targets": targets,
+                "version": intents.VERSION,
+                "model": advisor.model_name(),
+                "authorization": "human approval"
+                if tool in {"simulate", "provision", "remove", "repair"}
+                else "read only",
+                "observed": sample["observed"],
+            },
+        )
         if tool == "benchmark":
             from scripts.evaluate_ai import evaluate
 
@@ -135,7 +65,7 @@ def operator(req: Request, c=Depends(authorized)):
             )
             return inv.response(row)
         if tool == "monitor":
-            rows = inv.cases(c.db)
+            rows = inv.cases(c.db, kind="monitor")
             return {
                 "text": "Monitoring live peer transitions and consecutive probe failures. Recent investigations appear below.",
                 "evidence": {
@@ -143,10 +73,17 @@ def operator(req: Request, c=Depends(authorized)):
                     "facts": {r["id"]: r for r in rows if r["kind"] == "monitor"},
                 },
             }
-        if tool == "risk":
-            return inv.response(inv.risk(c.db, observe(), args["spine"]))
-        if tool == "risk_clarify":
-            return {"text": "Which single spine should I assess? Specify Spine 1 or Spine 2."}
+        if tool in {"risk", "remove"}:
+            facts = topology.risk(sample, targets)
+            outcome = facts["policy_check"]["observed"]
+            text = (
+                ("Blocked removal" if outcome == "block" else "Human review required for removal")
+                + " of "
+                + ", ".join(targets)
+                + ". "
+                + facts["policy_check"]["reason"]
+            )
+            return inv.response(inv.record(c.db, "change risk", text, facts))
         if tool == "drift":
             return inv.response(inv.drift(c.db, observe()))
         if tool == "postmortem":
@@ -154,18 +91,15 @@ def operator(req: Request, c=Depends(authorized)):
             if not last:
                 return {"text": "No verified incident closure is available for review."}
             return inv.response(inv.postmortem(c.db, last))
-        if tool == "size":
-            return {
-                "text": "Choose one or two new BGP leaves. Each will connect to both spines.",
-                "choices": [
-                    "Add one leaf connected to both spines with BGP.",
-                    "Add two leaf routers connected to both spines with BGP.",
-                ],
-            }
         if tool == "evaluate":
             return {"text": "Workflow measurements are shown below.", "impact": True}
         if tool == "simulate":
-            leaf, spine, sec = args["leaf"], args["spine"], args["seconds"]
+            parts = [part for target in targets for part in target.split("/")]
+            leaves = [int(p.split("-")[1]) for p in parts if p.startswith("leaf-")]
+            spines = [int(p.split("-")[1]) for p in parts if p.startswith("spine-")]
+            if len(leaves) != 1 or len(spines) != 1 or spec.duration_s is None:
+                raise ValueError("Specify one existing leaf–spine link and a duration.")
+            leaf, spine, sec = leaves[0], spines[0], spec.duration_s
             if leaf not in (1, 2) or spine not in (1, 2) or not 5 <= sec <= 120:
                 raise ValueError(
                     "Specify a base leaf, spine and duration between 5 and 120 seconds."
@@ -176,6 +110,14 @@ def operator(req: Request, c=Depends(authorized)):
                 "label": "Approve simulation",
             }
         if tool == "provision":
+            if spec.node_type != "leaf" or spec.quantity is None:
+                raise ValueError(
+                    "Specify the number and type of components. Spine and host deployment is not enabled yet."
+                )
+            if targets and set(targets) != {
+                n["id"] for n in graph["nodes"] if n["kind"] == "spine"
+            }:
+                raise ValueError("Leaf provisioning requires every existing spine.")
             plan = provision.propose(c, args["count"], started)
             return {
                 "text": "Preview ready. Both spines will reload their BGP configuration. Traffic can be interrupted. Failed verification restores the base topology.",
@@ -195,11 +137,28 @@ def operator(req: Request, c=Depends(authorized)):
                     "label": "Approve repair",
                 }
         if tool == "diagnose":
-            sample = observe()
             obs = advisor.evidence(sample)
+            if spec.scope == "unstable_peer":
+                rows = [r for r in inv.cases(c.db, kind="monitor") if r["kind"] == "monitor"]
+                history = [h for r in rows[:5] for h in r["facts"].get("history", [])]
+                unique = {h["observed"]: h for h in history}
+                history = [unique[k] for k in sorted(unique)]
+                counts = {}
+                for key in obs["facts"]:
+                    if "/" in key:
+                        states = [h["facts"].get(key, {}).get("leaf_peer") for h in history]
+                        counts[key] = sum(a != b for a, b in zip(states, states[1:]) if a and b)
+                if not counts or max(counts.values()) == 0:
+                    return {
+                        "text": "No recorded BGP transitions establish an unstable peer yet.",
+                        "evidence": obs,
+                    }
+                targets = [max(counts, key=counts.get)]
+                obs["transition_counts"] = counts
+            obs["requested_targets"] = targets
             if healthy(sample):
                 return {
-                    "text": "Both traffic directions passed HTTP and ICMP. The observed BGP sessions are established and both leaves have two next hops. This sample shows no active connectivity loss.",
+                    "text": "The observed routing and bidirectional host probes are healthy. No active connectivity loss appears in this sample.",
                     "evidence": obs,
                 }
             d = advisor.assess(

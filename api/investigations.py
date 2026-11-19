@@ -7,7 +7,7 @@ import time
 import uuid
 
 
-def cases(db, row=None):
+def cases(db, row=None, kind=None):
     with sqlite3.connect(db) as conn:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS investigations(id TEXT PRIMARY KEY, data TEXT NOT NULL)"
@@ -19,7 +19,10 @@ def cases(db, row=None):
             )
         return [
             json.loads(r[0])
-            for r in conn.execute("SELECT data FROM investigations ORDER BY rowid DESC LIMIT 30")
+            for r in conn.execute(
+                "SELECT data FROM investigations WHERE (? IS NULL OR json_extract(data, '$.kind')=?) ORDER BY rowid DESC LIMIT 30",
+                (kind, kind),
+            )
         ]
 
 

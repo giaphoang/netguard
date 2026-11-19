@@ -62,7 +62,7 @@ class Observer:
         self.history = []
         self.previous = 0
         self.next_drift = time.monotonic() + 10
-        rows = [r for r in inv.cases(controller.db) if r["kind"] == "monitor"]
+        rows = [r for r in inv.cases(controller.db, kind="monitor") if r["kind"] == "monitor"]
         self.episode = next((r for r in rows if r.get("status") not in {None, "verified"}), None)
         self.last_inference = max((r.get("triaged_at", r["observed"]) for r in rows), default=0)
         self.recovered = 0
