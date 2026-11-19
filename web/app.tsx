@@ -566,14 +566,14 @@ function App() {
                       "Inspect routing state, link counters and host probes.",
                     Provisioning: "Preview, approve and verify fabric changes.",
                     Incidents:
-                      "Review fault controls, evidence and recovery history.",
+                      "Search the incident journal, inspect evidence and review fault controls.",
                   }[page]
                 }
               </p>
             </div>
-            <button onClick={()=>navigate("Incidents")}>
-              Review incidents
-            </button>
+            {page !== "Incidents" && (
+              <button onClick={() => navigate("Incidents")}>Review incidents</button>
+            )}
           </div>
           {notice && <p role="status">{notice}</p>}
           <div className="kpis">
@@ -613,7 +613,6 @@ function App() {
             ))}
           </div>
           {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
-          {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
           <div className="workspace">
             <section className="fabric">
               <div className="fabric-head">
@@ -792,6 +791,7 @@ function App() {
               } : undefined}
               trace={trace}
             />
+            {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
           </div>
           <section className="timeline">
             <h2>Operations Timeline</h2>

@@ -13,6 +13,7 @@ import {
   planSteps,
 } from "./ChatDetails";
 import type { Evidence, Plan, PlanAction, Step } from "./ChatDetails";
+import { ChatIncidents, type IncidentHistory, type IncidentReference } from "./ChatIncidents";
 import { ImpactDashboard } from "./ImpactDashboard";
 import { duration, type Impact } from "./impactData";
 
@@ -25,6 +26,7 @@ type Answer = {
   incident_id?: string;
   impact?: boolean;
   plan?: Plan;
+  incident_history?: IncidentHistory;
 };
 
 type IncidentRecord = Pick<Run, "events" | "review">;
@@ -85,8 +87,11 @@ async function post(path: string, body: object = {}, accept = "application/json"
   return response;
 }
 
-async function readAnswer(prompt: string, selection: string, onStep: (step: Step) => void): Promise<Answer> {
-  const response = await post("operator", { prompt, selection }, progressMediaType);
+async function readAnswer(
+  prompt: string, selection: string, onStep: (step: Step) => void,
+  historyRequest?: { incident_history: true; incident_record?: IncidentReference },
+): Promise<Answer> {
+  const response = await post("operator", { prompt, selection, ...historyRequest }, progressMediaType);
   const mediaType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
   if (mediaType === "application/json") {
     const answer: Answer = await response.json();
@@ -143,6 +148,7 @@ export function Operator({
   const latest = turns[turns.length - 1];
   const busy = !!latest && !latest.answer && !latest.error;
   const currentPlan = currentPlanId ? plans[currentPlanId] : undefined;
+  const historyMode = page === "Incidents";
 
   useLayoutEffect(() => {
     const feed = transcript.current;
@@ -240,7 +246,7 @@ export function Operator({
     recordStep(id, { label, detail, time: Date.now() / 1000 });
   }
 
-  async function ask(text: string, diagnosis?: Run, fromInput = false) {
+  async function ask(text: string, diagnosis?: Run, fromInput = false, record?: IncidentReference) {
     const prompt = text.trim();
     const id = begin(prompt);
     if (id === undefined) return;
@@ -248,17 +254,20 @@ export function Operator({
 
     try {
       let answer: Answer;
-      if (prompt === "Inspect traffic") {
+      if (!historyMode && prompt === "Inspect traffic") {
         startStep(id, replay ? "Read recorded probe" : "Run selected probe");
         answer = { text: await trace() };
-      } else if (prompt === "Evaluate impact") {
+      } else if (!historyMode && prompt === "Evaluate impact") {
         answer = live
           ? { text: "Measured workflow outcomes from the lab.", impact: true }
           : { text: "Workflow measurements are available in the live dashboard." };
       } else if (!live) {
-        answer = { text: replay?.text || "Live telemetry is required for this operation." };
+        answer = { text: historyMode
+          ? "The saved incident journal is available in the live dashboard."
+          : replay?.text || "Live telemetry is required for this operation." };
       } else {
-        answer = await readAnswer(prompt, target, (step) => recordStep(id, step));
+        const historyRequest = historyMode || record ? { incident_history: true as const, incident_record: record } : undefined;
+        answer = await readAnswer(prompt, target, (step) => recordStep(id, step), historyRequest);
       }
 
       let measurements: Impact | undefined;
@@ -271,10 +280,10 @@ export function Operator({
         rememberPlan(answer.plan);
         setCurrentPlanId(answer.plan.id);
       }
-      const incident = answer.incident_id ? incidents[answer.incident_id] : diagnosis || replay;
+      const incident = answer.incident_id ? incidents[answer.incident_id] : historyMode ? undefined : diagnosis || replay;
       patchTurn(id, { answer, incident, measurements });
     } catch (e) {
-      patchTurn(id, { error: errorText(e), incident: diagnosis || replay });
+      patchTurn(id, { error: errorText(e), incident: historyMode ? undefined : diagnosis || replay });
     } finally {
       working.current = false;
     }
@@ -371,7 +380,7 @@ export function Operator({
           <b className="op-icon" aria-hidden="true">✳</b>
           <div>
             <h2>NetGuard Agent</h2>
-            <small>{page === "Provisioning" ? "Topology planning" : "Network operations"} · Local model</small>
+            <small>{historyMode ? "Incident history" : page === "Provisioning" ? "Topology planning" : "Network operations"} · Local model</small>
           </div>
           <span className={"chat-mode" + (live ? " is-live" : "")}>
             {live ? "Live" : replay ? "Replay" : "Connecting"}
@@ -389,8 +398,10 @@ export function Operator({
             <div className="chat-messages" ref={messages}>
               {!turns.length && (
                 <div className="chat-welcome">
-                  <h3>{active ? "Current incident" : "What would you like to check?"}</h3>
-                  <p>{replay?.text || overview || signal || "Ask about a route, investigate an incident, or prepare a topology change."}</p>
+                  <h3>{historyMode ? "Search the incident journal" : active ? "Current incident" : "What would you like to check?"}</h3>
+                  <p>{historyMode
+                    ? "Find resolved BGP incidents on Leaf 1, or ask what happened in the latest link failure."
+                    : replay?.text || overview || signal || "Ask about a route, investigate an incident, or prepare a topology change."}</p>
                 </div>
               )}
               {turns.map((turn) => {
@@ -409,7 +420,7 @@ export function Operator({
                   ...(followedPlan ? planSteps(followedPlan, turn.followPlan?.from) : []),
                   ...(followedIncident ? incidentSteps(followedIncident.events.slice(turn.followIncident?.from)) : []),
                 ];
-                const canApprove = live && latest?.id === turn.id && answer?.action && answer.label
+                const canApprove = !historyMode && live && latest?.id === turn.id && answer?.action && answer.label
                   && (answer.incident_id
                     ? run?.id === answer.incident_id && run.phase === "proposed"
                     : !active);
@@ -433,6 +444,8 @@ export function Operator({
                       {turn.incident && <Activity label="Incident timeline" steps={incidentSteps(turn.incident.events)} />}
                       {review && <IncidentReview review={review} />}
                       {answer?.evidence && <ChatEvidence evidence={answer.evidence} />}
+                      {answer?.incident_history && <ChatIncidents history={answer.incident_history} busy={busy || !live}
+                        inspect={record => ask(`Inspect ${record.source} ${record.id.slice(0, 8)}`, undefined, false, record)} />}
                       {observed !== undefined && (
                         <ChatEvidence
                           label="Verification evidence"
@@ -442,7 +455,7 @@ export function Operator({
                       {plan && (
                         <ProvisionPlan
                           plan={plan}
-                          current={live && plan.id === currentPlanId}
+                          current={!historyMode && live && plan.id === currentPlanId}
                           busy={busy}
                           act={(action) => applyPlan(plan, action)}
                         />
@@ -459,7 +472,7 @@ export function Operator({
                           <button type="button" onClick={() => navigate("AI Impact")}>Open AI Impact</button>
                         </div>
                       )}
-                      {(canApprove || !!answer?.choices?.length) && (
+                      {(canApprove || (!historyMode && !!answer?.choices?.length)) && (
                         <div className="chat-actions">
                           {answer?.choices?.map((choice) => (
                             <button type="button" key={choice} disabled={busy} onClick={() => ask(choice)}>{choice}</button>
@@ -499,23 +512,33 @@ export function Operator({
               }}
               maxLength={500}
               rows={2}
-              placeholder="Ask about the network…"
+              placeholder={historyMode ? "Find or inspect an incident…" : "Ask about the network…"}
             />
             <button type="submit" aria-label="Send request" disabled={busy || !input.trim()}>↑</button>
           </form>
           <div className="chips">
-            <button type="button" disabled={busy} onClick={() => ask("Explain root cause", active ? run : undefined)}>
-              Diagnose incident
-            </button>
-            <button type="button" disabled={busy || !live} onClick={() => ask("Add one leaf connected to both spines with BGP.")}>
-              Add a leaf
-            </button>
-            <button type="button" disabled={busy} onClick={() => ask("Evaluate impact")}>Show impact</button>
+            {historyMode ? (
+              <>
+                <button type="button" disabled={busy || !live} onClick={() => ask("Show recent incidents")}>Recent incidents</button>
+                <button type="button" disabled={busy || !live} onClick={() => ask("Inspect the latest incident")}>Inspect latest incident</button>
+              </>
+            ) : (
+              <>
+                <button type="button" disabled={busy} onClick={() => ask("Explain root cause", active ? run : undefined)}>
+                  Diagnose incident
+                </button>
+                <button type="button" disabled={busy || !live} onClick={() => ask("Add one leaf connected to both spines with BGP.")}>
+                  Add a leaf
+                </button>
+                <button type="button" onClick={() => navigate("Incidents")}>Search incidents</button>
+                <button type="button" disabled={busy} onClick={() => ask("Evaluate impact")}>Show impact</button>
+              </>
+            )}
             <button type="button" aria-haspopup="dialog" aria-controls="netguard-guide" onClick={() => help.current?.showModal()}>
               How to use NetGuard Agent
             </button>
           </div>
-          <small className="chat-policy">Changes require a validated plan and approval.</small>
+          <small className="chat-policy">{historyMode ? "Read-only incident journal" : "Changes require a validated plan and approval."}</small>
         </div>
         <AgentGuide dialog={help} />
       </div>

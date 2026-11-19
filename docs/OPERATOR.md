@@ -6,7 +6,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 
 - **Command Center:** live React Flow topology, packet-counter activity, route animation, proactive notifications and a compact NetGuard Agent panel. Select a link before simulating a fault or asking about it.
 - **Provisioning:** enter a change request, compare the current and proposed graph, review the configuration diff and risk, then approve. Watch deployment and verification; **Roll back this change** restores the previous topology.
-- **Incidents:** search investigations by device, finding or status. Open a case for its diagnosis, observations and actual tool timeline. Full timestamped evidence is collapsed. Use the controller controls for approvals, escalation, manual benchmarks and emergency stop.
+- **Incidents:** ask NetGuard Agent to search saved controller incidents and proactive investigations by device, scenario, status, recovery outcome, or keyword. Select **Inspect** for the recorded timeline and full log. The case browser and controller controls remain available on this page.
 - **AI Impact:** switch between diagnosis, recovery and provisioning timings. Select a bar to open its timestamped runs and full journal records. Filter the experiment table by workflow stage, recovery mechanism, or text. The matched comparison appears when both workflows have samples from the same conditions. Choose an evaluation run to compare workflow versions on its labeled cases.
 
 ## Recruiter workflows
@@ -21,6 +21,8 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Provision another spine with appropriate BGP neighbors.” | Preview a spine connected to every current leaf. |
 | “Add a host under Leaf 2.” | Allocate an unused host address and preview its attachment. |
 | “Investigate the most unstable BGP peer.” | Compare recorded transitions; say when history is insufficient. |
+| “Find resolved BGP incidents on Leaf 1.” | Search the saved journal and show the newest matching records. |
+| “What happened in the latest link failure?” | Open the latest matching record with timestamps, any recorded durations and its full log. You can also inspect by incident ID or the displayed eight-character prefix. |
 | “Find configuration drift.” | Compare supported running BGP statements with mounted startup configuration; propose human review. |
 | “Review this incident and generate a verified postmortem.” | Generate a proposed read-only runbook check linked to a real event; adoption requires review. |
 | “Evaluate the AI operator against our incident test suite.” | Compare diagnostic workflows on identical labeled observations. No live actuator runs. |

@@ -13,7 +13,16 @@ const {chromium}=require('playwright-core');
   for(const name of ['Incidents','AI Impact','Provisioning']) {
    await page.getByRole('button',{name,exact:true}).click();
    await page.getByRole('heading',{name,exact:true}).waitFor();
-   if(name==='Incidents'&&await page.getByRole('textbox',{name:'Ask NetGuard'}).isVisible())throw Error('Chat repeated on incident page');
+   if(name==='Incidents') {
+    await page.getByPlaceholder('Find or inspect an incident…').waitFor();
+    await page.getByRole('button',{name:'Recent incidents',exact:true}).click();
+    await page.getByRole('log',{name:'Chat history'}).getByText(/Found \d+ matching journal records?|No recorded incidents or investigations match/).waitFor({timeout:60000});
+    const result=page.getByRole('region',{name:'Incident search results'}).getByRole('button',{name:/^Inspect /}).first();
+    if(await result.count()) {
+     await result.click();
+     await page.getByRole('region',{name:'Incident inspection'}).getByText('Full journal log',{exact:true}).waitFor();
+    }
+   }
    await page.screenshot({path:'docs/proof/p3/'+name.toLowerCase().replace(' ','-')+'.png',fullPage:true});
   }
   const field=page.getByRole('textbox',{name:'Ask NetGuard'});

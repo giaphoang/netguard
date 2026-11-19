@@ -753,7 +753,7 @@ main:not([data-page="Diagnostics"]) .collector {
   padding: 3px 6px;
 }
 /* Four focused workspaces share the same live topology and controller. */
-main[data-page="Incidents"] .workspace,
+main[data-page="Incidents"] .fabric,
 main[data-page="AI Impact"] .inspection,
 main[data-page="Provisioning"] .inspection,
 main:not([data-page="Incidents"]):not([data-page="Command Center"]) .incident-drawer,
@@ -761,6 +761,14 @@ main[data-page="Incidents"] .collector { display:none; }
 main[data-page="Command Center"] .operator { align-self:start; position:sticky; top:16px; }
 main[data-page="Command Center"] .workspace { grid-template-columns:minmax(0, 1fr) clamp(310px, 30vw, 390px); }
 main[data-page="Command Center"] .canvas { height:440px; }
+main[data-page="Incidents"] .workspace {
+  grid-template-columns: minmax(320px, 1fr) minmax(0, 1.55fr);
+  align-items: start;
+}
+main[data-page="Incidents"] .case-workspace {
+  grid-template-columns: minmax(140px, 0.65fr) minmax(0, 1fr);
+  margin-bottom: 0;
+}
 main[data-page="Incidents"] .incident-drawer { display:block; }
 .topology-compare { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0; }
 .topology-compare > div { min-width:0;border:1px solid #dbe3f1;border-radius:12px;background:#f8faff; }
@@ -787,7 +795,7 @@ main[data-page="Incidents"] .incident-drawer { display:block; }
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: clamp(25.5rem, calc(100dvh - 25rem), 42rem);
 }
-main[data-page="Provisioning"] .chat-panel {
+main:is([data-page="Provisioning"], [data-page="Incidents"]) .chat-panel {
   height: clamp(28rem, calc(100dvh - 12rem), 44rem);
 }
 .op-icon {
@@ -1009,6 +1017,58 @@ main[data-page="Provisioning"] .chat-panel {
 .chat-review p {
   color: #4c6084;
 }
+.chat-incident-results,
+.chat-record,
+.chat-record-details {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.chat-record {
+  padding: 9px 10px;
+  border: 1px solid #dbe5f5;
+  border-radius: 8px;
+  background: #f8faff;
+}
+.chat-record-heading,
+.chat-record-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.chat-record-heading small,
+.chat-record-meta {
+  color: var(--muted);
+}
+.chat-record-status {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #eaf1fe;
+  color: #365176;
+  font-size: 11px;
+}
+.chat-record > button,
+.chat-record-details > a {
+  justify-self: start;
+  color: #264ab1;
+  font-size: 12px;
+}
+.chat-record-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 3px 0;
+  font-size: 12px;
+}
+.chat-record-times dt {
+  color: var(--muted);
+}
+.chat-record-times dd {
+  margin: 0;
+  font-weight: 650;
+}
 .chat-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1155,9 +1215,17 @@ main[data-page="Command Center"] .provision-plan .topology-compare {
 .chat-guide p:last-child {
   margin-bottom: 0;
 }
+@media (max-width: 1050px) {
+  main[data-page="Incidents"] .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 760px) {
   .chat-panel,
-  main[data-page="Provisioning"] .chat-panel {
+  main:is([data-page="Provisioning"], [data-page="Incidents"]) .chat-panel {
     height: clamp(28rem, 75dvh, 40rem);
+  }
+  main[data-page="Incidents"] .case-workspace {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

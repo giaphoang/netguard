@@ -199,6 +199,7 @@ export function AgentGuide({ dialog }: { dialog: React.RefObject<HTMLDialogEleme
       <p>Select a link when it’s relevant. Include the target in each follow-up.</p>
       <ul>
         <li><strong>Ask.</strong> Try “Can Leaf 1 reach Leaf 3?” Open Evidence for the routes and probes used in the answer.</li>
+        <li><strong>Search incidents.</strong> Try “Find resolved BGP incidents on Leaf 1.” Select Inspect to open the saved timeline and log.</li>
         <li><strong>Simulate.</strong> Try “Simulate a Leaf 1 to Spine 2 link failure for 30 seconds.” Review the target before approving.</li>
         <li><strong>Repair.</strong> Try “Fix this network.” Review the proposed repair and follow the incident activity through verification.</li>
         <li><strong>Provision.</strong> Try “Add one leaf.” Review the topology, configuration diff and rollback before approving.</li>
