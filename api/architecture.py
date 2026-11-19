@@ -3,6 +3,7 @@
 import hashlib
 import http.client
 import json
+import re
 import sqlite3
 import subprocess
 import threading
@@ -48,6 +49,19 @@ class Request(BaseModel):
 
 class Objective(BaseModel):
     objective: Literal["throughput", "gre", "evaluation", "unsupported"]
+
+
+def objective_schema(prompt):
+    schema = Objective.model_json_schema()
+    # Narrow the tools when the request names a tunnel protocol and contains no AI evaluation target.
+    tunnel = re.search(r"\b(?:gre|generic routing encapsulation|mpls|ip.in.ip)\b", prompt, re.I)
+    workflow = re.search(r"\b(?:prompt|retrieval|diagnosis workflow|model)\b", prompt, re.I)
+    if tunnel and not workflow:
+        options = ["unsupported"]
+        if re.search(r"\b(?:gre|generic routing encapsulation)\b", prompt, re.I):
+            options.insert(0, "gre")
+        schema["properties"]["objective"]["enum"] = options
+    return schema
 
 
 class Approval(BaseModel):
@@ -241,13 +255,16 @@ def prepare(controller, run):
         with trace.tool("Read the installed model revision", model=run["model"]) as event:
             run["model_revision"] = event["result"] = advisor.model_revision()
         with trace.tool("Interpret objective with the local model", model=run["model"]) as event:
+            schema = objective_schema(run["prompt"])
             objective = Objective.model_validate_json(
                 advisor.infer(
                     plans.INTENT_PROMPT,
                     {"request": run["prompt"], "available_nodes": expansion.names(spec)},
-                    Objective.model_json_schema(),
+                    schema,
                 )
             ).objective
+            if objective not in schema["properties"]["objective"]["enum"]:
+                raise ValueError("The selected experiment does not match the requested protocol.")
             event["result"] = objective
             run["kind"] = objective
         if objective == "unsupported":
@@ -464,6 +481,10 @@ def evidence(identity: str, controller=Depends(local)):
 
 @router.post("", status_code=202)
 def start(req: Request, background: BackgroundTasks, controller=Depends(authorized)):
+    return {"id": queue(req, controller, background)}
+
+
+def queue(req, controller, background):
     if not req.prompt.strip():
         raise HTTPException(422, "Enter a network objective.")
     with controller.lock:
@@ -491,8 +512,11 @@ def start(req: Request, background: BackgroundTasks, controller=Depends(authoriz
             "message": "Investigating the requested objective.",
         }
         save(controller.db, run)
+    if background is None:
+        prepare(controller, run)
+    else:
         background.add_task(prepare, controller, run)
-    return {"id": run["id"]}
+    return run["id"]
 
 
 @router.post("/{identity}/approve", status_code=202)

@@ -204,6 +204,7 @@ export function AgentGuide({ dialog }: { dialog: React.RefObject<HTMLDialogEleme
         <li><strong>Repair.</strong> Try “Fix this network.” Review the proposed repair and follow the incident activity through verification.</li>
         <li><strong>Provision.</strong> Try “Add one leaf.” Review the topology, configuration diff and rollback before approving.</li>
         <li><strong>Measure.</strong> Use “Show impact” to see measured outcomes and open the detailed comparison.</li>
+        <li><strong>Experiment.</strong> Ask how to double aggregate throughput, design a GRE tunnel, or compare diagnosis workflows. Open tool activity to inspect the calls and their results.</li>
       </ul>
       <p>Use Live to run tasks and Replay to review recorded events.</p>
     </dialog>

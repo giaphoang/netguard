@@ -16,8 +16,8 @@ from typing import Annotated
 from . import architecture, measurements, operator, expansion, traffic
 from .controls import router as control_routes, running_controls
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import StreamingResponse, Response
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -497,6 +497,13 @@ def trace(
         "candidates": candidates,
         "probes": results,
     }
+
+
+@app.get("/architecture", include_in_schema=False)
+@app.get("/architecture/", include_in_schema=False)
+def old_architecture_workspace(request: Request):
+    query = request.url.query
+    return RedirectResponse("/agent/" + ("?" + query if query else ""))
 
 
 app.mount(

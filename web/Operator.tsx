@@ -19,7 +19,8 @@ import { ChatIncidents, type IncidentHistory, type IncidentReference } from "./C
 import { ImpactDashboard } from "./ImpactDashboard";
 import { duration, type Impact } from "./impactData";
 import { get, post } from "./localApi";
-import type { ArchitectureRequest } from "./ArchitectureLab";
+import { AgentRecord, ResponseBlocks, ToolActivity } from "./AgentResponse";
+import { object, string, parseBlocks, parseRef, parseTrace, type Block, type RecordRef, type ToolCall } from "./agentProtocol";
 
 type Answer = {
   text: string;
@@ -31,7 +32,9 @@ type Answer = {
   impact?: boolean;
   plan?: Plan;
   incident_history?: IncidentHistory;
-  architecture?: ArchitectureRequest;
+  blocks?: Block[];
+  trace?: ToolCall[];
+  record?: RecordRef;
 };
 
 type IncidentRecord = Pick<Run, "events" | "review">;
@@ -53,7 +56,6 @@ type Props = {
   page: WorkspaceName;
   request?: { text: string };
   navigate: (page: WorkspaceName) => void;
-  openArchitecture: (request: ArchitectureRequest) => void;
   signal: string;
   live: boolean;
   target: string;
@@ -67,6 +69,37 @@ const benchmarkPrompt = "Evaluate the AI operator against our incident test suit
 const progressMediaType = "application/x-ndjson";
 const errorText = (e: unknown) => e instanceof Error && e.message ? e.message : "Operator request failed.";
 
+function parseAnswer(value: unknown): Answer {
+  if (typeof value === "string") return { text: value };
+  const row = object(value);
+  if (!row) throw Error("The Agent returned an unreadable answer.");
+  const action = string(row.action);
+  const repair = /^incidents\/([a-z0-9_-]{1,64})\/approve$/i.exec(action ?? "");
+  const validAction = repair || /^scenarios\/link\/inject\?[a-zA-Z0-9=&_-]+$/.test(action ?? "");
+  const evidence = object(row.evidence);
+  const facts = object(evidence?.facts);
+  const observed = evidence?.observed;
+  const plan = object(row.plan);
+  const history = object(row.incident_history);
+  // Saved incident and provisioning records retain their existing controller contracts.
+  return {
+    text: string(row.text) ?? "",
+    choices: Array.isArray(row.choices) ? row.choices.filter((choice): choice is string => typeof choice === "string") : [],
+    blocks: parseBlocks(row.blocks),
+    trace: parseTrace(row.trace),
+    record: parseRef(row.record),
+    action: validAction ? action : undefined,
+    label: string(row.label),
+    incident_id: string(row.incident_id) ?? repair?.[1],
+    evidence: typeof observed === "number" && Number.isFinite(observed) && facts
+      ? { observed, facts } : undefined,
+    impact: row.impact === true,
+    plan: typeof plan?.id === "string" && typeof plan.phase === "string" && Array.isArray(plan.leaves)
+      ? plan as unknown as Plan : undefined,
+    incident_history: Array.isArray(history?.records) ? history as unknown as IncidentHistory : undefined,
+  };
+}
+
 async function readAnswer(
   prompt: string, selection: string, onStep: (step: Step) => void,
   historyRequest?: { incident_history: true; incident_record?: IncidentReference },
@@ -74,10 +107,7 @@ async function readAnswer(
   const response = await post("operator", { prompt, selection, ...historyRequest }, progressMediaType);
   const mediaType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
   if (mediaType === "application/json") {
-    const answer: Answer = await response.json();
-    // JSON-only controllers identify repairs by their approval path.
-    answer.incident_id ??= /^incidents\/([^/]+)\/approve$/.exec(answer.action ?? "")?.[1];
-    return answer;
+    return parseAnswer(await response.json());
   }
   if (mediaType !== progressMediaType) throw Error("The Agent returned an unexpected response.");
   const reader = response.body?.getReader();
@@ -93,10 +123,14 @@ async function readAnswer(
       buffer = done ? "" : lines.pop()!;
       for (const line of lines) {
         if (!line.trim()) continue;
-        const event: { step?: Step; answer?: Answer; error?: string } = JSON.parse(line);
-        if (event.step) onStep(event.step);
-        if (event.error) throw Error(event.error);
-        if (event.answer) return event.answer;
+        const event = object(JSON.parse(line));
+        if (!event) continue;
+        const step = object(event.step), label = string(step?.label);
+        if (label) onStep({ label, detail: string(step.detail),
+          time: typeof step.time === "number" && Number.isFinite(step.time) ? step.time : undefined });
+        const error = string(event.error);
+        if (error) throw Error(error);
+        if ("answer" in event) return parseAnswer(event.answer);
       }
       if (done) throw Error("The Agent response ended before an answer arrived.");
     }
@@ -106,7 +140,7 @@ async function readAnswer(
 }
 
 export function Operator({
-  page, request, navigate, openArchitecture, signal, live, target, run, replay, preview, trace,
+  page, request, navigate, signal, live, target, run, replay, preview, trace,
 }: Props) {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -123,7 +157,9 @@ export function Operator({
   const composer = useRef<HTMLTextAreaElement>(null);
   const help = useRef<HTMLDialogElement>(null);
   const followLatest = useRef(true);
-  const feedSize = useRef<{ width: number; height: number }>();
+  const savedExperiments = useRef<HTMLDialogElement>(null);
+  const [recentExperiments, setRecentExperiments] = useState<{ ref: RecordRef; prompt: string; phase: string }[]>([]);
+  const [experimentHistoryStatus, setExperimentHistoryStatus] = useState("");
 
   const latest = turns[turns.length - 1];
   const busy = !!latest && !latest.answer && !latest.error;
@@ -139,13 +175,17 @@ export function Operator({
 
   useEffect(() => {
     help.current?.close();
+    savedExperiments.current?.close();
   }, [page]);
 
   useEffect(() => {
     const feed = transcript.current;
     const content = messages.current;
     if (!feed || !content) return;
-    const resize = new ResizeObserver(checkScroll);
+    const resize = new ResizeObserver(() => {
+      if (followLatest.current && feed.clientHeight) feed.scrollTop = feed.scrollHeight;
+      checkScroll();
+    });
     resize.observe(feed);
     resize.observe(content);
     return () => resize.disconnect();
@@ -168,13 +208,47 @@ export function Operator({
   function checkScroll() {
     const feed = transcript.current;
     if (!feed?.clientHeight) return;
-    const { clientHeight: height, clientWidth: width } = feed;
-    const resized = feedSize.current?.width !== width || feedSize.current?.height !== height;
-    feedSize.current = { width, height };
-    if (resized && followLatest.current) feed.scrollTop = feed.scrollHeight;
-    const nearEnd = feed.scrollHeight - feed.scrollTop - height <= 24;
+    const nearEnd = feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 24;
     followLatest.current = nearEnd;
     setAtLatest(nearEnd);
+  }
+
+  function openExperiment(ref: RecordRef, prompt: string) {
+    const id = ++nextTurnId.current;
+    jumpToLatest();
+    setTurns(previous => previous.some(turn =>
+      turn.answer?.record?.source === ref.source && turn.answer.record.id === ref.id)
+      ? previous : [...previous, { id, prompt, steps: [], answer: { text: "", record: ref } }]);
+  }
+
+  useEffect(() => {
+    if (!agentWorkspace) return;
+    function openLinkedExperiment() {
+      const id = /^#(?:experiment=)?([a-f0-9]{32})$/.exec(location.hash)?.[1];
+      if (id) openExperiment({ source: "experiment", id }, "Open saved experiment " + id.slice(0, 8));
+    }
+    openLinkedExperiment();
+    window.addEventListener("hashchange", openLinkedExperiment);
+    return () => window.removeEventListener("hashchange", openLinkedExperiment);
+  }, [agentWorkspace]);
+
+  async function showExperiments() {
+    savedExperiments.current?.showModal();
+    setExperimentHistoryStatus("Loading saved experiments…");
+    setRecentExperiments([]);
+    try {
+      const records = await get<unknown>("architecture");
+      if (!Array.isArray(records)) throw Error("The saved experiment list is unavailable.");
+      const rows = records.flatMap(value => {
+        const row = object(value), prompt = string(row?.prompt);
+        const ref = parseRef({ source: "experiment", id: row?.id });
+        return ref && prompt ? [{ ref, prompt, phase: string(row?.phase) ?? "Saved" }] : [];
+      });
+      setRecentExperiments(rows);
+      setExperimentHistoryStatus(rows.length ? "" : "No saved experiments.");
+    } catch (error) {
+      setExperimentHistoryStatus(errorText(error));
+    }
   }
 
   function rememberPlan(next: Plan) {
@@ -404,6 +478,8 @@ export function Operator({
           <span className={"chat-mode" + (live ? " is-live" : "")}>
             {live ? "Live" : replay ? "Replay" : "Connecting"}
           </span>
+          {agentWorkspace && <button type="button" className="chat-new" disabled={!live || busy}
+            aria-haspopup="dialog" onClick={() => void showExperiments()}>Experiments</button>}
           {agentWorkspace && turns.length > 0 && (
             <button type="button" className="chat-new" disabled={busy} onClick={newChat}>
               <RotateCcw size={14} aria-hidden="true" /> New chat
@@ -465,12 +541,10 @@ export function Operator({
                         label={turn.followPlan || turn.followIncident ? "Controller activity" : "Activity"}
                         steps={steps}
                       />
-                      {answer && <p className="chat-text">{answer.text}</p>}
-                      {answer?.architecture && (
-                        <button type="button" onClick={() => openArchitecture(answer.architecture!)}>
-                          Open experiment objective
-                        </button>
-                      )}
+                      {answer?.text && <p className="chat-text">{answer.text}</p>}
+                      {answer?.trace && <ToolActivity title="Agent tool calls" trace={answer.trace} />}
+                      {answer?.blocks && <ResponseBlocks blocks={answer.blocks} />}
+                      {answer?.record && <AgentRecord record={answer.record} live={live} />}
                       {turn.error && <p className="chat-error">{turn.error}</p>}
                       {turn.incident && <Activity label="Incident timeline" steps={incidentSteps(turn.incident.events)} />}
                       {review && <IncidentReview review={review} />}
@@ -568,6 +642,21 @@ export function Operator({
           <small className="chat-policy">{historyMode ? "Read-only incident journal" : "Changes require a validated plan and approval."}</small>
         </div>
         <AgentGuide dialog={help} />
+        <dialog ref={savedExperiments} className="chat-guide" aria-labelledby="experiment-history-title">
+          <div className="chat-guide-head">
+            <h2 id="experiment-history-title">Saved experiments</h2>
+            <button type="button" onClick={() => savedExperiments.current?.close()}>Close</button>
+          </div>
+          {experimentHistoryStatus && <p role="status">{experimentHistoryStatus}</p>}
+          {!!recentExperiments.length && <ul className="agent-saved-runs">
+            {recentExperiments.map(({ ref, prompt, phase }) => (
+              <li key={ref.id}><button type="button" onClick={() => {
+                savedExperiments.current?.close();
+                openExperiment(ref, prompt);
+              }}><span>{prompt}</span><small>{phase.replace(/_/g, " ")} · {ref.id.slice(0, 8)}</small></button></li>
+            ))}
+          </ul>}
+        </dialog>
       </div>
       {planOutsideChat && (
         <div className="drawer chat-current-plan">

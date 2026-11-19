@@ -1,0 +1,229 @@
+{
+  "gre": {
+    "id": "9656934c82914a0cbc7b213042dc3726",
+    "measurements": {
+      "gbps": 150.80771573279267,
+      "p95_ms": 0.073,
+      "loss_pct": 0,
+      "guest_cpu_pct": 96.7818831942789,
+      "busiest_vcpu_pct": 98.58156028368795,
+      "link_bytes": {
+        "spine-1": 215898339063,
+        "spine-2": 6549
+      },
+      "trials": [
+        {
+          "gbps": 123.47998499991131,
+          "endpoint_cpu": {
+            "host_total": 193.92514399686286,
+            "host_user": 1.5869599900199947,
+            "host_system": 192.33818400684285,
+            "remote_total": 107.84928799434982,
+            "remote_user": 3.0529339269649265,
+            "remote_system": 104.7963290842922
+          },
+          "guest_cpu_pct": 97.98697454114861,
+          "busiest_vcpu_pct": 98.58156028368795,
+          "link_bytes": {
+            "spine-1": 61908710663,
+            "spine-2": 3166
+          },
+          "ping": {
+            "sent": 25,
+            "received": 25,
+            "rtt_ms": [
+              0.069,
+              0.028,
+              0.023,
+              0.025,
+              0.018,
+              0.018,
+              0.024,
+              0.027,
+              0.02,
+              0.024,
+              0.026,
+              0.017,
+              0.017,
+              0.018,
+              0.066,
+              0.055,
+              0.055,
+              0.065,
+              0.033,
+              0.022,
+              0.028,
+              0.039,
+              0.04,
+              0.073,
+              0.021
+            ]
+          }
+        },
+        {
+          "gbps": 150.80771573279267,
+          "endpoint_cpu": {
+            "host_total": 199.37578722677424,
+            "host_user": 2.1634814676454166,
+            "host_system": 197.2122558161138,
+            "remote_total": 108.78566153084803,
+            "remote_user": 4.37769699211569,
+            "remote_system": 104.40798953257759
+          },
+          "guest_cpu_pct": 96.44578313253012,
+          "busiest_vcpu_pct": 96.39423076923077,
+          "link_bytes": {
+            "spine-1": 75578092711,
+            "spine-2": 1616
+          },
+          "ping": {
+            "sent": 25,
+            "received": 25,
+            "rtt_ms": [
+              0.103,
+              0.021,
+              0.029,
+              0.021,
+              0.02,
+              0.031,
+              0.022,
+              0.017,
+              0.019,
+              0.018,
+              0.045,
+              0.31,
+              0.033,
+              0.035,
+              0.034,
+              0.029,
+              0.019,
+              0.018,
+              0.019,
+              0.018,
+              0.019,
+              0.019,
+              0.021,
+              0.021,
+              0.015
+            ]
+          }
+        },
+        {
+          "gbps": 156.38725696907832,
+          "endpoint_cpu": {
+            "host_total": 207.68251084821975,
+            "host_user": 2.533455435588149,
+            "host_system": 205.1490304598547,
+            "remote_total": 111.1331789417934,
+            "remote_user": 2.94283266005631,
+            "remote_system": 108.19034628173708
+          },
+          "guest_cpu_pct": 96.7818831942789,
+          "busiest_vcpu_pct": 97.36842105263158,
+          "link_bytes": {
+            "spine-1": 78411535689,
+            "spine-2": 1767
+          },
+          "ping": {
+            "sent": 25,
+            "received": 25,
+            "rtt_ms": [
+              0.106,
+              0.046,
+              0.022,
+              0.026,
+              0.018,
+              0.019,
+              0.018,
+              0.017,
+              0.068,
+              0.018,
+              0.016,
+              0.018,
+              0.018,
+              0.018,
+              0.025,
+              0.023,
+              0.03,
+              0.026,
+              0.034,
+              0.021,
+              0.019,
+              0.021,
+              0.025,
+              0.042,
+              0.016
+            ]
+          }
+        }
+      ],
+      "single_flow": null,
+      "resources": {
+        "vm_cpus": 4,
+        "memory_available_mib": 4739
+      },
+      "iperf3": "iperf 3.16 (cJSON 1.7.15)",
+      "paths": {
+        "leaf-1": [
+          1,
+          2
+        ],
+        "leaf-2": [
+          1,
+          2
+        ]
+      },
+      "healthy_paths": 2,
+      "mtu_bytes": 1476
+    },
+    "encapsulation": {
+      "mtu_bytes": 1476,
+      "capture": "tcpdump: data link type LINUX_SLL2\ntcpdump: verbose output suppressed, use -v[v]... for full protocol decode\nlistening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes\n21:19:53.162380 eth0  Out IP 10.212.1.1 > 10.212.2.1: GREv0, length 88: IP 10.215.0.1 > 10.215.0.2: ICMP echo request, id 110, seq 1, length 64\n21:19:53.162463 eth0  In  IP 10.212.2.1 > 10.212.1.1: GREv0, length 88: IP 10.215.0.2 > 10.215.0.1: ICMP echo reply, id 110, seq 1, length 64\n2 packets captured\n2 packets received by filter\n0 packets dropped by kernel\n"
+    },
+    "restored": "rolled_back"
+  },
+  "evaluation": {
+    "id": "709086f10ab8494184339d165bf87bd6",
+    "summary": {
+      "fabric-triage-v6.1": {
+        "n": 11,
+        "diagnosis_correct": 6,
+        "escalation_correct": 9,
+        "handoff_required": 7,
+        "handoff_correct": 7,
+        "unsafe_proposals": 0,
+        "unsafe_accepted": 0,
+        "guard_blocks": 0,
+        "unsupported_citations": 0,
+        "errors": 0,
+        "mean_latency_s": 0.9698277711828599,
+        "median_latency_s": 0.9184013260091888,
+        "model_calls": 11,
+        "mean_context_bytes": 884.3636363636364
+      },
+      "fabric-triage-v7-candidate": {
+        "n": 11,
+        "diagnosis_correct": 7,
+        "escalation_correct": 11,
+        "handoff_required": 7,
+        "handoff_correct": 7,
+        "unsafe_proposals": 0,
+        "unsafe_accepted": 0,
+        "guard_blocks": 0,
+        "unsupported_citations": 0,
+        "errors": 0,
+        "mean_latency_s": 0.9101350458182754,
+        "median_latency_s": 0.870277845999226,
+        "model_calls": 11,
+        "mean_context_bytes": 451.45454545454544
+      }
+    }
+  },
+  "parsing": {
+    "unknownBlockFallback": true,
+    "arbitraryColumns": true,
+    "unsafeLinkBecameText": true,
+    "preservedZeroAndFalse": true
+  },
+  "mobile": true
+}

@@ -8,14 +8,13 @@ from . import expansion, topology
 from .benchmarks import HASH_POLICY
 
 VERSION = "architecture-v3"
-INTENT_PROMPT = """Choose the architecture objective supported by this lab.
-Use throughput for goals to design, increase, optimize or benchmark aggregate network
-throughput (bandwidth, performance, multiple flows or ECMP). Use unsupported for other
-objectives, including questions about how a protocol works.
-Use gre for designing, deploying or benchmarking GRE, or comparing GRE, IP-in-IP and MPLS
-for deployment in this lab. Use evaluation for comparing incident diagnosis workflows,
-including candidate prompts or candidate context retrieval evaluated on recorded incidents.
-Return only the objective name.
+INTENT_PROMPT = """Choose a tool by the subject of the experiment.
+gre covers a GRE tunnel design or a tunnel protocol comparison that considers GRE for this lab.
+throughput covers a general capacity or ECMP trial on the existing fabric.
+evaluation covers A/B replay of AI diagnosis workflows on labeled incidents.
+Comparing, predicting, evaluating or benchmarking network protocols still concerns the network.
+Choose unsupported for other objectives, including conceptual explanations.
+Return the objective as JSON.
 The model cannot approve or execute network changes."""
 REFERENCES = re.compile(r"\b(?:spine|leaf|host)\s+(?:\d+|" + "|".join(topology.WORDS) + r"|a|b)\b")
 

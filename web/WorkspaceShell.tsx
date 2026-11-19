@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, BarChart3, Bot, Boxes, FlaskConical, LayoutDashboard, Siren } from "lucide-react";
+import { Activity, BarChart3, Bot, Boxes, LayoutDashboard, Siren } from "lucide-react";
 import routes from "./workspaceRoutes.json";
 
 export type WorkspaceName = keyof typeof routes;
@@ -11,7 +11,7 @@ const workspaces = {
   },
   "AI Agent": {
     label: "AI Agent", icon: Bot,
-    description: "Investigate the network, review the evidence, and approve proposed changes.",
+    description: "Investigate the network, run architecture experiments, and review changes in chat.",
   },
   Incidents: {
     label: "Incidents", icon: Siren,
@@ -20,10 +20,6 @@ const workspaces = {
   Provisioning: {
     label: "Provisioning", icon: Boxes,
     description: "Preview, approve, and verify fabric changes.",
-  },
-  "AI Architecture Lab": {
-    label: "Architecture Lab", icon: FlaskConical,
-    description: "Measure the live fabric, review a design, and compare predictions with benchmark results.",
   },
   "AI Impact": {
     label: "AI Impact", icon: BarChart3,

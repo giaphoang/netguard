@@ -4,13 +4,13 @@ import http.client
 import json
 import sqlite3
 import time
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
-from . import advisor, expansion, intents, provision, questions, topology
+from . import advisor, architecture, chat_views, expansion, intents, provision, questions, topology
 from . import incident_history as history
 from . import investigations as inv
 from .controls import authorized, local, perform
@@ -51,8 +51,8 @@ WORKFLOW_STEPS = {
         "Compare workflows using the same labeled observations.",
     ),
     "architecture": (
-        "Select the Architecture Lab",
-        "Carry the objective to the experiment workspace for evidence collection and review.",
+        "Prepare the experiment",
+        "Start evidence collection and show the results here.",
     ),
     "clarify": (
         "Review available evidence",
@@ -69,24 +69,29 @@ class Request(BaseModel):
 
 
 @router.post("/api/operator")
-def operator(req: Request, c=Depends(authorized), accept: Annotated[str, Header()] = ""):
+def operator(
+    req: Request,
+    c=Depends(authorized),
+    accept: Annotated[str, Header()] = "",
+    background: BackgroundTasks = None,
+):
     if accept == PROGRESS_MEDIA_TYPE:
-        return stream_operator(req, c)
-    for event in operator_events(req, c):
+        return stream_operator(req, c, background)
+    for event in operator_events(req, c, background):
         if "answer" in event:
             return event["answer"]
 
 
 @router.post("/api/operator/stream")
-def stream_operator(req: Request, c=Depends(authorized)):
+def stream_operator(req: Request, c=Depends(authorized), background: BackgroundTasks = None):
     def stream():
         try:
-            for event in operator_events(req, c):
+            for event in operator_events(req, c, background):
                 yield json.dumps(event) + "\n"
         except HTTPException as exc:
             yield json.dumps({"error": exc.detail}) + "\n"
 
-    return StreamingResponse(stream(), media_type=PROGRESS_MEDIA_TYPE)
+    return StreamingResponse(stream(), media_type=PROGRESS_MEDIA_TYPE, background=background)
 
 
 def step(label, detail):
@@ -94,14 +99,16 @@ def step(label, detail):
 
 
 def incident_events(req, db):
-    yield step("Read the incident journal", "Match the request against saved incidents and investigations.")
+    yield step(
+        "Read the incident journal", "Match the request against saved incidents and investigations."
+    )
     try:
         yield {"answer": history.answer(db, req.prompt, req.incident_record)}
     except sqlite3.Error as exc:
         raise HTTPException(503, "The saved incident journal is unavailable.") from exc
 
 
-def operator_events(req, c):
+def operator_events(req, c, background=None):
     started = time.time()
     try:
         if req.incident_history or req.incident_record or history.wants_journal(req.prompt):
@@ -114,7 +121,12 @@ def operator_events(req, c):
         yield step(
             "Interpret the request", "Identify the workflow and resolve the requested targets."
         )
-        spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
+        calls = []
+        token = advisor.TRACE.set(calls)
+        try:
+            spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
+        finally:
+            advisor.TRACE.reset(token)
         tool = spec.intent
         inv.record(
             c.db,
@@ -136,22 +148,41 @@ def operator_events(req, c):
         if targets:
             detail += f" The workflow targets {', '.join(targets)}."
         yield step(label, detail)
-        yield {"answer": answer_request(req, c, started, sample, spec, targets, graph)}
+        token = advisor.TRACE.set(calls)
+        try:
+            answer = answer_request(req, c, started, sample, spec, targets, graph, background)
+        finally:
+            advisor.TRACE.reset(token)
+        if calls:
+            answer["trace"] = chat_views.experiment_trace(
+                [
+                    {**call, "status": "complete" if call.get("http_status") == 200 else "failed"}
+                    for call in calls
+                ]
+            )
+        yield {"answer": answer}
     except (OSError, http.client.HTTPException, KeyError) as exc:
         raise HTTPException(
             503,
             "Local model or telemetry unavailable. Inspect the evidence or use the graph controls.",
         ) from exc
+    except ValidationError as exc:
+        raise HTTPException(
+            409, "The local model returned an invalid structured response."
+        ) from exc
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
 
 
-def answer_request(req, c, started, sample, spec, targets, graph):
+def answer_request(req, c, started, sample, spec, targets, graph, background=None):
     tool = spec.intent
     if tool == "architecture":
+        identity = architecture.queue(
+            architecture.Request(prompt=req.prompt, selection=req.selection), c, background
+        )
         return {
-            "text": "Open the Architecture Lab to run the objective and review its evidence.",
-            "architecture": {"prompt": req.prompt, "selection": req.selection},
+            "text": "",
+            "record": {"source": "experiment", "id": identity},
         }
     if tool == "benchmark":
         from .evaluation import assess_suite
@@ -285,6 +316,31 @@ def monitoring(c=Depends(local)):
         "rules": getattr(c, "monitor_rules", {}),
         "investigations": sorted(rows, key=lambda r: r["observed"], reverse=True),
     }
+
+
+@router.get("/api/operator/records/{source}/{identity}")
+def record_view(source: Literal["experiment"], identity: str, c=Depends(local)):
+    return chat_views.experiment(architecture.get_run(c, identity))
+
+
+class RecordApproval(BaseModel):
+    revision: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+
+@router.post("/api/operator/records/{source}/{identity}/actions/{action}", status_code=202)
+def record_action(
+    source: Literal["experiment"],
+    identity: str,
+    action: Literal["approve", "rollback"],
+    req: RecordApproval,
+    background: BackgroundTasks,
+    c=Depends(authorized),
+):
+    if action == "rollback":
+        return architecture.rollback(identity, background, c)
+    if not req.revision:
+        raise HTTPException(422, "Review the current configuration preview before approving.")
+    return architecture.approve(identity, architecture.Approval(digest=req.revision), background, c)
 
 
 @router.get("/api/investigations/{identity}")

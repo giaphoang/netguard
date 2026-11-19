@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api import evaluation, incident_history, intents, investigations, measurements, operator, provision
+from api import architecture, evaluation, incident_history, intents, investigations, measurements, operator, provision
 from api.incidents import Controller
 from test_incidents import sample
 
@@ -71,6 +71,47 @@ def test_chat_can_read_a_discarded_plan_by_identity(tmp_path):
     assert operator.state(c)["id"] == previous["id"]
     discarded = operator.plan_state(preview["id"], c)
     assert [e["phase"] for e in discarded["events"]] == ["preview", "cancelled"]
+
+
+def test_chat_starts_and_reopens_the_experiment_without_leaving_the_transcript(tmp_path, monkeypatch):
+    c = Controller(tmp_path / "journal")
+    app = FastAPI()
+    app.include_router(operator.router)
+    app.dependency_overrides[operator.authorized] = lambda: c
+    app.dependency_overrides[operator.local] = lambda: c
+    monkeypatch.setattr(operator, "observe", sample)
+    intent = intents.Intent(intent="architecture", targets=[], node_type="unspecified",
+                            quantity=None, duration_s=None, scope="network")
+    monkeypatch.setattr(intents, "interpret", lambda *_: (intent, [], {}))
+    prepared = []
+
+    def prepare(controller, run):
+        prepared.append(run["prompt"])
+        trace = architecture.Trace(controller.db, run)
+        with trace.tool("Read observations") as event:
+            event["result"] = {"packets": 0}
+        trace.mark("evaluated", "Evidence collected.")
+
+    monkeypatch.setattr(architecture, "prepare", prepare)
+    client = TestClient(app)
+    prompt = "Does a paired workload improve our incident workflow?"
+    reply = client.post("/api/operator", headers={"Accept": operator.PROGRESS_MEDIA_TYPE},
+                        json={"prompt": prompt})
+    answer = json.loads(reply.text.splitlines()[-1])["answer"]
+    assert answer["record"]["source"] == "experiment"
+    reference = answer["record"]["id"]
+    assert prepared == [prompt]
+    view = client.get(f"/api/operator/records/experiment/{reference}").json()
+    assert view["trace"][0]["result"] == {"packets": 0}
+    assert view["title"] == "Evaluation complete" and view["actions"] == []
+    blocked = client.post(
+        f"/api/operator/records/experiment/{reference}/actions/approve",
+        json={"revision": "0" * 64},
+    )
+    assert blocked.status_code == 409
+    assert architecture.objective_schema("Benchmark GRE against IPv4-in-IPv4.")[
+        "properties"
+    ]["objective"]["enum"] == ["gre", "unsupported"]
 
 
 def test_incident_chat_reads_saved_runs_and_investigations(tmp_path, monkeypatch):

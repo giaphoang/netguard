@@ -2,10 +2,11 @@ import React from "react";
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
 export type FabricSpec = {spines:number[];leaves:number[];hosts:{id:number;leaf:number}[]};
 export type Overlay = Pick<Edge, "source" | "target"> & { label: string };
-export function TopologyPreview({before,after,applied=false,overlay}:{
+export function TopologyPreview({before,after,applied=false,overlay,beforeLabel,afterLabel,excludedLinks=[]}:{
   before:FabricSpec;after:FabricSpec;applied?:boolean;overlay?:Overlay;
+  beforeLabel?:string;afterLabel?:string;excludedLinks?:string[];
 }) {
-  function graph(spec:FabricSpec, tunnel?:Overlay) {
+  function graph(spec:FabricSpec, proposed: boolean, tunnel?:Overlay) {
     const spacing = overlay ? 200 : 150;
     const nodes = [
       ...spec.spines.map((n,i)=>({id:`spine-${n}`,position:{x:i*spacing,y:0},data:{label:`Spine ${n}`}})),
@@ -23,16 +24,20 @@ export function TopologyPreview({before,after,applied=false,overlay}:{
         style: { stroke: "var(--accent)", strokeDasharray: "6 4", strokeWidth: 2 },
       });
     }
-    return {nodes:nodes.map(n=>({...n,className:original.has(n.id) ? undefined : "pending"})),edges};
+    return {
+      nodes:nodes.map(n=>({...n,className:original.has(n.id) ? undefined : "pending"})),
+      edges: proposed ? edges.filter(edge => !excludedLinks.includes(edge.target + "/" + edge.source)) : edges,
+    };
   }
   return (
     <div className="topology-compare">
-      {([[applied ? "Before" : "Current", before, undefined], [applied ? "Deployed" : "Proposed", after, overlay]] as const).map(([label, spec, tunnel]) => (
-        <div key={label}>
+      {([[beforeLabel ?? (applied ? "Before" : "Current"), before, undefined],
+         [afterLabel ?? (applied ? "Deployed" : "Proposed"), after, overlay]] as const).map(([label, spec, tunnel], i) => (
+        <div key={i}>
           <h3>{label}</h3>
           <div style={{ height: 250 }}>
             <ReactFlow
-              {...graph(spec, tunnel)}
+              {...graph(spec, i === 1, tunnel)}
               colorMode="dark"
               fitView
               nodesDraggable={false}

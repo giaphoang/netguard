@@ -4,7 +4,7 @@ A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-
 
 **Overview** opens the Command Center. Select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. The sidebar opens the dedicated AI Agent, Incidents, Provisioning, and AI Impact workspaces. Chat history and drafts follow you between workspaces. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
 
-**Architecture Lab** measures the live fabric, compares design alternatives, and shows a topology and configuration preview before approval. It saves the prediction and compares it with the measured outcome from the approved trial. [Architecture experiments and evidence](docs/ARCHITECTURE_LAB.md)
+Architecture experiments run inside **AI Agent**. Ask about throughput, GRE, or diagnosis quality to see the design, tool activity, approval controls, and measured results in the same reply. [Architecture experiments and evidence](docs/ARCHITECTURE_LAB.md)
 
 P3 adds proactive investigations, topology-aware structured intent, approved spine/leaf/host provisioning with verification and rollback, and reproducible AI evaluation. The existing P0–P2 fabric, controls and benchmark history remain intact. [P3 stages and evidence](docs/P3_OPERATIONS.md) · [Earlier P2 diagnosis](docs/P2_AI.md)
 
