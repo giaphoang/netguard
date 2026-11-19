@@ -1,6 +1,7 @@
 from copy import deepcopy
 import json
 from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 
@@ -37,8 +38,10 @@ def sample(failed=False):
 def test_link_workflow(tmp_path, monkeypatch, auto, ai):
     down = False
 
-    def change(s, t, inject):
+    def change(s, t, inject, *, before_write):
         nonlocal down
+        if before_write:
+            before_write()
         down = inject
 
     monkeypatch.setattr(
@@ -74,6 +77,9 @@ def test_link_workflow(tmp_path, monkeypatch, auto, ai):
     c.step()
     c.step()
     assert c.run["phase"] == "resolved" and c.run["attempts"] == 1
+    (operation,) = c.run["operations"]
+    assert len(operation["id"]) == 32 and operation["status"] == "verified"
+    assert operation["verification_timeout_s"] == 45
     assert Controller(c.db).detail(c.run["id"]) == c.run
 
 
@@ -161,7 +167,7 @@ def test_replaced_target_requires_healthy_observation_and_never_actuates(tmp_pat
     target = Target(container="original", interface="eth1")
     monkeypatch.setattr(incidents.presets, "identify", lambda s: target)
     monkeypatch.setattr(incidents.presets, "fault_present", lambda *args: False)
-    monkeypatch.setattr(incidents.presets, "change", lambda *args: None)
+    monkeypatch.setattr(incidents.presets, "change", lambda *args, **kwargs: None)
     monkeypatch.setattr(incidents, "observe", lambda: sample(False))
     controller.inject("link")
     restarted = Controller(controller.db)
@@ -170,7 +176,7 @@ def test_replaced_target_requires_healthy_observation_and_never_actuates(tmp_pat
         incidents.presets, "identify", lambda s: Target(container="replacement", interface="eth1")
     )
     monkeypatch.setattr(
-        incidents.presets, "change", lambda *args: pytest.fail("Actuated replacement")
+        incidents.presets, "change", lambda *args, **kwargs: pytest.fail("Actuated replacement")
     )
     monkeypatch.setattr(incidents, "observe", lambda: sample(True))
     with pytest.raises(ValueError, match="unhealthy"):
@@ -186,7 +192,7 @@ def test_unavailable_probe_does_not_start_a_loss_clock(tmp_path, monkeypatch):
     c = Controller(tmp_path / "run")
     monkeypatch.setattr(incidents.presets, "identify", lambda _: Target(container="test"))
     monkeypatch.setattr(incidents.presets, "fault_present", lambda *_: False)
-    monkeypatch.setattr(incidents.presets, "change", lambda *_: None)
+    monkeypatch.setattr(incidents.presets, "change", lambda *args, **kwargs: None)
     monkeypatch.setattr(incidents, "observe", lambda: sample())
     c.inject("link")
     unknown = sample(True)
@@ -205,8 +211,9 @@ def test_ai_cannot_restore_on_unsupported_or_stale_evidence(tmp_path, monkeypatc
     c = Controller(tmp_path / "run")
     down = False
 
-    def change(_, __, inject):
+    def change(_, __, inject, *, before_write):
         nonlocal down
+        before_write()
         assert inject, "Unexpected restoration"
         down = True
 
@@ -242,3 +249,60 @@ def test_ai_cannot_restore_on_unsupported_or_stale_evidence(tmp_path, monkeypatc
     assert down and c.run["phase"] == "handoff" and c.run["attempts"] == 0
     with pytest.raises(ValueError):
         c.restore("approved", c.run["id"])
+
+
+def test_emergency_stop_returns_during_a_pending_repair_precondition(tmp_path, monkeypatch):
+    c = Controller(tmp_path / "journal")
+    checking, proceed = Event(), Event()
+    blocked = []
+    target = Target(container="local-container", interface="eth1")
+    c.run = {
+        "id": "repair",
+        "phase": "proposed",
+        "scenario": "link",
+        "attempts": 0,
+        "target": target.model_dump(),
+        "events": [],
+    }
+    monkeypatch.setattr(incidents.presets, "fault_present", lambda *_: True)
+    monkeypatch.setattr(incidents, "observe", lambda: sample(True))
+
+    def change(*_, before_write):
+        checking.set()
+        assert proceed.wait(2)
+        before_write()
+        pytest.fail("Repair must remain blocked")
+
+    def restore():
+        try:
+            c.restore("approved", "repair")
+        except incidents.EmergencyStop as exc:
+            blocked.append(str(exc))
+
+    monkeypatch.setattr(incidents.presets, "change", change)
+    worker = Thread(target=restore)
+    worker.start()
+    try:
+        assert checking.wait(2)
+        c.emergency_stop(True)
+        assert worker.is_alive() and c.stopped
+    finally:
+        proceed.set()
+        worker.join(timeout=2)
+    assert blocked and c.run["operations"][-1]["status"] == "blocked"
+    assert Controller(c.db).stopped
+
+
+def test_denied_restoration_is_recorded(tmp_path):
+    c = Controller(tmp_path / "journal")
+    c.run = {
+        "id": "unapproved",
+        "phase": "proposed",
+        "scenario": "link",
+        "attempts": 0,
+        "auto": False,
+    }
+    with pytest.raises(ValueError, match="disabled"):
+        c.restore("automatic", "unapproved")
+    (decision,) = c.detail("unapproved")["blocked_repairs"]
+    assert decision["mode"] == "automatic" and decision["reason"] == "Auto-repair is disabled"

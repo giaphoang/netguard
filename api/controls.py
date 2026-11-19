@@ -160,10 +160,7 @@ class Mode(BaseModel):
 
 @router.post("/api/automation/mode")
 def automation(mode: Mode, controller=Depends(authorized)):
-    with controller.lock:
-        if mode.enabled and (controller.stopped or controller.active):
-            raise HTTPException(409, "Enable automatic repair before starting the scenario")
-        controller.auto = mode.enabled
+    perform(controller.set_automation, mode.enabled)
     return {"automatic": mode.enabled}
 
 

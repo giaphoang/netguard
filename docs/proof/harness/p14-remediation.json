@@ -1,0 +1,26 @@
+{
+  "incident_id": "b57d541fb6b34ae089d1e270fb0a2408",
+  "blocked_while_stopped_http_status": 409,
+  "operator_prompts": 0,
+  "operation": {
+    "id": "a07d8838b90d41f7b78d424bb80d5cc0",
+    "mode": "automatic",
+    "target": {
+      "interface": "eth1",
+      "leaf": 1,
+      "spine": 1
+    },
+    "started": 1795131721.8777769,
+    "verification_timeout_s": 45,
+    "rollback": "Restore the recorded pre-fault state on the same owned target.",
+    "status": "verified",
+    "verified_at": 1795131725.677139
+  },
+  "metrics": {
+    "detection_s": 4.5761048793792725,
+    "traffic_recovery_s": 14.944736957550049,
+    "verified_failover_s": 14.944736957550049,
+    "closure_s": 19.31832504272461
+  },
+  "verification": "ai_repair"
+}

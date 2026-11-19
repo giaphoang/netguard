@@ -107,9 +107,11 @@ def fault_present(scenario: Scenario, target: Target) -> bool:
     return "UP" not in flags[1].split(",")
 
 
-def change(scenario: Scenario, target: Target, inject: bool) -> None:
+def change(scenario: Scenario, target: Target, inject: bool, *, before_write=None) -> None:
     if fault_present(scenario, target) == inject:
         raise ValueError("Runbook precondition changed")
+    if before_write:
+        before_write()
     if scenario == "endpoint":
         docker("pause" if inject else "unpause", target.container)
     elif scenario == "bgp":

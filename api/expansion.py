@@ -388,7 +388,7 @@ def ownership(topology, origins):
     return owners
 
 
-def initialize_loopbacks(topology, origins):
+def initialize_loopbacks(topology, origins, *, before_write=None):
     """Install approved loopback addresses if FRR startup left them absent."""
     leaves = [n for n in topology["leaves"] if n > 2]
     if not leaves:
@@ -403,6 +403,8 @@ def initialize_loopbacks(topology, origins):
             "exec", identity, "ip", "-4", "-br", "address", "show", "dev", "lo"
         )
         if address not in current.split():
+            if before_write:
+                before_write()
             p.presets.docker(
                 "exec", identity, "ip", "-4", "address", "replace", address, "dev", "lo"
             )
@@ -464,9 +466,14 @@ def execute(c, identity, rollback=False):
             p.compose(overlay, "config", "--quiet")
         p.save(c.db, plan, "rolling_back" if rollback else "applying")
     if not rollback:
+        started = False
         try:
+            c.check_running()
+            started = True
             p.compose(overlay, "up", "-d", "--no-deps", *names(plan["topology"]))
-            plan["initialized_loopbacks"] = initialize_loopbacks(plan["topology"], origins)
+            plan["initialized_loopbacks"] = initialize_loopbacks(
+                plan["topology"], origins, before_write=c.check_running
+            )
             plan["verification"] = verify(plan["topology"])
             if plan.get("capacity"):
                 plan["verification"]["resources"] = resources(plan["topology"], include_usage=True)
@@ -476,6 +483,9 @@ def execute(c, identity, rollback=False):
             return plan
         except (ValueError, OSError, subprocess.SubprocessError) as exc:
             plan["failure"] = str(exc)
+            if not started:
+                p.save(c.db, plan, "preview")
+                raise
             p.save(c.db, plan, "rolling_back")
     try:
         if any((folder / name).read_text() != value for name, value in files.items()):

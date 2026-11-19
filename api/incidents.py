@@ -17,6 +17,14 @@ RUNBOOK = {
     "bgp": "RESET_BGP_PRESET",
     "endpoint": "RESUME_ENDPOINT",
 }
+REVIEW_TIMEOUT = 120
+VERIFY_TIMEOUT = 45
+
+
+class EmergencyStop(ValueError):
+    pass
+
+
 EXPECTED = {
     "spine-1": {"10.211.11.2", "10.211.12.2"},
     "spine-2": {"10.211.21.2", "10.211.22.2"},
@@ -143,8 +151,9 @@ class Controller:
 
         self.db = db
         self.lock = threading.RLock()
+        self.stop_lock = threading.Lock()
+        self.stop_event = threading.Event()
         self.auto = False
-        self.stopped = False
         db.parent.mkdir(exist_ok=True, parents=True)
         with sqlite3.connect(db) as conn:
             conn.execute(
@@ -154,7 +163,8 @@ class Controller:
                 "CREATE TABLE IF NOT EXISTS safety (singleton INTEGER PRIMARY KEY, stopped INTEGER NOT NULL)"
             )
             flag = conn.execute("SELECT stopped FROM safety WHERE singleton=1").fetchone()
-            self.stopped = bool(flag and flag[0])
+            if flag and flag[0]:
+                self.stop_event.set()
             row = conn.execute(
                 "SELECT payload FROM incidents ORDER BY rowid DESC LIMIT 1"
             ).fetchone()
@@ -172,16 +182,52 @@ class Controller:
     def active(self):
         return self.run and self.run["phase"] != "resolved"
 
+    @property
+    def stopped(self):
+        return self.stop_event.is_set()
+
     def emergency_stop(self, enabled):
-        with self.lock, sqlite3.connect(self.db) as conn:
-            conn.execute("INSERT OR REPLACE INTO safety VALUES(1,?)", (int(enabled),))
-            conn.commit()
-            self.stopped = enabled
+        with self.stop_lock:
+            if enabled:
+                self.stop_event.set()
+            with sqlite3.connect(self.db) as conn:
+                conn.execute("INSERT OR REPLACE INTO safety VALUES(1,?)", (int(enabled),))
             self.auto = False
-            if enabled and self.active:
-                self.event(
-                    "handoff", "Emergency stop. Automatic actions disabled; manual reset available."
-                )
+            if not enabled:
+                self.stop_event.clear()
+        if enabled and self.lock.acquire(blocking=False):
+            try:
+                self.stop_pending_repair()
+            finally:
+                self.lock.release()
+
+    def stop_pending_repair(self):
+        if (
+            self.stopped
+            and self.active
+            and self.run["phase"]
+            in {
+                "baseline",
+                "injecting",
+                "injected",
+                "detected",
+                "diagnosed",
+                "proposed",
+            }
+        ):
+            self.event("handoff", "Emergency stop engaged. Manual reset is available.")
+            return True
+        return False
+
+    def check_running(self):
+        if self.stopped:
+            raise EmergencyStop("Emergency stop engaged before the network write.")
+
+    def set_automation(self, enabled):
+        with self.lock, self.stop_lock:
+            if enabled and (self.stopped or self.active):
+                raise ValueError("Enable automatic repair before starting the scenario")
+            self.auto = enabled
 
     def save(self):
         with sqlite3.connect(self.db) as conn:
@@ -242,7 +288,7 @@ class Controller:
             }
             self.event("injecting", "Saved verified baseline and target before injection")
             try:
-                presets.change(scenario, target, True)
+                presets.change(scenario, target, True, before_write=self.check_running)
                 self.run["t0"] = time.time()
                 if duration:
                     self.run["restore_at"] = self.run["t0"] + duration
@@ -259,12 +305,17 @@ class Controller:
                 raise ValueError("Incident is no longer active")
             if r["phase"] == "verifying":
                 raise ValueError("Verification is already in progress")
+            if action not in {"automatic", "approved", "reset"}:
+                self.block_repair(action, "Unknown repair authorization mode")
             if action != "reset" and (
                 r["phase"] != "proposed" or r["scenario"] != "link" or r["attempts"] or self.stopped
             ):
-                raise ValueError("No eligible link restoration")
+                self.block_repair(action, "No eligible link restoration")
             if action == "automatic" and not (self.auto and r["auto"]):
-                raise ValueError("Auto-repair is disabled")
+                self.block_repair(action, "Auto-repair is disabled")
+            if action != "reset" and r.get("t0") and time.time() - r["t0"] > REVIEW_TIMEOUT:
+                self.event("handoff", "Repair authorization deadline exceeded.")
+                self.block_repair(action, "Repair authorization deadline exceeded")
             target = presets.Target(**r["target"])
             leaf, spine = r.get("leaf", 1), r.get("spine", 1)
             if (
@@ -307,22 +358,57 @@ class Controller:
                 ):
                     self.event("handoff", "Live evidence no longer supports a single safe repair.")
                     return
+                if self.stopped:
+                    self.stop_pending_repair()
+                    self.block_repair(action, "Emergency stop engaged before the network write.")
+            operation = {
+                "id": uuid.uuid4().hex,
+                "mode": action,
+                "target": r["target"],
+                "started": time.time(),
+                "verification_timeout_s": VERIFY_TIMEOUT,
+                "rollback": "Restore the recorded pre-fault state on the same owned target.",
+                "status": "authorized",
+            }
+            r.setdefault("operations", []).append(operation)
             r["attempts"] += 1
             self.event("applying", f"{action}: {RUNBOOK[r['scenario']]}")
             try:
                 if presets.fault_present(r["scenario"], target):
-                    presets.change(r["scenario"], target, False)
+                    presets.change(
+                        r["scenario"],
+                        target,
+                        False,
+                        before_write=self.check_running if action != "reset" else None,
+                    )
                 elif action != "reset":
                     raise ValueError("Expected injected fault is absent")
                 r["verified"] = 0
+                operation["status"] = "verifying"
                 self.event(
                     "verifying", "Waiting for two consecutive healthy routing and traffic samples"
                 )
+            except EmergencyStop:
+                operation["status"] = "blocked"
+                self.event("handoff", "Emergency stop blocked the network write.")
+                raise
             except Exception:
+                operation["status"] = "needs_review"
                 self.event(
                     "handoff", "Restoration failed precondition or execution. No automatic retry."
                 )
                 raise
+
+    def block_repair(self, action, reason):
+        self.run.setdefault("blocked_repairs", []).append(
+            {
+                "time": time.time(),
+                "mode": action,
+                "reason": reason,
+            }
+        )
+        self.save()
+        raise ValueError(reason)
 
     def manual_diagnosis(self, identity, cause):
         with self.lock:
@@ -381,6 +467,8 @@ class Controller:
 
     def step(self):
         with self.lock:
+            if self.stop_pending_repair():
+                return
             if not self.active or self.run["phase"] in {"applying", "injecting"}:
                 return
             if (
@@ -435,11 +523,15 @@ class Controller:
                 r["verified"] = r["verified"] + 1 if healthy(sample) else 0
                 if r["verified"] >= 2:
                     metrics["closure_s"] = elapsed
+                    if r.get("operations") and r["operations"][-1]["status"] == "verifying":
+                        r["operations"][-1].update(status="verified", verified_at=now)
                     self.event(
                         "resolved",
                         "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice.",
                     )
-                elif now - r["events"][-1]["time"] > 45:
+                elif now - r["events"][-1]["time"] > VERIFY_TIMEOUT:
+                    if r.get("operations"):
+                        r["operations"][-1]["status"] = "needs_review"
                     self.event(
                         "handoff",
                         "Verification deadline exceeded; inspect evidence before another reset.",
@@ -447,7 +539,7 @@ class Controller:
             elif phase == "handoff":
                 self.save()
                 return
-            elif elapsed > 120:
+            elif elapsed > REVIEW_TIMEOUT:
                 self.event("handoff", "Operator review deadline exceeded.")
             else:
                 leaf, spine = r.get("leaf", 1), r.get("spine", 1)
