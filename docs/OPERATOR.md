@@ -16,6 +16,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 |---|---|
 | “Why isn’t Leaf 1 reaching Leaf 3?” | Check observed routes and probes for the pair. Device names like `leaf1` and `Leaf 1` both resolve. A missing measurement leaves reachability unverified. |
 | “How is ECMP different from BGP here?” | Get an explanation based on the current lab topology and evidence. |
+| “Design equivalent lab topologies for BGP, OSPF, and IS-IS.” | Compares one isolated topology and fault across the requested protocols, previews each FRR configuration, and runs the installed parser’s syntax checks. The comparison shows timer assumptions and a measurement plan. Measured convergence requires a dedicated experiment runner. [Dry-run and paraphrase evidence](proof/architecture/routing-chat.json) |
 | Inject a selected link fault with Local AI diagnosis | Monitoring detects it without a chat prompt. The local model investigates; the controller validates a repair or escalates. Automatic restoration requires explicitly enabled lab auto-repair. |
 | “Watch for latency spikes, loss, or peer flapping.” | Opens a live reply with probe measurements, transit counters, and the tools and recovery checks for new investigations. Throughput uses matched active experiments. [Browser and recovery evidence](proof/architecture/monitor-chat.json) |
 | “What could break if I remove Spine 1?” | Compares before and projected after topologies, affected BGP sessions, and installed and surviving ECMP paths. Select another spine in Overview and ask about the selected spine to repeat the review. [Browser evidence](proof/architecture/risk-agent.json) |
@@ -33,6 +34,8 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 Scroll the chat to revisit earlier requests, answers, approval outcomes, and evidence. **Latest message** returns to the end of the conversation. **How to use NetGuard Agent** opens the guide while keeping your draft and the composer in place.
 
 Open **Activity** for the steps reported while the agent checks the request. Incident and provisioning actions show the controller’s recorded steps as the operation advances. **Evidence** lists the observations cited in a response.
+
+The routing study uses a one-second hello or keepalive and four-second silent-failure detection settings in each arm. A local link-down event and convergence have separate timings. [FRR BGP](https://docs.frrouting.org/en/stable-10.1/bgp.html) · [FRR OSPF](https://docs.frrouting.org/en/stable-10.1/ospfd.html) · [FRR IS-IS](https://docs.frrouting.org/en/stable-10.1/isisd.html)
 
 Each request is independent. Include the target and any requested quantity or fault duration. For ordinary questions, the agent explains the latest probe paths, BGP state, and routing evidence. Specialized workflows retrieve additional evidence or prepare an approval. The controller validates devices, scope, capacity, approval, and rollback. The lab supports up to three spines, four leaves, and four hosts. Provisioning can recreate containers and interrupt traffic.
 

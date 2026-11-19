@@ -19,6 +19,7 @@ from . import (
     intents,
     monitor_chat,
     provision,
+    protocol_study,
     questions,
     risk_preview,
 )
@@ -48,6 +49,10 @@ WORKFLOW_STEPS = {
     "capacity": (
         "Check capacity and VM resources",
         "Measure headroom and calculate the minimum host additions.",
+    ),
+    "routing_study": (
+        "Build a comparative routing design",
+        "Render equivalent configurations and verify syntax with the installed FRR tools.",
     ),
     "remove": (
         "Check removal risk",
@@ -301,6 +306,23 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
                     "result": details,
                 }
             ],
+        }
+    if tool == "routing_study":
+        facts, blocks, trace = protocol_study.prepare(sample, req.prompt)
+        summary = (
+            "The isolated routing design is ready for review. Measured convergence and "
+            "traffic disruption require a dedicated comparative experiment runner."
+        )
+        record = inv.record(c.db, "routing design", summary, facts)
+        return {
+            "text": summary,
+            "blocks": [
+                *blocks,
+                chat_views.link(
+                    "Full routing design evidence", "/api/investigations/" + record["id"]
+                ),
+            ],
+            "trace": trace,
         }
     if tool == "repair":
         with c.lock:

@@ -1,0 +1,310 @@
+{
+  "design": {
+    "id": "694eeb1f70b44c4ebf5a19482f05b918",
+    "kind": "routing design",
+    "text": "The isolated routing design is ready for review. Measured convergence and traffic disruption require a dedicated comparative experiment runner.",
+    "observed": 1795124448.1576169,
+    "facts": {
+      "topology": {
+        "spines": [
+          1,
+          2
+        ],
+        "leaves": [
+          1,
+          2
+        ],
+        "hosts": [
+          {
+            "id": 1,
+            "leaf": 1
+          },
+          {
+            "id": 2,
+            "leaf": 2
+          }
+        ]
+      },
+      "failed_link": "leaf-1/spine-1",
+      "protocols": [
+        "BGP",
+        "OSPF",
+        "IS-IS"
+      ],
+      "configurations": {
+        "BGP": {
+          "spine-1": "frr defaults traditional\nhostname spine-1\n!\nrouter bgp 65000\n bgp router-id 10.219.1.1\n timers bgp 1 4\n no bgp ebgp-requires-policy\n neighbor 10.217.11.2 remote-as 65101\n neighbor 10.217.12.2 remote-as 65102\n address-family ipv4 unicast\n  maximum-paths 2\n exit-address-family\nexit\n",
+          "spine-2": "frr defaults traditional\nhostname spine-2\n!\nrouter bgp 65000\n bgp router-id 10.219.1.2\n timers bgp 1 4\n no bgp ebgp-requires-policy\n neighbor 10.217.21.2 remote-as 65101\n neighbor 10.217.22.2 remote-as 65102\n address-family ipv4 unicast\n  maximum-paths 2\n exit-address-family\nexit\n",
+          "leaf-1": "frr defaults traditional\nhostname leaf-1\n!\nrouter bgp 65101\n bgp router-id 10.219.2.1\n timers bgp 1 4\n no bgp ebgp-requires-policy\n neighbor 10.217.11.1 remote-as 65000\n neighbor 10.217.21.1 remote-as 65000\n address-family ipv4 unicast\n  maximum-paths 2\n  network 10.218.1.0/28\n exit-address-family\nexit\n",
+          "leaf-2": "frr defaults traditional\nhostname leaf-2\n!\nrouter bgp 65102\n bgp router-id 10.219.2.2\n timers bgp 1 4\n no bgp ebgp-requires-policy\n neighbor 10.217.12.1 remote-as 65000\n neighbor 10.217.22.1 remote-as 65000\n address-family ipv4 unicast\n  maximum-paths 2\n  network 10.218.2.0/28\n exit-address-family\nexit\n"
+        },
+        "OSPF": {
+          "spine-1": "frr defaults traditional\nhostname spine-1\n!\nrouter ospf\n ospf router-id 10.219.1.1\n maximum-paths 2\nexit\n!\ninterface transit-l1\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface transit-l2\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\n",
+          "spine-2": "frr defaults traditional\nhostname spine-2\n!\nrouter ospf\n ospf router-id 10.219.1.2\n maximum-paths 2\nexit\n!\ninterface transit-l1\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface transit-l2\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\n",
+          "leaf-1": "frr defaults traditional\nhostname leaf-1\n!\nrouter ospf\n ospf router-id 10.219.2.1\n maximum-paths 2\nexit\n!\ninterface transit-s1\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface transit-s2\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface access1\n ip ospf area 0\n ip ospf passive\nexit\n!\n",
+          "leaf-2": "frr defaults traditional\nhostname leaf-2\n!\nrouter ospf\n ospf router-id 10.219.2.2\n maximum-paths 2\nexit\n!\ninterface transit-s1\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface transit-s2\n ip ospf area 0\n ip ospf network point-to-point\n ip ospf hello-interval 1\n ip ospf dead-interval 4\n ip ospf cost 10\nexit\n!\ninterface access2\n ip ospf area 0\n ip ospf passive\nexit\n!\n"
+        },
+        "IS-IS": {
+          "spine-1": "frr defaults traditional\nhostname spine-1\n!\nrouter isis STUDY\n net 49.0001.0000.0000.0011.00\n is-type level-2-only\nexit\n!\ninterface transit-l1\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface transit-l2\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\n",
+          "spine-2": "frr defaults traditional\nhostname spine-2\n!\nrouter isis STUDY\n net 49.0001.0000.0000.0012.00\n is-type level-2-only\nexit\n!\ninterface transit-l1\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface transit-l2\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\n",
+          "leaf-1": "frr defaults traditional\nhostname leaf-1\n!\nrouter isis STUDY\n net 49.0001.0000.0000.0021.00\n is-type level-2-only\nexit\n!\ninterface transit-s1\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface transit-s2\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface access1\n ip router isis STUDY\n isis passive\nexit\n!\n",
+          "leaf-2": "frr defaults traditional\nhostname leaf-2\n!\nrouter isis STUDY\n net 49.0001.0000.0000.0022.00\n is-type level-2-only\nexit\n!\ninterface transit-s1\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface transit-s2\n ip router isis STUDY\n isis circuit-type level-2-only\n isis network point-to-point\n isis hello-interval 1\n isis hello-multiplier 4\nexit\n!\ninterface access2\n ip router isis STUDY\n isis passive\nexit\n!\n"
+        }
+      },
+      "syntax_checks": {
+        "BGP": "All four configurations passed syntax check",
+        "OSPF": "All four configurations passed syntax check",
+        "IS-IS": "All four configurations passed syntax check"
+      },
+      "addressing": {
+        "transit": "10.217.<spine><leaf>.0/28, spine .1 and leaf .2",
+        "access": "10.218.<leaf>.0/28, router .1 and test host .2"
+      },
+      "prediction": {
+        "silent_detection_s": 4,
+        "hard_link_down": "The local link event should trigger recomputation ahead of timer expiry.",
+        "measurement": "Pending"
+      }
+    }
+  },
+  "trace": [
+    {
+      "label": "ollama.chat",
+      "stage": null,
+      "target": "",
+      "status": "complete",
+      "started": 1795124446.3185604,
+      "completed": 1795124447.3384848,
+      "arguments": null,
+      "result": null,
+      "error": null
+    },
+    {
+      "label": "Check FRR executable",
+      "stage": "Investigate",
+      "target": "BGP",
+      "started": 1795124447.3635435,
+      "completed": 1795124447.413912,
+      "status": "complete",
+      "arguments": [
+        "test",
+        "-x",
+        "/usr/lib/frr/bgpd"
+      ],
+      "result": "Present"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "BGP spine-1",
+      "started": 1795124447.4139166,
+      "completed": 1795124447.4725604,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "BGP spine-2",
+      "started": 1795124447.472563,
+      "completed": 1795124447.533818,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "BGP leaf-1",
+      "started": 1795124447.5338233,
+      "completed": 1795124447.5878353,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "BGP leaf-2",
+      "started": 1795124447.5878375,
+      "completed": 1795124447.6525767,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Check FRR executable",
+      "stage": "Investigate",
+      "target": "OSPF",
+      "started": 1795124447.652629,
+      "completed": 1795124447.6857548,
+      "status": "complete",
+      "arguments": [
+        "test",
+        "-x",
+        "/usr/lib/frr/ospfd"
+      ],
+      "result": "Present"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "OSPF spine-1",
+      "started": 1795124447.685758,
+      "completed": 1795124447.7469628,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "OSPF spine-2",
+      "started": 1795124447.746964,
+      "completed": 1795124447.809369,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "OSPF leaf-1",
+      "started": 1795124447.8093758,
+      "completed": 1795124447.864259,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "OSPF leaf-2",
+      "started": 1795124447.8642612,
+      "completed": 1795124447.9190397,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Check FRR executable",
+      "stage": "Investigate",
+      "target": "IS-IS",
+      "started": 1795124447.9190927,
+      "completed": 1795124447.946698,
+      "status": "complete",
+      "arguments": [
+        "test",
+        "-x",
+        "/usr/lib/frr/isisd"
+      ],
+      "result": "Present"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "IS-IS spine-1",
+      "started": 1795124447.9467003,
+      "completed": 1795124447.997574,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "IS-IS spine-2",
+      "started": 1795124447.9975765,
+      "completed": 1795124448.0487008,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "IS-IS leaf-1",
+      "started": 1795124448.0487027,
+      "completed": 1795124448.1027138,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    },
+    {
+      "label": "Dry-run FRR configuration",
+      "stage": "Validate",
+      "target": "IS-IS leaf-2",
+      "started": 1795124448.1027217,
+      "completed": 1795124448.157502,
+      "status": "complete",
+      "arguments": [
+        "vtysh",
+        "-C",
+        "-f",
+        "/dev/stdin"
+      ],
+      "result": "Syntax accepted"
+    }
+  ],
+  "variant": {
+    "OSPF": "All four configurations passed syntax check",
+    "IS-IS": "All four configurations passed syntax check"
+  },
+  "plain": "Several equal-cost paths between your leaves are likely due to the network design, where multiple paths are used to distribute traffic efficiently across the network. This is common in large-scale networks to ensure redundancy and load balancing. The equal-cost paths are likely established through BGP sessions, which are used to exchange routing information between the routers. The observed traffic paths show that traffic is being forwarded through the spines and leaves, and,"
+}

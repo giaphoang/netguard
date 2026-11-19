@@ -6,9 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import advisor, topology
+from . import advisor, protocol_study, topology
 
-VERSION = "topology-intent-v8"
+VERSION = "topology-intent-v9"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -16,6 +16,7 @@ WORKFLOWS = {
     "simulate_failure": "simulate",
     "provision_nodes": "provision",
     "plan_host_capacity": "capacity",
+    "design_routing_study": "routing_study",
     "remove_nodes": "remove",
     "repair_connectivity": "repair",
     "assess_change_risk": "risk",
@@ -49,6 +50,8 @@ Adding nodes uses provision_nodes; recovering connectivity uses repair_connectiv
 timed faults use simulate_failure; postmortems use review_completed_incident.
 Use plan_host_capacity for goals about total host count or growth under VM, resource,
 or redundancy constraints. A request to add explicit nodes to named attachments uses provision_nodes.
+Use design_routing_study for a comparative topology, configuration or convergence experiment
+with two or more of BGP, OSPF and IS-IS. Use answer_question for a plain protocol explanation.
 Do not execute or authorize changes. Copy explicit_references into targets without substitutions.
 Unknown references must remain unchanged. For provisioning, targets are attachments, not new nodes.
 node_type is the type to add. quantity and duration_s must match the constrained request values.
@@ -67,6 +70,7 @@ class Intent(BaseModel):
         "simulate",
         "provision",
         "capacity",
+        "routing_study",
         "remove",
         "repair",
         "risk",
@@ -101,7 +105,10 @@ def interpret(prompt, selection, sample):
         r"\b(?:spine|leaf|host)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|a|b)\b", text
     )
     schema = Intent.model_json_schema()
-    schema["properties"]["intent"]["enum"] = list(WORKFLOWS)
+    choices = list(WORKFLOWS)
+    if len(protocol_study.requested_protocols(prompt)) >= 2:
+        choices = ["design_routing_study", "answer_question"]
+    schema["properties"]["intent"]["enum"] = choices
     references = list(dict.fromkeys(references))
     schema["properties"]["targets"].update(
         minItems=len(references), maxItems=len(references), uniqueItems=True
@@ -144,7 +151,7 @@ def interpret(prompt, selection, sample):
             schema,
         )
     )
-    if not isinstance(payload, dict) or payload.get("intent") not in WORKFLOWS:
+    if not isinstance(payload, dict) or payload.get("intent") not in choices:
         raise ValueError("Unsupported workflow classification; please clarify.")
     payload["intent"] = WORKFLOWS[payload["intent"]]
     spec = Intent.model_validate(payload)
