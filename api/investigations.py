@@ -81,13 +81,12 @@ def bgp_config(config):
     }
 
 
-def drift(db, sample, automatic=False):
+def configuration_facts(routers):
     from .fabric import command
     import subprocess
 
     facts = {}
-    for router in sample["routers"]:
-        name = router["name"]
+    for name in routers:
         try:
             expected = bgp_config(command(name, "cat", "/etc/frr/frr.conf"))
             actual = bgp_config(command(name, "vtysh", "-c", "show running-config"))
@@ -99,6 +98,11 @@ def drift(db, sample, automatic=False):
             }
         except (OSError, subprocess.SubprocessError, ValueError):
             facts[name] = {"status": "unavailable"}
+    return facts
+
+
+def drift(db, sample, automatic=False):
+    facts = configuration_facts(r["name"] for r in sample["routers"])
     changes = sum(bool(v.get("missing") or v.get("unexpected")) for v in facts.values())
     unknown = sum("status" in v for v in facts.values())
     if automatic:

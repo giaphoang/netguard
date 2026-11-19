@@ -7,6 +7,7 @@ import platform
 import re
 import sqlite3
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -272,6 +273,7 @@ async def poll(app: FastAPI) -> None:
             if path:
                 flow["spine"] = int(path[2].removeprefix("spine-"))
         app.state.traffic = traffic.rates(previous, current)
+        app.state.traffic_observed = time.time()
         previous = current
         app.state.snapshot = snapshot
         app.state.flows = flows
@@ -441,8 +443,12 @@ def icmp_observation(output):
     }
 
 
-def probe_observations(source, destination, *, http=True):
-    checks = {"ICMP": ["ping", "-c", "1", "-W", "2", destination]}
+def probe_observations(source, destination, *, http=True, icmp=True, tcp=False):
+    checks = {}
+    if icmp:
+        checks["ICMP"] = ["ping", "-c", "1", "-W", "2", destination]
+    if tcp:
+        checks["TCP"] = ["nc", "-n", "-z", "-w", "2", destination, "8080"]
     if http:
         checks["HTTP"] = ["wget", "-T", "2", "-qO-", f"http://{destination}:8080/"]
     results = {}

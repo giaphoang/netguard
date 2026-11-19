@@ -26,16 +26,23 @@ EXPECTED = {
 
 
 def observe():
-    from .fabric import collect, trace
+    from . import expansion, topology
+    from .fabric import DB, app, collect, trace
 
+    links = topology.managed_links(expansion.spec(expansion.current(DB)))
     with ThreadPoolExecutor(max_workers=3) as pool:
         routes = pool.submit(collect)
         probes = list(pool.map(trace, [1, 2]))
+    snapshot = routes.result().model_dump()
+    observed = time.time()
+    traffic_stamp = getattr(app.state, "traffic_observed", 0)
     return {
-        "observed": time.time(),
-        "routers": routes.result().model_dump()["routers"],
-        "hosts": routes.result().model_dump().get("hosts", []),
+        "observed": observed,
+        "routers": snapshot["routers"],
+        "hosts": snapshot["hosts"],
         "flows": probes,
+        "links": links,
+        "traffic": getattr(app.state, "traffic", {}) if 0 <= observed - traffic_stamp <= 20 else {},
     }
 
 

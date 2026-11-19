@@ -2,6 +2,7 @@
 
 import http.client
 import json
+import re
 import sqlite3
 import time
 from typing import Annotated, Literal
@@ -18,6 +19,7 @@ from . import (
     expansion,
     intents,
     monitor_chat,
+    network_tools,
     provision,
     questions,
     risk_preview,
@@ -292,6 +294,8 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
                 }
             ],
         }
+    if spec.tools and tool in {"answer", "diagnose", "drift"}:
+        return inspect_request(req, c, sample, spec, targets, graph)
     if tool == "drift":
         comparison = inv.drift(c.db, sample)
         return questions.answer(
@@ -325,10 +329,14 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
             "label": "Approve simulation",
         }
     if tool == "provision":
-        plan = provision.propose(c, spec.quantity, started, spec.node_type, targets)
+        ctx = network_tools.Context(sample, graph, c, started)
+        result = network_tools.invoke(
+            "plan_change", {"kind": spec.node_type, "quantity": spec.quantity, "targets": targets}, ctx
+        )
+        network_tools.invoke("validate_change", {"identity": result["identity"]}, ctx)
         return {
             "text": "Preview ready. Review the topology, configuration diff and risk. Deployment requires approval and verified routing; failed checks restore the prior topology.",
-            "plan": plan,
+            "plan": result["record"],
         }
     if tool == "capacity":
         began = time.time()
@@ -410,6 +418,38 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
     return questions.answer(req.prompt, sample, targets, graph)
 
 
+def inspect_request(req, c, sample, spec, targets, graph):
+    ctx = network_tools.Context(sample, graph, c)
+    prompt = req.prompt.casefold()
+    facts = {}
+    trace = []
+    for name in dict.fromkeys(spec.tools):
+        params = {"targets": targets}
+        if name == "inspect_routing":
+            params["protocols"] = ["bgp", "kernel", *(
+                protocol for pattern, protocol in [(r"\bospf\b", "ospf"), (r"\bis[- ]?is\b", "isis")]
+                if re.search(pattern, prompt)
+            )]
+        elif name == "inspect_connectivity":
+            params["protocols"] = [
+                protocol for pattern, protocol in [(r"\b(?:icmp|ping)\b", "ICMP"), (r"\btcp\b", "TCP"), (r"\bhttp\b", "HTTP")]
+                if re.search(pattern, prompt)
+            ] or ["ICMP", "HTTP"]
+        started = time.time()
+        result = network_tools.invoke(name, params, ctx)
+        facts[name] = result
+        trace.append({
+            "label": name.replace("_", " ").capitalize(), "stage": "Inspect", "status": "complete",
+            "started": started, "completed": time.time(), "target": ", ".join(targets) or "fabric",
+            "result": result,
+        })
+    return {
+        "text": questions.inspection_summary(facts),
+        "evidence": {"observed": sample["observed"], "facts": facts},
+        "trace": trace,
+    }
+
+
 @router.get("/api/monitoring")
 def monitoring(c=Depends(local)):
     rows = inv.cases(c.db, kind="monitor") + inv.cases(c.db, kind="configuration drift")
@@ -454,7 +494,13 @@ def record_action(
         plan = plan_state(identity, c)
         if action == "approve" and req.revision != plan["digest"]:
             raise HTTPException(409, "Approval is stale. Review the current configuration preview.")
-        return perform(provision.execute, c, identity, action == "rollback")
+        name = "execute_approved_change" if action == "approve" else "rollback_change"
+        params = {"identity": identity}
+        if action == "approve":
+            params["digest"] = req.revision
+        return perform(
+            lambda: network_tools.invoke(name, params, network_tools.Context({}, {}, c), approved=True)["record"]
+        )
     if action == "rollback":
         return architecture.rollback(identity, background, c)
     if not req.revision:

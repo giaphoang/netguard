@@ -40,6 +40,48 @@ def describe_probe(route):
     return text
 
 
+def inspection_summary(facts):
+    parts = []
+    if result := facts.get("inspect_topology"):
+        count = len(result["links"])
+        observed = sum(bool(link["endpoints"]) for link in result["links"])
+        if count == 1 and observed:
+            link = result["links"][0]
+            for name, port in link["endpoints"].items():
+                parts.append(f"{label(name)} uses {port['interface']} at {port['address']} ({port['state']}).")
+        else:
+            devices = ", ".join(label(node["id"]) for node in result["nodes"])
+            parts.append(f"Inspected {devices}. Both endpoints were observed on {observed} of {count} links.")
+    if result := facts.get("inspect_routing"):
+        for name, protocols in result["devices"].items():
+            if (peers := protocols.get("bgp", {}).get("data")) is not None:
+                established = sum(state == "Established" for state in peers.values())
+                parts.append(f"{label(name)} has {established} of {len(peers)} BGP peers established.")
+            available = [p.upper() for p, v in protocols.items() if p != "bgp" and v["status"] == "observed"]
+            unavailable = [p.upper() for p, v in protocols.items() if v["status"] == "unavailable"]
+            if available:
+                parts.append(f"{label(name)} returned {' and '.join(available)} routing evidence.")
+            if unavailable:
+                parts.append(f"{' and '.join(unavailable)} evidence is unavailable for {label(name)}.")
+        if not result["devices"]:
+            parts.append("No routing device was observed for the requested inventory scope.")
+    if result := facts.get("inspect_connectivity"):
+        for probe in result["probes"]:
+            source, destination = label(probe["source"]), label(probe["destination"])
+            outcomes = ", ".join(f"{p} {state}" for p, state in probe["protocols"].items())
+            parts.append(f"{source} → {destination} returned {outcomes}.")
+    if result := facts.get("inspect_configuration"):
+        for name, reading in result["devices"].items():
+            if reading["status"] == "unavailable":
+                parts.append(f"The BGP configuration comparison is unavailable for {label(name)}.")
+            else:
+                missing, unexpected = len(reading["missing"]), len(reading["unexpected"])
+                parts.append(f"{label(name)} has {missing} missing and {unexpected} unexpected BGP statements.")
+        if not result["devices"]:
+            parts.append("No routing device was observed for the configuration comparison.")
+    return " ".join(parts)
+
+
 def collect_facts(sample, targets, graph):
     from .fabric import Snapshot, probe_paths
 
