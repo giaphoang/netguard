@@ -62,7 +62,7 @@ def test_link_workflow(tmp_path, monkeypatch, auto, ai):
         )
 
     monkeypatch.setattr(incidents.advisor, "assess", review)
-    c.inject("link", ai=ai)
+    assert c.inject("link", ai=ai) == c.run["id"]
     with pytest.raises(ValueError):
         c.inject("link")
     c.step()

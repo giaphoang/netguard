@@ -237,6 +237,7 @@ class Controller:
             except Exception:
                 self.event("handoff", "Injection outcome uncertain. Inspect and reset manually.")
                 raise
+            return self.run["id"]
 
     def restore(self, action, incident_id=None):
         with self.lock:

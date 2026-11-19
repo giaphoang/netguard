@@ -1,10 +1,67 @@
+import json
 import time
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from api import provision, measurements
+from api import intents, operator, provision, measurements
 from api.incidents import Controller
+from test_incidents import sample
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_chat_stream_reports_workflow_and_preserves_json_api(tmp_path, monkeypatch, valid):
+    c = Controller(tmp_path / "journal")
+    app = FastAPI()
+    app.include_router(operator.router)
+    app.dependency_overrides[operator.authorized] = lambda: c
+    monkeypatch.setattr(operator, "observe", sample)
+
+    def interpret(*_):
+        if not valid:
+            raise ValueError("Please specify the requested target.")
+        spec = intents.Intent(
+            intent="answer",
+            targets=["leaf-1"],
+            node_type="unspecified",
+            quantity=None,
+            duration_s=None,
+            scope="network",
+        )
+        return spec, ["leaf-1"], {}
+
+    monkeypatch.setattr(intents, "interpret", interpret)
+    monkeypatch.setattr(operator.questions, "answer", lambda *_: {"text": "Observed Leaf 1."})
+    client = TestClient(app)
+    request = {"prompt": "Check Leaf 1", "selection": ""}
+    response = client.post("/api/operator/stream", json=request)
+    assert response.headers["content-type"] == "application/x-ndjson"
+    *steps, result = [json.loads(line) for line in response.iter_lines()]
+    assert [event["step"]["label"] for event in steps[:2]] == [
+        "Collect live observations",
+        "Interpret the request",
+    ]
+    old = client.post("/api/operator", json=request)
+    if valid:
+        assert "leaf-1" in steps[2]["step"]["detail"]
+        assert result == {"answer": old.json()} == {"answer": {"text": "Observed Leaf 1."}}
+    else:
+        assert len(steps) == 2
+        assert old.status_code == 409
+        assert result == {"error": old.json()["detail"]}
+
+
+def test_chat_can_read_a_discarded_plan_by_identity(tmp_path):
+    c = Controller(tmp_path / "journal")
+    previous = provision.propose(c, 1, time.time())
+    provision.save(c.db, previous, "verified")
+    preview = provision.propose(c, 1, time.time(), "host", ["leaf-2"])
+    operator.cancel(preview["id"], c)
+    assert operator.state(c)["id"] == previous["id"]
+    discarded = operator.plan_state(preview["id"], c)
+    assert [e["phase"] for e in discarded["events"]] == ["preview", "cancelled"]
 
 
 def test_provision_scope_and_superseded_previews(tmp_path):

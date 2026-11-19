@@ -106,14 +106,14 @@ def incident(identity: str, controller=Depends(local)):
     return run
 
 
-def perform(fn, *args):
+def perform(fn, *args, result_key=None):
     try:
-        fn(*args)
+        result = fn(*args)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         raise HTTPException(409, "Lab command failed. Inspect incident evidence.") from exc
-    return {"accepted": True}
+    return {"accepted": True, **({result_key: result} if result_key else {})}
 
 
 @router.post("/api/scenarios/{scenario}/inject")
@@ -126,7 +126,9 @@ def inject(
     duration: int | None = Query(None, ge=5, le=120),
     controller=Depends(authorized),
 ):
-    return perform(controller.inject, scenario, ai, leaf, spine, duration, manual)
+    return perform(
+        controller.inject, scenario, ai, leaf, spine, duration, manual, result_key="incident_id"
+    )
 
 
 @router.post("/api/scenarios/reset")
