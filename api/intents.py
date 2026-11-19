@@ -72,14 +72,18 @@ def interpret(prompt, selection, sample):
         if quantity_match
         else None
     )
-    schema["properties"]["quantity"]["enum"] = [quantity]
+    schema["properties"]["quantity"] = (
+        {"type": "null"} if quantity is None else {"type": "integer", "enum": [quantity]}
+    )
     duration_match = re.search(r"\b(\d+|one|two)\s*(seconds?|minutes?|s)\b", text)
     seconds = None
     if duration_match:
         seconds = amounts.get(
             duration_match[1], int(duration_match[1]) if duration_match[1].isdigit() else 0
         ) * (60 if duration_match[2].startswith("minute") else 1)
-    schema["properties"]["duration_s"]["enum"] = [seconds]
+    schema["properties"]["duration_s"] = (
+        {"type": "null"} if seconds is None else {"type": "integer", "enum": [seconds]}
+    )
     spec = Intent.model_validate_json(
         advisor.infer(
             INSTRUCTION,
