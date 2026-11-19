@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import platform
 import re
 import sqlite3
 import subprocess
@@ -12,11 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from . import measurements
+from . import architecture, measurements, operator, expansion, traffic
 from .controls import router as control_routes, running_controls
 
-from fastapi import FastAPI, Query
-from fastapi.responses import StreamingResponse, Response
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import RedirectResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -37,6 +38,7 @@ class Router(BaseModel):
 class Snapshot(BaseModel):
     timestamp: str
     routers: list[Router]
+    hosts: list[dict] = []
 
 
 def command(node: str, *args: str) -> str:
@@ -81,9 +83,39 @@ def router(node: str) -> Router:
 
 
 def collect() -> Snapshot:
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        routers = list(pool.map(router, ROUTERS))
-    return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers)
+    topology = expansion.spec(expansion.current(DB))
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        routers = list(
+            pool.map(router, [n for n in expansion.names(topology) if not n.startswith("host")])
+        )
+        hosts = list(pool.map(host_state, [(h, topology) for h in topology["hosts"]]))
+    return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers, hosts=hosts)
+
+
+def host_state(pair):
+    host, topology = pair
+    name = f"host-{host['id']}"
+    address = expansion.host_ip(host, topology)
+    try:
+        interfaces = command(name, "ip", "addr", "show")
+        result = {
+            "name": name,
+            "leaf": host["leaf"],
+            "address": address,
+            "interfaces": interfaces,
+            "error": None,
+        }
+        if host["id"] > 2:
+            source = "host-2" if host["leaf"] == 1 else "host-1"
+            result.update(probes=probe_results(source, result["address"]), probe_from=source)
+        return result
+    except (OSError, subprocess.SubprocessError):
+        return {
+            "name": name,
+            "leaf": host["leaf"],
+            "address": address,
+            "error": "Host telemetry unavailable",
+        }
 
 
 DB = Path(os.environ.get("NETGUARD_TIMELINE_DB", ROOT / ".runtime/timeline.sqlite"))
@@ -104,10 +136,146 @@ def record(sample: Snapshot) -> None:
                 )
 
 
+def probe_spine(leaf: Router, source: str, destination: str) -> int | None:
+    """Ask Linux which next hop it selects for a forwarded ICMP probe."""
+    leaf_id = int(leaf.name.removeprefix("leaf-"))
+    access_ip = f"10.212.{leaf_id}.1/28"
+    for line in leaf.interfaces.splitlines():
+        fields = line.split()
+        if access_ip not in fields:
+            continue
+        ingress = fields[0].split("@")[0]
+        try:
+            (route,) = json.loads(
+                command(
+                    leaf.name,
+                    "ip",
+                    "-j",
+                    "route",
+                    "get",
+                    destination,
+                    "from",
+                    source,
+                    "iif",
+                    ingress,
+                    "ipproto",
+                    "icmp",
+                )
+            )
+        except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+            return None
+        gateway = route.get("gateway") if isinstance(route, dict) else None
+        match = re.fullmatch(r"10\.211\.(\d+)\.1", gateway) if isinstance(gateway, str) else None
+        if match and int(match[1]) % 10 == leaf_id:
+            return int(match[1]) // 10
+    return None
+
+
+def probe_targets(snapshot: Snapshot) -> dict[str, dict]:
+    targets = {h["name"]: h for h in snapshot.hosts if "address" in h}
+    active_leaves = {h["leaf"] for h in snapshot.hosts}
+    for router in snapshot.routers:
+        if not router.name.startswith("leaf-"):
+            continue
+        leaf = int(router.name.removeprefix("leaf-"))
+        address = f"10.214.0.{leaf}"
+        if leaf not in active_leaves and f"{address}/32" in router.interfaces.split():
+            targets[router.name] = {"name": router.name, "leaf": leaf, "address": address}
+    return targets
+
+
+def observe_probe(routers, source, target, *, recorded=None, http=False):
+    source_name = source["name"]
+    target_name = target["name"]
+    address = target["address"]
+    timestamp, results = recorded or (
+        datetime.now(timezone.utc).isoformat(),
+        probe_results(source_name, address, http=http),
+    )
+    source_leaf = f"leaf-{source['leaf']}"
+    target_leaf = f"leaf-{target['leaf']}"
+    path = None
+    if results["ICMP"] == "success":
+        if source_leaf == target_leaf and target_name.startswith("host-"):
+            path = [source_name, target_name]
+        elif source_leaf in routers and target_leaf in routers:
+            spine = probe_spine(routers[source_leaf], source["address"], address)
+            if f"spine-{spine}" in routers:
+                path = [source_name, source_leaf, f"spine-{spine}", target_leaf]
+                if target_name != target_leaf:
+                    path.append(target_name)
+    return {
+        "source": source_name,
+        "target": target_name,
+        "source_leaf": source_leaf,
+        "target_leaf": target_leaf,
+        "address": address,
+        "timestamp": timestamp,
+        "probes": results,
+        "path": path,
+    }
+
+
+def probe_paths(snapshot: Snapshot, flows: list[dict], *, all_directions=False) -> list[dict]:
+    """Reuse base health probes and sample additional directions for the live map."""
+    routers = {r.name: r for r in snapshot.routers}
+    targets = probe_targets(snapshot)
+    hosts = [name for name in targets if name.startswith("host-")]
+    directions = {
+        (f"host-{flow['source']}", f"host-{3 - flow['source']}"): (
+            flow.get("timestamp", snapshot.timestamp),
+            flow["probes"],
+        )
+        for flow in flows
+    }
+    directions.update(
+        ((host["probe_from"], host["name"]), (snapshot.timestamp, host["probes"]))
+        for host in snapshot.hosts
+        if host.get("probe_from")
+    )
+    if all_directions:
+        for source in hosts:
+            for target in targets:
+                if source != target:
+                    directions.setdefault((source, target), None)
+    else:
+        for target in targets:
+            if target.startswith("leaf-"):
+                directions[("host-1", target)] = None
+
+    def observe_path(pair):
+        source, target = pair
+        return observe_probe(routers, targets[source], targets[target], recorded=directions[pair])
+
+    pairs = [pair for pair in directions if all(name in targets for name in pair)]
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return list(pool.map(observe_path, pairs))
+
+
 async def poll(app: FastAPI) -> None:
+    previous = {}
     while True:
-        app.state.snapshot = await asyncio.to_thread(collect)
-        app.state.flows = await asyncio.gather(*(asyncio.to_thread(trace, i) for i in (1, 2)))
+        snapshot, *flows = await asyncio.gather(
+            asyncio.to_thread(collect), *(asyncio.to_thread(trace, i) for i in (1, 2))
+        )
+        leaves = [int(r.name.split("-")[1]) for r in snapshot.routers if r.name.startswith("leaf-")]
+        current, routes = await asyncio.gather(
+            asyncio.to_thread(traffic.collect, leaves),
+            asyncio.to_thread(probe_paths, snapshot, flows, all_directions=True),
+        )
+        for flow in flows:
+            source = f"host-{flow['source']}"
+            target = f"host-{3 - flow['source']}"
+            path = next(
+                (r["path"] for r in routes if r["source"] == source and r["target"] == target), None
+            )
+            if path:
+                flow["spine"] = int(path[2].removeprefix("spine-"))
+        app.state.traffic = traffic.rates(previous, current)
+        previous = current
+        app.state.snapshot = snapshot
+        app.state.flows = flows
+        app.state.probe_paths = routes
         await asyncio.to_thread(record, app.state.snapshot)
         await asyncio.sleep(3)
 
@@ -116,6 +284,8 @@ async def poll(app: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     app.state.snapshot = None
     app.state.flows = []
+    app.state.probe_paths = []
+    app.state.traffic = {}
     if REPLAY:
         app.state.snapshot = Snapshot.model_validate_json(FIXTURE.read_text())
         yield
@@ -131,6 +301,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(control_routes)
+app.include_router(operator.router)
+app.include_router(architecture.router)
 
 
 @app.get("/api/state")
@@ -138,7 +310,14 @@ def state():
     return {
         "mode": "RECORDED REPLAY" if REPLAY else "LOCAL LAB / LIVE",
         "snapshot": app.state.snapshot,
+        "environment": platform.freedesktop_os_release().get("NAME", "Linux")
+        + " "
+        + platform.machine()
+        if platform.system() == "Linux" and os.path.exists("/etc/os-release")
+        else platform.system() + " " + platform.machine(),
+        "traffic": app.state.traffic,
         "flows": app.state.flows,
+        "probe_paths": app.state.probe_paths,
     }
 
 
@@ -152,6 +331,13 @@ def fabric_metrics():
     )
 
 
+@app.get("/api/impact")
+def impact(evidence: bool = False):
+    if REPLAY:
+        return {"recorded": True}
+    return measurements.impact(DB, include_evidence=evidence)
+
+
 @app.get("/api/comparison")
 def comparison():
     if REPLAY:
@@ -161,11 +347,12 @@ def comparison():
 
 @app.get("/api/topology")
 def topology():
+    spec = expansion.spec(expansion.current(DB)) if not REPLAY else expansion.spec(None)
     return {
-        "routers": ROUTERS,
-        "hosts": ["host-1", "host-2"],
-        "links": [[f"spine-{spine}", f"leaf-{leaf}"] for spine in (1, 2) for leaf in (1, 2)]
-        + [[f"leaf-{i}", f"host-{i}"] for i in (1, 2)],
+        "routers": [n for n in expansion.names(spec) if not n.startswith("host")],
+        "hosts": [f"host-{h['id']}" for h in spec["hosts"]],
+        "links": [[f"spine-{s}", f"leaf-{n}"] for s in spec["spines"] for n in spec["leaves"]]
+        + [[f"leaf-{h['leaf']}", f"host-{h['id']}"] for h in spec["hosts"]],
     }
 
 
@@ -180,15 +367,17 @@ def timeline():
 
 
 @app.get("/api/recording")
-def recording(incident: bool = False):
-    if incident:
-        run = json.loads((FIXTURE.parent / "p1-link.json").read_text())
+def recording(incident: bool = False, handoff: bool = False):
+    if incident or handoff:
+        filename = "p2-handoff.json" if handoff else "p1-link.json"
+        run = json.loads((FIXTURE.parent / filename).read_text())
         frames = []
         for event in run["events"]:
             sample = next(s for s in reversed(run["samples"]) if s["observed"] <= event["time"])
             frames.append(
                 {
                     "label": event["phase"].capitalize(),
+                    "review": run.get("review") if event["phase"] == "handoff" else None,
                     "reason": event["reason"],
                     "eventTime": event["time"],
                     "snapshot": {
@@ -222,33 +411,89 @@ async def events():
             sample = app.state.snapshot
             if sample and sample.timestamp != last:
                 last = sample.timestamp
-                yield f"data: {sample.model_dump_json()}\n\n"
+                payload = {
+                    **sample.model_dump(),
+                    "flows": app.state.flows,
+                    "probe_paths": app.state.probe_paths,
+                    "traffic": app.state.traffic,
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
             await asyncio.sleep(1)
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@app.get("/api/trace")
-def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
-    if REPLAY:
-        return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
-    dest = f"10.212.{3-source}.2"
+def probe_results(source: str, destination: str, *, http: bool = True) -> dict[str, str]:
+    """Send bounded reachability checks to an address from the lab inventory."""
+    results, _ = probe_observations(source, destination, http=http)
+    return results
+
+
+def icmp_observation(output):
+    counts = re.search(r"(\d+) packets transmitted, (\d+) (?:packets )?received", output or "")
+    if counts is None:
+        return None
+    rtt = re.search(r"\btime[=<]\s*([\d.]+)\s*ms", output)
+    return {
+        "sent": int(counts[1]),
+        "received": int(counts[2]),
+        "rtt_ms": float(rtt[1]) if rtt else None,
+    }
+
+
+def probe_observations(source, destination, *, http=True):
+    checks = {"ICMP": ["ping", "-c", "1", "-W", "2", destination]}
+    if http:
+        checks["HTTP"] = ["wget", "-T", "2", "-qO-", f"http://{destination}:8080/"]
     results = {}
-    for protocol, args in {
-        "ICMP": ["ping", "-c", "1", "-W", "2", dest],
-        "HTTP": ["wget", "-T", "2", "-qO-", f"http://{dest}:8080/"],
-    }.items():
+    icmp = None
+    for protocol, args in checks.items():
         try:
-            command(f"host-{source}", *args)
+            output = command(source, *args)
+            if protocol == "ICMP":
+                icmp = icmp_observation(output)
             results[protocol] = "success"
         except subprocess.CalledProcessError as exc:
             results[protocol] = (
                 "failed"
-                if exc.returncode == 1 and not exc.stderr.startswith("Error response from daemon")
+                if exc.returncode == 1
+                and not (exc.stderr or "").startswith("Error response from daemon")
                 else "unavailable"
             )
+            if protocol == "ICMP" and results[protocol] == "failed":
+                icmp = icmp_observation(exc.stdout)
         except (OSError, subprocess.SubprocessError):
             results[protocol] = "unavailable"
+    return results, icmp
+
+
+@app.get("/api/trace")
+def trace(
+    source: Annotated[int, Query(ge=1, le=4)] = 1,
+    target: Annotated[str | None, Query(pattern=r"^(?:host|leaf)-[1-4]$")] = None,
+):
+    if target is not None:
+        if REPLAY:
+            raise HTTPException(409, "Select a recorded probe direction in replay")
+        snapshot = getattr(app.state, "snapshot", None)
+        if snapshot is None:
+            raise HTTPException(503, "Waiting for live topology")
+        endpoints = probe_targets(snapshot)
+        source_name = f"host-{source}"
+        if target == source_name or source_name not in endpoints or target not in endpoints:
+            raise HTTPException(422, "Select two different endpoints in the current lab")
+        return observe_probe(
+            {router.name: router for router in snapshot.routers},
+            endpoints[source_name],
+            endpoints[target],
+            http=target.startswith("host-"),
+        )
+    if source not in (1, 2):
+        raise HTTPException(422, "Choose a target for an added host")
+    if REPLAY:
+        return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
+    dest = f"10.212.{3-source}.2"
+    results, icmp = probe_observations(f"host-{source}", dest)
     candidates = None
     try:
         routes = command(f"leaf-{source}", "ip", "-4", "route")
@@ -258,7 +503,13 @@ def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
         candidates = (
             []
             if route is None
-            else [i for i in (1, 2) if f"via 10.211.{10*i+source}.1 " in route.group()]
+            else sorted(
+                {
+                    int(n) // 10
+                    for n in re.findall(r"via 10\.211\.(\d+)\.1", route.group())
+                    if int(n) % 10 == source
+                }
+            )
         )
     except (OSError, subprocess.SubprocessError):
         pass
@@ -268,7 +519,15 @@ def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
         "destination": dest,
         "candidates": candidates,
         "probes": results,
+        "icmp": icmp,
     }
+
+
+@app.get("/architecture", include_in_schema=False)
+@app.get("/architecture/", include_in_schema=False)
+def old_architecture_workspace(request: Request):
+    query = request.url.query
+    return RedirectResponse("/agent/" + ("?" + query if query else ""))
 
 
 app.mount(

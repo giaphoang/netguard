@@ -1,0 +1,256 @@
+{
+  "environment": "Ubuntu ARM64 via existing port 3001",
+  "model": {
+    "version": "fabric-triage-v3",
+    "model": "qwen2.5:1.5b",
+    "observation": {
+      "observed": 1795041095.648357,
+      "facts": {
+        "leaf-1/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-1/spine-2": {
+          "interface": "DOWN",
+          "leaf_peer": "Active",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "host-1": {
+          "to": "host-2",
+          "via": [
+            1
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        "host-2": {
+          "to": "host-1",
+          "via": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      }
+    },
+    "decision": {
+      "diagnosis": "link",
+      "component": "leaf-1/spine-1",
+      "action": "restore_link",
+      "citations": [
+        "leaf-1/spine-1",
+        "leaf-1/spine-2",
+        "leaf-2/spine-1",
+        "leaf-2/spine-2",
+        "host-1",
+        "host-2"
+      ],
+      "next_check": "Check the connectivity between leaf-1/spine-1 and host-1."
+    }
+  },
+  "simulation": {
+    "id": "f4e77d36801942399fdad1ce846d3f84",
+    "leaf": 1,
+    "spine": 2,
+    "duration": 30,
+    "events": [
+      {
+        "time": 1795041093.6352568,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795041093.7659643,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795041098.4433246,
+        "phase": "handoff",
+        "reason": "Human review required. Check the connectivity between leaf-1/spine-1 and host-1."
+      },
+      {
+        "time": 1795041123.9482968,
+        "phase": "handoff",
+        "reason": "Approved simulation duration elapsed. Restoring the selected link."
+      },
+      {
+        "time": 1795041124.0888286,
+        "phase": "applying",
+        "reason": "reset: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795041124.3245509,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795041127.3753643,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "metrics": {
+      "closure_s": 33.60934066772461
+    },
+    "before": [
+      {
+        "timestamp": "2026-11-18T22:31:33.512525+00:00",
+        "source": 1,
+        "destination": "10.212.2.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      },
+      {
+        "timestamp": "2026-11-18T22:31:33.507207+00:00",
+        "source": 2,
+        "destination": "10.212.1.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      }
+    ],
+    "latest": [
+      {
+        "timestamp": "2026-11-18T22:32:07.314912+00:00",
+        "source": 1,
+        "destination": "10.212.2.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      },
+      {
+        "timestamp": "2026-11-18T22:32:07.339615+00:00",
+        "source": 2,
+        "destination": "10.212.1.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      }
+    ]
+  },
+  "deployment": {
+    "id": "d3124e94dd674b2aa230e6dadd303ab8",
+    "leaves": [
+      3,
+      4
+    ],
+    "started": 1795041003.471365,
+    "events": [
+      {
+        "phase": "preview",
+        "time": 1795041003.4760077
+      },
+      {
+        "phase": "applying",
+        "time": 1795041004.3389013
+      },
+      {
+        "phase": "verified",
+        "time": 1795041011.0643046
+      },
+      {
+        "phase": "rolling_back",
+        "time": 1795041011.6154869
+      },
+      {
+        "phase": "rolled_back",
+        "time": 1795041017.7654655
+      }
+    ],
+    "phase": "rolled_back"
+  },
+  "impact": {
+    "rows": [
+      {
+        "metric": "Verified closure",
+        "scenario": "link \u00b7 L1 / S2 \u00b7 4 routers \u00b7 approval \u00b7 30s",
+        "manual": null,
+        "assisted": 36.79894769191742,
+        "n": [
+          0,
+          2
+        ]
+      },
+      {
+        "metric": "Provisioning",
+        "scenario": "2 new leaves",
+        "manual": null,
+        "assisted": 7.592939615249634,
+        "n": [
+          0,
+          1
+        ]
+      }
+    ],
+    "saved": null,
+    "correct": 0,
+    "evaluated": 1,
+    "verified": 3,
+    "attempted": 3,
+    "rejected": 1,
+    "escalated": 1,
+    "required_handoffs": 0,
+    "correct_handoffs": 0,
+    "recent": [
+      {
+        "at": 1795041127.3753643,
+        "task": "link",
+        "mode": "assisted",
+        "outcome": "resolved",
+        "seconds": 33.60934066772461
+      },
+      {
+        "at": 1795041058.9236953,
+        "task": "link",
+        "mode": "assisted",
+        "outcome": "resolved",
+        "seconds": 39.98855471611023
+      },
+      {
+        "at": 1795041017.7654655,
+        "task": "Provisioning",
+        "mode": "assisted",
+        "outcome": "rolled_back",
+        "seconds": 7.592939615249634
+      }
+    ]
+  }
+}

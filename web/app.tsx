@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ReactFlow, Background, Controls, useNodesState } from "@xyflow/react";
+import { Background, ReactFlow, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
+import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
+import { Operator } from "./Operator";
+import { FabricSpec } from "./TopologyPreview";
+import { Cases } from "./Cases";
+import { IncidentPanel, Run } from "./Incidents";
+import { WorkspaceHeader, WorkspaceShell, workspaceAtLocation, workspaceHref, type WorkspaceName } from "./WorkspaceShell";
 
 type Router = {
   name: string;
@@ -11,46 +17,159 @@ type Router = {
   interfaces: string;
   error: string | null;
 };
-type Sample = { timestamp: string; routers: Router[] };
-const names = ["spine-1", "spine-2", "leaf-1", "leaf-2", "host-1", "host-2"];
-const initial = names.map((id, i) => ({
-  id,
-  position: { x: (i % 2) * 280, y: Math.floor(i / 2) * 125 },
-  data: { label: id },
-}));
+type Probe = {
+  source?: number;
+  probes: Record<string, string>;
+};
+type ProbePath = {
+  source: string;
+  target: string;
+  source_leaf: string;
+  target_leaf: string;
+  address: string;
+  timestamp: string;
+  probes: Record<string, string>;
+  path: string[] | null;
+};
+type Sample = {
+  timestamp: string;
+  routers: Router[];
+  hosts?: {name:string;leaf:number;error:string|null}[];
+  traffic?: Record<string, LinkActivity>;
+  flows?: Probe[];
+  probe_paths?: ProbePath[];
+};
+function displayName(id: string) {
+  const edge = /^([1-3])-([1-4])$/.exec(id);
+  if (edge) return "Leaf " + edge[2] + " ↔ Spine " + edge[1];
+  if (id === "host-1") return "Host A";
+  if (id === "host-2") return "Host B";
+  return id.replace("-", " ").replace(/^./, (c) => c.toUpperCase());
+}
+const routeId = (route: ProbePath) => `${route.source}/${route.target}`;
+const routeLabel = (route: ProbePath) =>
+  `${displayName(route.source)} → ${displayName(route.target)}`;
+const baseProbe = (route: ProbePath) =>
+  ["host-1/host-2", "host-2/host-1"].includes(routeId(route));
+const probeStatus = (route: ProbePath) =>
+  Object.entries(route.probes).map(([protocol, state]) => `${protocol} ${state}`).join(" · ");
+const PROBE_FRESH_MS = 18_000;
+
 function App() {
-  const [nodes, , onNodesChange] = useNodesState(initial);
+  const [preview, setPreview] = useState<FabricSpec>();
+  const [signal, setSignal] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [page, setPage] = useState(workspaceAtLocation),
+    [environment, setEnvironment] = useState("Local lab");
+  const [operatorRequest, requestOperator] = useState<{ text: string }>(),
+    [notice, setNotice] = useState("");
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 2000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    function syncWorkspace() {
+      setPage(workspaceAtLocation());
+      setNotice("");
+    }
+    window.addEventListener("popstate", syncWorkspace);
+    return () => window.removeEventListener("popstate", syncWorkspace);
+  }, []);
+  useEffect(() => {
+    document.title = page === "Command Center" ? "NetGuard • Fabric console" : `${page} • NetGuard`;
+  }, [page]);
+
+  function navigate(name: WorkspaceName) {
+    if (name !== page) {
+      window.history.pushState(null, "", workspaceHref(name));
+      setPage(name);
+      window.scrollTo(0, 0);
+    }
+    setNotice("");
+  }
+
   const [sample, setSample] = useState<Sample>(),
     [mode, setMode] = useState("CONNECTING"),
     [selected, select] = useState("leaf-1");
   const [source, setSource] = useState(1),
+    [routeChoice, setRouteChoice] = useState("auto"),
+    [autoRoute, setAutoRoute] = useState(""),
+    [manualProbe, setManualProbe] = useState<ProbePath>(),
     [probe, setProbe] = useState(""),
     [busy, setBusy] = useState(false),
     [offline, setOffline] = useState(false);
+  const probeRequest = useRef<AbortController>();
+  useEffect(() => () => probeRequest.current?.abort(), []);
+  const [nodeMeasurements, setNodeMeasurements] = useState<
+    Record<string, { width: number; height: number }>
+  >({});
+  function keepNodeMeasurements(changes: NodeChange[]) {
+    const measured = changes.filter(change => change.type === "dimensions" && change.dimensions);
+    if (!measured.length) return;
+    setNodeMeasurements((previous) => {
+      const next = { ...previous };
+      for (const change of measured) {
+        if (change.type === "dimensions" && change.dimensions) {
+          next[change.id] = change.dimensions;
+        }
+      }
+      return next;
+    });
+  }
   const [frames, setFrames] = useState<
       {
         label: string;
+        review?: Run["review"];
+        reason?: string;
+        eventTime?: number;
         snapshot: Sample;
         probes: { timestamp: string; probes: Record<string, string> }[];
       }[]
     >([]),
     [frame, setFrame] = useState(0);
-  const [history, setHistory] = useState<string[]>([]);
+  const [faultTarget, setFaultTarget] = useState("");
+  const [incident, setIncident] = useState<Run>();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (faultTarget || (incident && incident.phase !== "resolved"))
+      setDrawerOpen(true);
+  }, [faultTarget, incident?.id, incident?.phase]);
+  const [history, setHistory] = useState<string[][]>([]);
   useEffect(() => {
     let alive = true;
     let events: EventSource | undefined;
     async function connect() {
       const d = await (await fetch("/api/state")).json();
       if (!alive) return;
-      if (location.search === "?replay" || d.mode === "RECORDED REPLAY") {
-        const f = await (await fetch("/api/recording")).json();
+      setEnvironment(d.environment || "Local lab");
+      const query = new URLSearchParams(location.search);
+      if (query.has("replay") || d.mode === "RECORDED REPLAY") {
+        const f = await (
+          await fetch(
+            query.get("replay") === "handoff"
+              ? "/api/recording?handoff=true"
+              : "/api/recording?incident=true",
+          )
+        ).json();
         if (!alive) return;
+        setOffline(false);
         setMode("RECORDED REPLAY");
         setFrames(f);
         setSample(f[0].snapshot);
         return;
       }
       setMode(d.mode);
+      setSample(
+        d.snapshot
+          ? {
+              ...d.snapshot,
+              flows: d.flows,
+              traffic: d.traffic,
+              probe_paths: d.probe_paths,
+            }
+          : undefined,
+      );
       events = new EventSource("/api/events");
       events.onmessage = (e) => {
         const s: Sample = JSON.parse(e.data);
@@ -58,14 +177,9 @@ function App() {
         setOffline(false);
         fetch("/api/timeline")
           .then((r) => r.json())
-          .then((rows: string[][]) =>
-            setHistory(
-              rows.map(
-                ([t, n, v]) =>
-                  new Date(t).toLocaleTimeString() + " · " + n + " · " + v,
-              ),
-            ),
-          )
+          .then((rows: string[][]) => {
+            if (alive) setHistory(rows);
+          })
           .catch(() => {});
       };
       events.onerror = () => setOffline(true);
@@ -77,56 +191,218 @@ function App() {
     };
   }, []);
   const [paths, setPaths] = useState<number[]>([]);
-  const peers =
-    sample?.routers.flatMap((r) => Object.values(r.peers || {})) || [];
-  const count = peers.filter((x) => x === "Established").length;
-  const health = offline
-    ? "Stale"
-    : peers.length !== 8
-      ? "Unknown"
-      : count === 8
-        ? "Healthy"
-        : "Degraded";
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!playing || frame >= frames.length - 1) {
+      if (playing) setPlaying(false);
+      return;
+    }
+    const gap =
+      ((frames[frame + 1].eventTime || 0) - (frames[frame].eventTime || 0)) *
+      1000;
+    const timer = setTimeout(
+      () => {
+        const next = frame + 1;
+        setFrame(next);
+        setSample(frames[next].snapshot);
+        setProbe("");
+        setPaths([]);
+      },
+      Math.max(1100, gap),
+    );
+    return () => clearTimeout(timer);
+  }, [playing, frame, frames]);
+  const observed = frames.length ? frames[frame].probes : sample?.flows || [];
+  const liveRoutes = sample?.probe_paths || [];
+  const results = (liveRoutes.length ? liveRoutes : observed).flatMap((f) =>
+    Object.values(f.probes),
+  );
+  const answered = results.filter((v) => v === "success" || v === "failed");
+  const percent = answered.length
+    ? Math.round(
+        (100 * answered.filter((v) => v === "success").length) /
+          answered.length,
+      )
+    : undefined;
   const router = sample?.routers.find((r) => r.name === selected);
+  const observedNames = (sample?.routers || []).map((r) => r.name);
+  const leaves = Array.from(
+    new Set([
+      1,
+      2,
+      ...observedNames
+        .filter((n) => n.startsWith("leaf-"))
+        .map((n) => Number(n.slice(5))),
+      ...(preview?.leaves || []),
+    ]),
+  ).sort();
+  const spines = Array.from(new Set([...observedNames.filter(n=>n.startsWith("spine-")).map(n=>Number(n.split("-")[1])),...(preview?.spines || []),1,2])).sort();
+  const hosts = preview?.hosts || sample?.hosts?.map(h=>({id:Number(h.name.split("-")[1]),leaf:h.leaf})) || [{id:1,leaf:1},{id:2,leaf:2}];
+  const names = [...spines.map(n=>"spine-"+n),...leaves.map(n=>"leaf-"+n),...hosts.map(h=>"host-"+h.id)];
+  const nodes = names.map((id) => {
+    const n = Number(id.split("-")[1]);
+    const host = id.startsWith("host");
+    const spine = id.startsWith("spine");
+    const pending = !!preview && !observedNames.includes(id) && !(sample?.hosts || []).some(h=>h.name===id);
+    const peers = sample?.routers.find((r) => r.name === id)?.peers;
+    const states = Object.values(peers || {});
+    const status = pending
+      ? "Preview"
+      : offline || !states.length
+        ? "Unknown"
+        : states.every((v) => v === "Established")
+          ? "BGP UP"
+          : "BGP warning";
+    return {
+      id,
+      // Preserve React Flow's measured ports when telemetry replaces the node data.
+      measured: nodeMeasurements[id],
+      position: { x: (n - 1) * 225, y: spine ? 0 : host ? 232 : 140 },
+      className: host
+        ? pending ? "pending" : sample?.hosts?.find(h=>h.name===id)?.error ? "impaired" : "host"
+        : pending
+          ? "pending"
+          : status === "BGP UP"
+            ? spine
+              ? "spine up"
+              : "leaf up"
+            : status === "BGP warning" ? "impaired" : "unknown",
+      data: {
+        label: (
+          <>
+            <strong>{displayName(id)}</strong>
+            {!host && (
+              <span>
+                {status === "BGP UP"
+                  ? spine
+                    ? "● Online"
+                    : "ASN " + (65100 + n)
+                  : status}
+              </span>
+            )}
+          </>
+        ),
+      },
+    };
+  });
+  const fresh =
+    !frames.length &&
+    !offline &&
+    sample &&
+    clock - Date.parse(sample.timestamp) < PROBE_FRESH_MS;
+  const activity = fresh ? sample.traffic || {} : {};
+  const probeTime = (route: ProbePath) => Date.parse(route.timestamp || sample?.timestamp || "");
+  function drawable(route: ProbePath) {
+    return !frames.length &&
+      route.probes.ICMP === "success" &&
+      clock - probeTime(route) < PROBE_FRESH_MS &&
+      route.path?.every((id) => names.includes(id));
+  }
+  const available = liveRoutes.filter(drawable);
+  const cycle = [
+    ...available.filter((r) => !baseProbe(r)),
+    ...available.filter(baseProbe),
+  ];
+  const automatic = routeChoice === "auto";
+  const pinnedRoute = liveRoutes.find((r) => routeId(r) === routeChoice);
+  const useManualProbe = pinnedRoute && manualProbe && routeId(manualProbe) === routeChoice &&
+    manualProbe.address === pinnedRoute.address &&
+    probeTime(manualProbe) >= probeTime(pinnedRoute);
+  const shownRoute = automatic
+    ? cycle.find((r) => routeId(r) === autoRoute) || cycle[0]
+    : useManualProbe ? manualProbe : pinnedRoute;
+  const shownId = shownRoute && routeId(shownRoute);
+  const packetPath = shownRoute && drawable(shownRoute) ? shownRoute.path : null;
+  useEffect(() => {
+    if (automatic && shownId) setAutoRoute(shownId);
+  }, [automatic, shownId]);
+
+  function advanceRoute() {
+    const current = cycle.findIndex((r) => routeId(r) === shownId);
+    if (cycle.length > 1) setAutoRoute(routeId(cycle[(current + 1) % cycle.length]));
+  }
+
+  function chooseRoute(value: string) {
+    probeRequest.current?.abort();
+    setBusy(false);
+    setManualProbe(undefined);
+    setRouteChoice(value);
+    setPaths([]);
+    setProbe("");
+    const route = liveRoutes.find((r) => routeId(r) === value);
+    if (route) void runProbe(route);
+  }
+
+  const routePicker = (
+    <select
+      aria-label="Animated probe direction"
+      value={routeChoice}
+      onChange={(e) => chooseRoute(e.target.value)}
+    >
+      <option value="auto">Auto cycle</option>
+      {!automatic && !pinnedRoute && <option value={routeChoice}>Route unavailable</option>}
+      {liveRoutes.map((r) => (
+        <option key={routeId(r)} value={routeId(r)}>{routeLabel(r)}</option>
+      ))}
+    </select>
+  );
   const edges = [];
-  for (let s = 1; s <= 2; s++)
-    for (let l = 1; l <= 2; l++) {
+  let warnings = 0, unknownLinks = 0;
+  for (const l of leaves)
+    for (const s of spines) {
       const state = sample?.routers.find((r) => r.name === "leaf-" + l)
         ?.peers?.["10.211." + (10 * s + l) + ".1"];
+      const remote = sample?.routers.find(r=>r.name === "spine-"+s)?.peers?.["10.211."+(10*s+l)+".2"];
+      if (!state || !remote) unknownLinks++;
+      const failed = (!!state && state !== "Established") || (!!remote && remote !== "Established");
+      const live = !offline && state === "Established" && remote === "Established";
+      const onProbePath = packetPath?.includes("spine-" + s) && packetPath.includes("leaf-" + l);
+      if (failed) warnings++;
       edges.push({
         id: s + "-" + l,
         source: "spine-" + s,
         target: "leaf-" + l,
-        label: offline ? "stale" : state || "unknown",
+        type: "traffic",
+
+        label: failed ? "Link warning" : undefined,
         style: {
-          stroke:
-            paths.includes(s) && state === "Established"
-              ? "#2457ce"
-              : state === "Established"
-                ? "#178168"
-                : state
-                  ? "#aa392d"
-                  : "#839594",
+          stroke: failed ? "var(--danger)" : live ? "var(--topology-link)" : "var(--topology-unknown)",
+          strokeWidth: (onProbePath || paths.includes(s)) && live ? 4.5 : 3,
+          strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
     }
-  for (let i = 1; i <= 2; i++)
+  for (const h of hosts)
     edges.push({
-      id: "access" + i,
-      source: "leaf-" + i,
-      target: "host-" + i,
-      label: "access · configured",
+      id: "access" + h.id,
+      source: "leaf-" + h.leaf,
+      target: "host-" + h.id,
+      type: "traffic",
+
+      style: { stroke: "var(--topology-unknown)", strokeWidth: 2 },
     });
+  const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
+  const health = offline
+    ? "stale"
+    : !sample || sample.routers.some((r) => !r.peers) || answered.length < 4 || unknownLinks
+      ? "unknown"
+      : warnings || percent !== 100
+        ? "degraded"
+        : "healthy";
+  const liveMode = mode === "LOCAL LAB / LIVE";
+  let routeDetail = automatic ? "Waiting for a live probe route" : "Selected route is unavailable";
+  if (packetPath) {
+    routeDetail = packetPath.map(displayName).join(" → ");
+    if (packetPath.length === 2) routeDetail += " · Shared access network";
+  } else if (shownRoute) {
+    routeDetail = routeLabel(shownRoute) + " · Waiting for a verified path";
+  }
+  if (busy) routeDetail = "Checking " + (shownRoute ? routeLabel(shownRoute) : "probe route");
   async function trace() {
     if (frames.length) {
       const d = frames[frame].probes[source - 1];
-      setProbe(
-        d.timestamp +
-          " · recorded ICMP " +
-          d.probes.ICMP +
-          " · HTTP " +
-          d.probes.HTTP,
-      );
+      const result = d.timestamp + " · recorded ICMP " + d.probes.ICMP + " · HTTP " + d.probes.HTTP;
+      setProbe(result);
       const routes =
         frames[frame].snapshot.routers.find((r) => r.name === "leaf-" + source)
           ?.routes || "";
@@ -135,86 +411,361 @@ function App() {
           routes.includes("via 10.211." + (10 * i + source) + ".1 "),
         ),
       );
-      return;
+      return result;
     }
+    if (!shownRoute) {
+      const result = "Choose an available probe route.";
+      setProbe(result);
+      return result;
+    }
+    setRouteChoice(routeId(shownRoute));
+    return runProbe(shownRoute);
+  }
+
+  async function runProbe(route: ProbePath) {
+    probeRequest.current?.abort();
+    const controller = new AbortController();
+    probeRequest.current = controller;
     setBusy(true);
+    setProbe("");
+    const query = new URLSearchParams({ source: route.source.split("-")[1], target: route.target });
     try {
-      const r = await fetch("/api/trace?source=" + source);
-      if (!r.ok) throw Error();
-      const d = await r.json();
-      setPaths(d.candidates || []);
-      setProbe(
-        d.timestamp + " · ICMP " + d.probes.ICMP + " · HTTP " + d.probes.HTTP,
-      );
+      const response = await fetch("/api/trace?" + query, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw Error("Probe request unavailable");
+      const observation: ProbePath = await response.json();
+      if (controller.signal.aborted) return "The probe was cancelled.";
+      if (routeId(observation) !== routeId(route)) throw Error("Unexpected probe route");
+      setManualProbe(observation);
+      const result = `${routeLabel(observation)} · ${probeStatus(observation)}`;
+      setProbe(result);
+      return result;
     } catch {
+      if (controller.signal.aborted) return "The probe was cancelled.";
       setProbe("Probe request unavailable");
+      return "Probe request unavailable";
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
+  const sessions = leaves
+    .filter((l) => observedNames.includes("leaf-" + l))
+    .flatMap((l) =>
+      spines.map(
+        (s) =>
+          sample?.routers.find((r) => r.name === "leaf-" + l)?.peers?.[
+            `10.211.${s}${l}.1`
+          ] === "Established" &&
+          sample?.routers.find((r) => r.name === "spine-" + s)?.peers?.[
+            `10.211.${s}${l}.2`
+          ] === "Established",
+      ),
+    );
+  const selectedHost = hosts.find((h) => "access" + h.id === faultTarget);
+  const selectedTraffic = activity[selectedHost ? "access" + selectedHost.leaf : faultTarget];
+  const active = incident && incident.phase !== "resolved";
+  const activeCount = frames.length
+    ? Number(!["Resolved", "Injecting"].includes(frames[frame].label))
+    : loaded
+      ? Number(!!(active || signal))
+      : "—";
+  const totalRate = Object.values(activity).reduce(
+    (sum, v) => sum + v.bytes_per_second,
+    0,
+  );
+  async function resetIncident() {
+    if (frames.length) {
+      setPlaying(false);
+      setFrame(0);
+      setSample(frames[0].snapshot);
+      setProbe("");
+      setPaths([]);
+      return;
+    }
+    if (!active) {
+      setNotice("Fabric has no active incident to restore.");
+      return;
+    }
+    try {
+      const token = (await (await fetch("/api/session")).json()).token;
+      const result = await fetch("/api/scenarios/reset", {
+        method: "POST",
+        headers: { "X-NetGuard-Session": token },
+      });
+      if (!result.ok) throw Error((await result.json()).detail);
+      setNotice(
+        "Restoration submitted. The controller is verifying connectivity.",
+      );
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Restoration unavailable");
+    }
+  }
+  const timeline = frames.length
+    ? frames.slice(0, frame + 1).map((f) => ({
+        time: (f.eventTime || 0) * 1000,
+        type: f.label,
+        text: f.reason || "",
+      }))
+    : [
+        ...(incident?.events || []).map((e) => ({
+          time: e.time * 1000,
+          type: e.phase,
+          text: e.reason,
+        })),
+        ...history.map(([stamp, node, value]) => ({
+          time: Date.parse(stamp),
+          type: "BGP",
+          text: displayName(node) + " · " + value,
+        })),
+      ];
+  timeline.sort((a, b) => b.time - a.time);
+  const labStatus = frames.length ? "Replay" : offline ? "Telemetry offline" : liveMode ? "Live isolated lab" : "Connecting";
   return (
-    <>
-      <header>
-        <strong>NetGuard</strong>
-        <b>{mode}</b>
-        {!frames.length && <a href="?replay">Replay demo</a>}
-        {frames.length > 0 && (
-          <select
-            aria-label="Recording stage"
-            value={frame}
-            onChange={(e) => {
-              const i = +e.target.value;
-              setFrame(i);
-              setSample(frames[i].snapshot);
-              setPaths([]);
-              setProbe("");
-            }}
-          >
-            {frames.map((f, i) => (
-              <option key={i} value={i}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        )}
-        <span>
-          {offline
-            ? "Telemetry disconnected"
-            : sample
-              ? "Last sample " + new Date(sample.timestamp).toLocaleTimeString()
-              : "Waiting for collector"}
-        </span>
-      </header>
-      <main>
-        <section>
-          <small>NETWORK OPERATIONS</small>
-          <h1>Fabric topology</h1>
-          <strong>
-            {health} · {count}/8 established peer observations
-          </strong>
-          <p>Two spines, two leaves and two isolated endpoints.</p>
+    <WorkspaceShell page={page} navigate={navigate} status={labStatus} environment={environment}>
+      <WorkspaceHeader page={page} navigate={navigate} />
+      {notice && <p role="status">{notice}</p>}
+      <div className="kpis">
+        {[
+          [
+            "Routers online",
+            up === undefined || offline
+              ? "—"
+              : up + " / " + sample!.routers.length,
+            up === sample?.routers.length && up
+              ? "● All online"
+              : "Router telemetry",
+          ],
+          [
+            "BGP sessions",
+            sessions.length && !offline
+              ? sessions.filter(Boolean).length + " / " + sessions.length
+              : "—",
+            "● Established",
+          ],
+          [
+            "Probe success",
+            percent === undefined || offline ? "—" : percent + "%",
+            "ICMP · HTTP",
+          ],
+          [
+            "Active incidents",
+            activeCount,
+            activeCount === 0 ? "● No incidents" : "Incident monitor",
+          ],
+        ].map(([k, v, n]) => (
+          <div key={k}>
+            <small>{k}</small>
+            <strong>{v}</strong>
+            <small>{n}</small>
+          </div>
+        ))}
+      </div>
+      {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
+      <div className="workspace">
+        <section className="fabric">
+          <div className="fabric-head">
+            <div>
+              <h2>Live Network Topology</h2>
+              <small>FRRouting · eBGP · ECMP</small>
+            </div>
+            <b className="tag" data-health={fresh ? health : undefined}>
+              {frames.length
+                ? "REPLAY"
+                : !fresh
+                  ? "WAITING"
+                  : health.toUpperCase()}
+            </b>
+          </div>
+          {frames.length > 0 && (
+            <div className="recording-controls">
+              <select
+                aria-label="Recording stage"
+                value={frame}
+                onChange={(e) => {
+                  const i = +e.target.value;
+                  setFrame(i);
+                  setSample(frames[i].snapshot);
+                  setPaths([]);
+                  setProbe("");
+                }}
+              >
+                {frames.map((f, i) => (
+                  <option key={i} value={i}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (!playing && frame === frames.length - 1) {
+                    setFrame(0);
+                    setSample(frames[0].snapshot);
+                    setProbe("");
+                    setPaths([]);
+                  }
+                  setPlaying(!playing);
+                }}
+              >
+                {playing ? "Pause playback" : "Play walkthrough"}
+              </button>
+            </div>
+          )}
+          {liveMode && (
+            <div className="route-readout probe-controls">
+              <div>
+                <label>
+                  Probe route {routePicker}
+                </label>
+                <button disabled={busy || !shownRoute} onClick={trace}>
+                  {busy ? "Probing…" : "Run probe"}
+                </button>
+              </div>
+              <small aria-live={automatic ? "off" : "polite"}>
+                {routeDetail}
+                {shownRoute && " · " + probeStatus(shownRoute)}
+                {probe === "Probe request unavailable" && " · " + probe}
+              </small>
+            </div>
+          )}
           <div className="canvas">
-            <ReactFlow
+            {page === "Command Center" && <ReactFlow
               nodes={nodes}
               edges={edges}
-              onNodesChange={onNodesChange}
-              onNodeClick={(_, n) => select(n.id)}
+              colorMode="dark"
+              edgeTypes={edgeTypes}
+              nodesDraggable={false}
+              onNodesChange={keepNodeMeasurements}
+              key={names.join(",")}
+              fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
+              onNodeClick={(_, n) => {
+                select(n.id);
+                setFaultTarget(n.id);
+              }}
+              onEdgeClick={(_, edge) => {
+                setFaultTarget(edge.id);
+                select(
+                  edge.target.startsWith("leaf")
+                    ? edge.target
+                    : edge.source,
+                );
+              }}
+              onPaneClick={() => setFaultTarget("")}
               fitView
               nodesConnectable={false}
             >
-              <Controls />
-              <Background />
-            </ReactFlow>
+              {packetPath && (
+                <ProbePacket
+                  key={packetPath.join("/")}
+                  hops={packetPath}
+                  onLap={automatic ? advanceRoute : undefined}
+                />
+              )}
+              <Background gap={18} size={1.4} color="var(--topology-grid)" />
+            </ReactFlow>}
           </div>
-          <p>
-            Links show configured adjacency. Blue shows candidate next hops from
-            the source leaf’s kernel route at trace time. Session labels report
-            the leaf’s BGP observation.
-          </p>
+          <div className="legend">
+            <span>● Healthy</span>
+            <span>● Degraded</span>
+            <span>● ICMP probe</span>
+          </div>
+          <div className="fabric-actions">
+            <button
+              className="primary"
+              disabled={!liveMode || !!active}
+              onClick={() =>
+                requestOperator({
+                  text: /^([1-3])-([1-4])$/.test(faultTarget) ? `Simulate a Leaf ${faultTarget.split("-")[1]} to Spine ${faultTarget.split("-")[0]} link failure for 30 seconds.` : "Simulate a Leaf 1 to Spine 2 link failure for 30 seconds.",
+                })
+              }
+            >
+              Simulate selected link
+            </button>
+            <button disabled={!liveMode || !active} onClick={resetIncident}>
+              {active && incident?.scenario !== "link"
+                ? "Restore incident"
+                : "Restore link"}
+            </button>
+          </div>
+          <div className="transmission">
+            <div>
+              <strong>Link activity</strong>
+              <small>
+                {frames.length
+                  ? "Recorded probes"
+                  : Object.keys(activity).length
+                    ? "Latest interval · " +
+                      Object.values(activity)[0].seconds.toFixed(1) +
+                      " s"
+                    : "Awaiting live counters"}
+              </small>
+            </div>
+            <p>
+              {selectedTraffic
+                ? (selectedHost ? "Leaf " + selectedHost.leaf + " access segment" : displayName(faultTarget)) +
+                  " · RX " +
+                  selectedTraffic.rx +
+                  " / TX " +
+                  selectedTraffic.tx +
+                  " packets at leaf"
+                : Object.keys(activity).length
+                  ? Math.round(totalRate).toLocaleString() +
+                    " B/s across measured links"
+                  : "Select a link to inspect its state."}
+            </p>
+            {!liveRoutes.length && observed.map((f, i) => (
+              <small key={i}>
+                Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
+                {f.probes.HTTP}
+              </small>
+            ))}
+          </div>
         </section>
-        <aside>
-          <small>DATA PLANE</small>
-          <h2>Trace traffic</h2>
+        <Operator
+          page={page}
+          request={operatorRequest}
+          navigate={navigate}
+          signal={signal}
+          live={liveMode}
+          target={faultTarget}
+          run={incident}
+          preview={setPreview}
+          replay={frames.length ? {
+            text: frames[frame].reason,
+            review: frames[frame].review,
+            events: frames.slice(0, frame + 1).map((recorded) => ({
+              phase: recorded.label.toLowerCase(),
+              reason: recorded.reason || "",
+              time: recorded.eventTime || 0,
+            })),
+          } : undefined}
+        />
+        {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
+      </div>
+      <section className="timeline">
+        <h2>Operations Timeline</h2>
+        {timeline.slice(0, 5).map((e, i) => (
+          <div key={i}>
+            <b>{e.type}</b>
+            <span>{e.text}</span>
+            <time>{new Date(e.time).toLocaleTimeString()}</time>
+          </div>
+        ))}
+        {!frames.length && !history.length && !incident && (
+          <p>Waiting for routing or incident events.</p>
+        )}
+      </section>
+      <details
+        className="drawer inspection"
+        open={!!faultTarget || undefined}
+      >
+        <summary>
+          Network inspection{" "}
+          {faultTarget && "· " + displayName(faultTarget)}
+        </summary>
+        <h2>Trace traffic</h2>
+        {frames.length ? (
           <label>
             Flow{" "}
             <select
@@ -230,44 +781,98 @@ function App() {
               <option value="2">Host 2 → Host 1</option>
             </select>
           </label>
-          <button disabled={busy || mode === "CONNECTING"} onClick={trace}>
-            {busy ? "Probing…" : "Trace traffic"}
-          </button>
-          <p role="status">
-            {probe || "Run ICMP and HTTP probes from the source host."}
-          </p>
-          <hr />
-          <small>OBSERVED ROUTER STATE</small>
-          <h2>{selected}</h2>
-          <p>{router?.error}</p>
-          <pre>
-            {router
-              ? JSON.stringify(router.peers, null, 2)
-              : "Select a router to inspect peers."}
-          </pre>
-          <pre>
-            {router?.interfaces
-              .split("\n")
-              .filter((l) => /^eth/.test(l))
-              .join("\n")}
-          </pre>
-          <pre>{router?.routes}</pre>
-        </aside>
-        <footer>
-          <small>COLLECTOR LOG</small>
+        ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
+        <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
+          {busy ? "Probing…" : "Trace traffic"}
+        </button>
+        <p role="status">
+          {probe || "Select a probe route to inspect its reachability."}
+        </p>
+        <hr />
+        <small>OBSERVED ROUTER STATE</small>
+        <h2>{selected}</h2>
+        <p>{router?.error}</p>
+        <pre>
+          {router
+            ? JSON.stringify(router.peers, null, 2)
+            : "Select a router to inspect peers."}
+        </pre>
+        <pre>
+          {router?.interfaces
+            .split("\n")
+            .filter((l) => /^eth/.test(l))
+            .join("\n")}
+        </pre>
+        <pre>{router?.routes}</pre>
+      </details>
+      {frames.length > 0 && (
+        <section className="incidents-recording">
+          <h2>Recorded incident · {frames[frame].label}</h2>
+          <p>{frames[frame].reason}</p>
+          {frames[frame].review?.decision && (
+            <details>
+              <summary>Model diagnosis and cited evidence</summary>
+              <p>
+                {frames[frame].review?.model} ·{" "}
+                {frames[frame].review?.decision?.diagnosis}
+              </p>
+              {frames[frame].review?.decision?.citations.map((key) => (
+                <p key={key}>
+                  {key} ·{" "}
+                  {JSON.stringify(
+                    frames[frame].review?.observation.facts[key],
+                  )}
+                </p>
+              ))}
+            </details>
+          )}
           <p>
-            {history.length
-              ? history.slice(0, 5).map((h, i) => (
-                  <React.Fragment key={i}>
-                    {h}
-                    <br />
-                  </React.Fragment>
-                ))
-              : "No session changes in this view."}
+            {frames[frame].probes
+              .map(
+                (f, i) =>
+                  "Host " +
+                  (i + 1) +
+                  " · ICMP " +
+                  f.probes.ICMP +
+                  " · HTTP " +
+                  f.probes.HTTP,
+              )
+              .join(" | ")}
           </p>
-        </footer>
-      </main>
-    </>
+        </section>
+      )}
+      {mode === "LOCAL LAB / LIVE" && (
+        <details
+          className="drawer incident-drawer"
+          open={drawerOpen}
+          onToggle={(e) => setDrawerOpen(e.currentTarget.open)}
+        >
+          <summary>Incident controls and timeline</summary>
+          <IncidentPanel
+            onSignal={setSignal}
+            onRun={(r) => {
+              setIncident(r);
+              setLoaded(true);
+            }}
+            target={faultTarget}
+          />
+        </details>
+      )}
+      <details className="drawer collector">
+        <summary>Collector log</summary>
+
+        <p>
+          {history.length
+            ? history.slice(0, 5).map((h, i) => (
+                <React.Fragment key={i}>
+                  {h.join(" · ")}
+                  <br />
+                </React.Fragment>
+              ))
+            : "No session changes in this view."}
+        </p>
+      </details>
+    </WorkspaceShell>
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);

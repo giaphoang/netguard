@@ -1,0 +1,591 @@
+[
+  {
+    "prompt": "Add a leaf connected to every spine.",
+    "plan": {
+      "id": "70c13248b929454ab21883a4fd0237a2",
+      "version": 3,
+      "topology": {
+        "spines": [
+          1,
+          2
+        ],
+        "leaves": [
+          1,
+          2,
+          3
+        ],
+        "hosts": [
+          {
+            "id": 1,
+            "leaf": 1
+          },
+          {
+            "id": 2,
+            "leaf": 2
+          }
+        ]
+      },
+      "before": {
+        "spines": [
+          1,
+          2
+        ],
+        "leaves": [
+          1,
+          2
+        ],
+        "hosts": [
+          {
+            "id": 1,
+            "leaf": 1
+          },
+          {
+            "id": 2,
+            "leaf": 2
+          }
+        ]
+      },
+      "previous_id": null,
+      "leaves": [
+        3
+      ],
+      "added": [
+        "leaf-3"
+      ],
+      "events": [
+        {
+          "phase": "preview",
+          "time": 1795051948.1328678
+        },
+        {
+          "phase": "applying",
+          "time": 1795051949.3990111
+        },
+        {
+          "phase": "verified",
+          "time": 1795051966.7430077
+        }
+      ],
+      "started": 1795051947.130124,
+      "risk": {
+        "status": "approval_required",
+        "affected": [
+          "spine-1",
+          "spine-2",
+          "leaf-1",
+          "leaf-2",
+          "host-1",
+          "host-2"
+        ],
+        "reason": "Router and host containers may be recreated; traffic can pause during reconvergence.",
+        "rollback": "Restore the previously verified topology and remove only this change\u2019s owned resources."
+      },
+      "digest": "b56e48ec42c49b8f9a506251bede790bf99ebf4da3f381d8e4fc267879a83b3d",
+      "diff": "--- spine-1.conf\n+++ spine-1.conf\n@@ -6,6 +6,7 @@\n  no bgp ebgp-requires-policy\n  neighbor 10.211.11.2 remote-as 65101\n  neighbor 10.211.12.2 remote-as 65102\n+ neighbor 10.211.13.2 remote-as 65103\n  address-family ipv4 unicast\n   maximum-paths 2\n  exit-address-family\n--- spine-2.conf\n+++ spine-2.conf\n@@ -6,6 +6,7 @@\n  no bgp ebgp-requires-policy\n  neighbor 10.211.21.2 remote-as 65101\n  neighbor 10.211.22.2 remote-as 65102\n+ neighbor 10.211.23.2 remote-as 65103\n  address-family ipv4 unicast\n   maximum-paths 2\n  exit-address-family\n--- leaf-3.conf\n+++ leaf-3.conf\n@@ -0,0 +1,17 @@\n+frr defaults traditional\n+hostname leaf-3\n+interface lo\n+ ip address 10.214.0.3/32\n+!\n+router bgp 65103\n+ bgp router-id 10.213.2.3\n+ timers bgp 3 9\n+ no bgp ebgp-requires-policy\n+ neighbor 10.211.13.1 remote-as 65000\n+ neighbor 10.211.23.1 remote-as 65000\n+ address-family ipv4 unicast\n+  maximum-paths 2\n+  network 10.212.3.0/28\n+  network 10.214.0.3/32\n+ exit-address-family\n+!\n--- compose.json\n+++ compose.json\n@@ -0,0 +1,291 @@\n+{\n+  \"services\": {\n+    \"spine-1\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l1\": {\n+          \"ipv4_address\": \"10.211.11.1\"\n+        },\n+        \"s1l2\": {\n+          \"ipv4_address\": \"10.211.12.1\"\n+        },\n+        \"s1l3\": {\n+          \"ipv4_address\": \"10.211.13.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/spine-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"spine-2\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s2l1\": {\n+          \"ipv4_address\": \"10.211.21.1\"\n+        },\n+        \"s2l2\": {\n+          \"ipv4_address\": \"10.211.22.1\"\n+        },\n+        \"s2l3\": {\n+          \"ipv4_address\": \"10.211.23.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/spine-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"leaf-1\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l1\": {\n+          \"ipv4_address\": \"10.211.11.2\"\n+        },\n+        \"s2l1\": {\n+          \"ipv4_address\": \"10.211.21.2\"\n+        },\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"leaf-2\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l2\": {\n+          \"ipv4_address\": \"10.211.12.2\"\n+        },\n+        \"s2l2\": {\n+          \"ipv4_address\": \"10.211.22.2\"\n+        },\n+        \"access2\": {\n+          \"ipv4_address\": \"10.212.2.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"leaf-3\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l3\": {\n+          \"ipv4_address\": \"10.211.13.2\"\n+        },\n+        \"s2l3\": {\n+          \"ipv4_address\": \"10.211.23.2\"\n+        },\n+        \"access3\": {\n+          \"ipv4_address\": \"10.212.3.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-3.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"host-1\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.2\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.1.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    },\n+    \"host-2\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access2\": {\n+          \"ipv4_address\": \"10.212.2.2\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.2.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    }\n+  },\n+  \"networks\": {\n+    \"s1l1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.11.0/28\",\n+            \"gateway\": \"10.211.11.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s1l2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.12.0/28\",\n+            \"gateway\": \"10.211.12.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s1l3\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.13.0/28\",\n+            \"gateway\": \"10.211.13.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s2l1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.21.0/28\",\n+            \"gateway\": \"10.211.21.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s2l2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.22.0/28\",\n+            \"gateway\": \"10.211.22.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s2l3\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.23.0/28\",\n+            \"gateway\": \"10.211.23.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"access1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.212.1.0/28\",\n+            \"gateway\": \"10.212.1.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"access2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.212.2.0/28\",\n+            \"gateway\": \"10.212.2.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"access3\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.212.3.0/28\",\n+            \"gateway\": \"10.212.3.14\"\n+          }\n+        ]\n+      }\n+    }\n+  }\n+}",
+      "phase": "verified",
+      "baseline": {
+        "observed": 1795051949.0100343,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 7 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth0 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 330 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:32:29.081800+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:32:29.155753+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ],
+        "host_checks": [
+          {
+            "source": 1,
+            "destination": 2,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          },
+          {
+            "source": 2,
+            "destination": 1,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          }
+        ]
+      },
+      "verification": {
+        "observed": 1795051966.3444636,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established",
+              "10.211.13.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth2 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.211.13.0/28 dev eth1 proto kernel scope link src 10.211.13.1 \n10.212.1.0/28 nhid 12 via 10.211.11.2 dev eth2 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth0 proto bgp metric 20 \n10.212.3.0/28 nhid 10 via 10.211.13.2 dev eth1 proto bgp metric 20 \n10.214.0.3 nhid 10 via 10.211.13.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if71        UP             10.211.13.1/28 \neth2@if8         UP             10.211.11.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established",
+              "10.211.23.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.1 \n10.211.23.0/28 dev eth0 proto kernel scope link src 10.211.23.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 10 via 10.211.22.2 dev eth2 proto bgp metric 20 \n10.212.3.0/28 nhid 12 via 10.211.23.2 dev eth0 proto bgp metric 20 \n10.214.0.3 nhid 12 via 10.211.23.2 dev eth0 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if70        UP             10.211.23.1/28 \neth1@if6         UP             10.211.21.1/28 \neth2@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1 \n10.212.3.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1 \n10.214.0.3 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1 \n10.212.3.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.214.0.3 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if5         UP             10.212.2.1/28 \neth1@if9         UP             10.211.12.2/28 \neth2@if4         UP             10.211.22.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-3",
+            "peers": {
+              "10.211.13.1": "Established",
+              "10.211.23.1": "Established"
+            },
+            "routes": "10.211.13.0/28 dev eth0 proto kernel scope link src 10.211.13.2 \n10.211.23.0/28 dev eth1 proto kernel scope link src 10.211.23.2 \n10.212.1.0/28 nhid 15 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.2.0/28 nhid 15 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.3.0/28 dev eth2 proto kernel scope link src 10.212.3.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 10.214.0.3/32 ::1/128 \neth0@if71        UP             10.211.13.2/28 \neth1@if70        UP             10.211.23.2/28 \neth2@if72        UP             10.212.3.1/28",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:32:46.415570+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:32:46.487518+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ],
+        "host_checks": [
+          {
+            "source": 1,
+            "destination": 2,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          },
+          {
+            "source": 2,
+            "destination": 1,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "prompt": "Provision another spine with appropriate BGP neighbors.",
+    "plan": {
+      "id": "29fb8dcd998747a793fe6cf1b66cbce4",
+      "version": 3,
+      "topology": {
+        "spines": [
+          1,
+          2,
+          3
+        ],
+        "leaves": [
+          1,
+          2,
+          3
+        ],
+        "hosts": [
+          {
+            "id": 1,
+            "leaf": 1
+          },
+          {
+            "id": 2,
+            "leaf": 2
+          }
+        ]
+      },
+      "before": {
+        "spines": [
+          1,
+          2
+        ],
+        "leaves": [
+          1,
+          2,
+          3
+        ],
+        "hosts": [
+          {
+            "id": 1,
+            "leaf": 1
+          },
+          {
+            "id": 2,
+            "leaf": 2
+          }
+        ]
+      },
+      "previous_id": "70c13248b929454ab21883a4fd0237a2",
+      "leaves": [
+        3
+      ],
+      "added": [
+        "spine-3"
+      ],
+      "events": [
+        {
+          "phase": "preview",
+          "time": 1795051968.8511078
+        },
+        {
+          "phase": "applying",
+          "time": 1795051970.0988102
+        },
+        {
+          "phase": "verified",
+          "time": 1795051977.946919
+        }
+      ],
+      "started": 1795051967.723976,
+      "risk": {
+        "status": "approval_required",
+        "affected": [
+          "spine-1",
+          "spine-2",
+          "leaf-1",
+          "leaf-2",
+          "leaf-3",
+          "host-1",
+          "host-2"
+        ],
+        "reason": "Router and host containers may be recreated; traffic can pause during reconvergence.",
+        "rollback": "Restore the previously verified topology and remove only this change\u2019s owned resources."
+      },
+      "digest": "c456a1c3fea27f3508406aef546c11d07b03c17aa206fe8d91d0a159e7328cd9",
+      "diff": "--- spine-1.conf\n+++ spine-1.conf\n@@ -8,6 +8,6 @@\n  neighbor 10.211.12.2 remote-as 65102\n  neighbor 10.211.13.2 remote-as 65103\n  address-family ipv4 unicast\n-  maximum-paths 2\n+  maximum-paths 3\n  exit-address-family\n !\n--- spine-2.conf\n+++ spine-2.conf\n@@ -8,6 +8,6 @@\n  neighbor 10.211.22.2 remote-as 65102\n  neighbor 10.211.23.2 remote-as 65103\n  address-family ipv4 unicast\n-  maximum-paths 2\n+  maximum-paths 3\n  exit-address-family\n !\n--- spine-3.conf\n+++ spine-3.conf\n@@ -0,0 +1,13 @@\n+frr defaults traditional\n+hostname spine-3\n+router bgp 65000\n+ bgp router-id 10.213.1.3\n+ timers bgp 3 9\n+ no bgp ebgp-requires-policy\n+ neighbor 10.211.31.2 remote-as 65101\n+ neighbor 10.211.32.2 remote-as 65102\n+ neighbor 10.211.33.2 remote-as 65103\n+ address-family ipv4 unicast\n+  maximum-paths 3\n+ exit-address-family\n+!\n--- leaf-1.conf\n+++ leaf-1.conf\n@@ -6,8 +6,9 @@\n  no bgp ebgp-requires-policy\n  neighbor 10.211.11.1 remote-as 65000\n  neighbor 10.211.21.1 remote-as 65000\n+ neighbor 10.211.31.1 remote-as 65000\n  address-family ipv4 unicast\n-  maximum-paths 2\n+  maximum-paths 3\n   network 10.212.1.0/28\n  exit-address-family\n !\n--- leaf-2.conf\n+++ leaf-2.conf\n@@ -6,8 +6,9 @@\n  no bgp ebgp-requires-policy\n  neighbor 10.211.12.1 remote-as 65000\n  neighbor 10.211.22.1 remote-as 65000\n+ neighbor 10.211.32.1 remote-as 65000\n  address-family ipv4 unicast\n-  maximum-paths 2\n+  maximum-paths 3\n   network 10.212.2.0/28\n  exit-address-family\n !\n--- leaf-3.conf\n+++ leaf-3.conf\n@@ -9,8 +9,9 @@\n  no bgp ebgp-requires-policy\n  neighbor 10.211.13.1 remote-as 65000\n  neighbor 10.211.23.1 remote-as 65000\n+ neighbor 10.211.33.1 remote-as 65000\n  address-family ipv4 unicast\n-  maximum-paths 2\n+  maximum-paths 3\n   network 10.212.3.0/28\n   network 10.214.0.3/32\n  exit-address-family\n--- compose.json\n+++ compose.json\n@@ -23,7 +23,7 @@\n         }\n       },\n       \"volumes\": [\n-        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/spine-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/spine-1.conf:/etc/frr/frr.conf:ro\",\n         \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n       ]\n     },\n@@ -50,7 +50,34 @@\n         }\n       },\n       \"volumes\": [\n-        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/spine-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/spine-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"spine-3\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s3l1\": {\n+          \"ipv4_address\": \"10.211.31.1\"\n+        },\n+        \"s3l2\": {\n+          \"ipv4_address\": \"10.211.32.1\"\n+        },\n+        \"s3l3\": {\n+          \"ipv4_address\": \"10.211.33.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/spine-3.conf:/etc/frr/frr.conf:ro\",\n         \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n       ]\n     },\n@@ -72,12 +99,15 @@\n         \"s2l1\": {\n           \"ipv4_address\": \"10.211.21.2\"\n         },\n+        \"s3l1\": {\n+          \"ipv4_address\": \"10.211.31.2\"\n+        },\n         \"access1\": {\n           \"ipv4_address\": \"10.212.1.1\"\n         }\n       },\n       \"volumes\": [\n-        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/leaf-1.conf:/etc/frr/frr.conf:ro\",\n         \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n       ]\n     },\n@@ -99,12 +129,15 @@\n         \"s2l2\": {\n           \"ipv4_address\": \"10.211.22.2\"\n         },\n+        \"s3l2\": {\n+          \"ipv4_address\": \"10.211.32.2\"\n+        },\n         \"access2\": {\n           \"ipv4_address\": \"10.212.2.1\"\n         }\n       },\n       \"volumes\": [\n-        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/leaf-2.conf:/etc/frr/frr.conf:ro\",\n         \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n       ]\n     },\n@@ -126,12 +159,15 @@\n         \"s2l3\": {\n           \"ipv4_address\": \"10.211.23.2\"\n         },\n+        \"s3l3\": {\n+          \"ipv4_address\": \"10.211.33.2\"\n+        },\n         \"access3\": {\n           \"ipv4_address\": \"10.212.3.1\"\n         }\n       },\n       \"volumes\": [\n-        \"/var/lib/netguard/expansions/70c13248b929454ab21883a4fd0237a2/leaf-3.conf:/etc/frr/frr.conf:ro\",\n+        \"/var/lib/netguard/expansions/29fb8dcd998747a793fe6cf1b66cbce4/leaf-3.conf:/etc/frr/frr.conf:ro\",\n         \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n       ]\n     },\n@@ -251,6 +287,42 @@\n         ]\n       }\n     },\n+    \"s3l1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.31.0/28\",\n+            \"gateway\": \"10.211.31.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s3l2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.32.0/28\",\n+            \"gateway\": \"10.211.32.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s3l3\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.33.0/28\",\n+            \"gateway\": \"10.211.33.14\"\n+          }\n+        ]\n+      }\n+    },\n     \"access1\": {\n       \"internal\": true,\n       \"driver\": \"macvlan\",",
+      "phase": "verified",
+      "baseline": {
+        "observed": 1795051969.6250718,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established",
+              "10.211.13.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth2 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.211.13.0/28 dev eth1 proto kernel scope link src 10.211.13.1 \n10.212.1.0/28 nhid 12 via 10.211.11.2 dev eth2 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth0 proto bgp metric 20 \n10.212.3.0/28 nhid 10 via 10.211.13.2 dev eth1 proto bgp metric 20 \n10.214.0.3 nhid 10 via 10.211.13.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if71        UP             10.211.13.1/28 \neth2@if8         UP             10.211.11.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established",
+              "10.211.23.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.1 \n10.211.23.0/28 dev eth0 proto kernel scope link src 10.211.23.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 10 via 10.211.22.2 dev eth2 proto bgp metric 20 \n10.212.3.0/28 nhid 12 via 10.211.23.2 dev eth0 proto bgp metric 20 \n10.214.0.3 nhid 12 via 10.211.23.2 dev eth0 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if70        UP             10.211.23.1/28 \neth1@if6         UP             10.211.21.1/28 \neth2@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1 \n10.212.3.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1 \n10.214.0.3 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1 \n10.212.3.0/28 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.214.0.3 nhid 13 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if5         UP             10.212.2.1/28 \neth1@if9         UP             10.211.12.2/28 \neth2@if4         UP             10.211.22.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-3",
+            "peers": {
+              "10.211.13.1": "Established",
+              "10.211.23.1": "Established"
+            },
+            "routes": "10.211.13.0/28 dev eth0 proto kernel scope link src 10.211.13.2 \n10.211.23.0/28 dev eth1 proto kernel scope link src 10.211.23.2 \n10.212.1.0/28 nhid 15 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.2.0/28 nhid 15 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.3.0/28 dev eth2 proto kernel scope link src 10.212.3.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 10.214.0.3/32 ::1/128 \neth0@if71        UP             10.211.13.2/28 \neth1@if70        UP             10.211.23.2/28 \neth2@if72        UP             10.212.3.1/28",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:32:49.727237+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:32:49.805954+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ],
+        "host_checks": [
+          {
+            "source": 1,
+            "destination": 2,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          },
+          {
+            "source": 2,
+            "destination": 1,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          }
+        ]
+      },
+      "verification": {
+        "observed": 1795051977.5328507,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established",
+              "10.211.13.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.211.13.0/28 dev eth2 proto kernel scope link src 10.211.13.1 \n10.212.1.0/28 nhid 10 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20 \n10.212.3.0/28 nhid 12 via 10.211.13.2 dev eth2 proto bgp metric 20 \n10.214.0.3 nhid 12 via 10.211.13.2 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28 \neth2@if71        UP             10.211.13.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established",
+              "10.211.23.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.1 \n10.211.23.0/28 dev eth1 proto kernel scope link src 10.211.23.1 \n10.212.1.0/28 nhid 10 via 10.211.21.2 dev eth2 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth0 proto bgp metric 20 \n10.212.3.0/28 nhid 12 via 10.211.23.2 dev eth1 proto bgp metric 20 \n10.214.0.3 nhid 12 via 10.211.23.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.1/28 \neth1@if70        UP             10.211.23.1/28 \neth2@if6         UP             10.211.21.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-3",
+            "peers": {
+              "10.211.31.2": "Established",
+              "10.211.32.2": "Established",
+              "10.211.33.2": "Established"
+            },
+            "routes": "10.211.31.0/28 dev eth0 proto kernel scope link src 10.211.31.1 \n10.211.32.0/28 dev eth1 proto kernel scope link src 10.211.32.1 \n10.211.33.0/28 dev eth2 proto kernel scope link src 10.211.33.1 \n10.212.1.0/28 nhid 10 via 10.211.31.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.32.2 dev eth1 proto bgp metric 20 \n10.212.3.0/28 nhid 12 via 10.211.33.2 dev eth2 proto bgp metric 20 \n10.214.0.3 nhid 12 via 10.211.33.2 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if91        UP             10.211.31.1/28 \neth1@if92        UP             10.211.32.1/28 \neth2@if90        UP             10.211.33.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established",
+              "10.211.31.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth3 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.2 \n10.211.31.0/28 dev eth1 proto kernel scope link src 10.211.31.2 \n10.212.1.0/28 dev eth2 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth0 weight 1 \n\tnexthop via 10.211.31.1 dev eth1 weight 1 \n\tnexthop via 10.211.11.1 dev eth3 weight 1 \n10.212.3.0/28 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth0 weight 1 \n\tnexthop via 10.211.31.1 dev eth1 weight 1 \n\tnexthop via 10.211.11.1 dev eth3 weight 1 \n10.214.0.3 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth0 weight 1 \n\tnexthop via 10.211.31.1 dev eth1 weight 1 \n\tnexthop via 10.211.11.1 dev eth3 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.2/28 \neth1@if91        UP             10.211.31.2/28 \neth2@if7         UP             10.212.1.1/28 \neth3@if8         UP             10.211.11.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established",
+              "10.211.32.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.211.32.0/28 dev eth3 proto kernel scope link src 10.211.32.2 \n10.212.1.0/28 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.32.1 dev eth3 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1 \n10.212.3.0/28 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.32.1 dev eth3 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n10.214.0.3 nhid 22 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n\tnexthop via 10.211.32.1 dev eth3 weight 1 \n\tnexthop via 10.211.12.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if5         UP             10.212.2.1/28 \neth1@if9         UP             10.211.12.2/28 \neth2@if4         UP             10.211.22.2/28 \neth3@if92        UP             10.211.32.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-3",
+            "peers": {
+              "10.211.13.1": "Established",
+              "10.211.23.1": "Established",
+              "10.211.33.1": "Established"
+            },
+            "routes": "10.211.13.0/28 dev eth0 proto kernel scope link src 10.211.13.2 \n10.211.23.0/28 dev eth1 proto kernel scope link src 10.211.23.2 \n10.211.33.0/28 dev eth2 proto kernel scope link src 10.211.33.2 \n10.212.1.0/28 nhid 24 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.33.1 dev eth2 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.2.0/28 nhid 24 proto bgp metric 20 \n\tnexthop via 10.211.23.1 dev eth1 weight 1 \n\tnexthop via 10.211.33.1 dev eth2 weight 1 \n\tnexthop via 10.211.13.1 dev eth0 weight 1 \n10.212.3.0/28 dev eth3 proto kernel scope link src 10.212.3.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 10.214.0.3/32 ::1/128 \neth0@if71        UP             10.211.13.2/28 \neth1@if70        UP             10.211.23.2/28 \neth2@if90        UP             10.211.33.2/28 \neth3@if72        UP             10.212.3.1/28",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:32:57.605140+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2,
+              3
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:32:57.678647+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2,
+              3
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ],
+        "host_checks": [
+          {
+            "source": 1,
+            "destination": 2,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          },
+          {
+            "source": 2,
+            "destination": 1,
+            "ICMP": "success",
+            "HTTP": "success",
+            "bidirectional": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rolled_back": "29fb8dcd998747a793fe6cf1b66cbce4"
+  },
+  {
+    "rolled_back": "70c13248b929454ab21883a4fd0237a2"
+  }
+]

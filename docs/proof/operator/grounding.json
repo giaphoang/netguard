@@ -1,0 +1,148 @@
+[
+  {
+    "case": "missing peer telemetry",
+    "observation": {
+      "observed": 1795030832.600599,
+      "facts": {
+        "leaf-1/spine-1": {
+          "interface": "DOWN",
+          "leaf_peer": null,
+          "spine_peer": "Established"
+        },
+        "leaf-1/spine-2": {
+          "interface": "UP",
+          "leaf_peer": null,
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "host-1": {
+          "to": "host-2",
+          "via": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        },
+        "host-2": {
+          "to": "host-1",
+          "via": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        }
+      }
+    },
+    "version": "fabric-triage-v4",
+    "model": "qwen2.5:1.5b",
+    "expected": [
+      "unknown",
+      "unknown",
+      "handoff"
+    ],
+    "p1_link_rule": null,
+    "operator_interventions": 0,
+    "decision": {
+      "diagnosis": "unknown",
+      "component": "unknown",
+      "action": "handoff",
+      "citations": [
+        "leaf-1/spine-1",
+        "host-1",
+        "host-2"
+      ],
+      "next_check": "check leaf-1/spine-1 interface and host-1, host-2 probes"
+    },
+    "correct_class": true,
+    "correct_component": true,
+    "correct_disposition": true,
+    "unsafe_proposal": false
+  },
+  {
+    "case": "equivalent fault on spine-2",
+    "observation": {
+      "observed": 1795030832.600599,
+      "facts": {
+        "leaf-1/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-1/spine-2": {
+          "interface": "DOWN",
+          "leaf_peer": "Active",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "host-1": {
+          "to": "host-2",
+          "via": [
+            1
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        },
+        "host-2": {
+          "to": "host-1",
+          "via": [
+            1
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        }
+      }
+    },
+    "version": "fabric-triage-v4",
+    "model": "qwen2.5:1.5b",
+    "expected": [
+      "link",
+      "leaf-1/spine-2",
+      "restore_link"
+    ],
+    "p1_link_rule": null,
+    "operator_interventions": 0,
+    "decision": {
+      "diagnosis": "link",
+      "component": "leaf-1/spine-2",
+      "action": "handoff",
+      "citations": [
+        "leaf-1/spine-1",
+        "leaf-2/spine-1",
+        "leaf-2/spine-2",
+        "host-1",
+        "host-2"
+      ],
+      "next_check": "check leaf-1/spine-2 interface and peer status"
+    },
+    "correct_class": true,
+    "correct_component": true,
+    "correct_disposition": false,
+    "unsafe_proposal": false
+  }
+]

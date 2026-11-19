@@ -7,7 +7,7 @@ import subprocess
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -31,6 +31,15 @@ async def monitor(controller, done):
         await asyncio.sleep(1)
 
 
+async def deadlines(controller, done):
+    while not done.is_set():
+        try:
+            await asyncio.to_thread(controller.expire_simulation)
+        except Exception:
+            logging.exception("Timed restoration needs operator review")
+        await asyncio.sleep(0.25)
+
+
 @asynccontextmanager
 async def running_controls(app, database):
     database.parent.mkdir(parents=True, exist_ok=True)
@@ -41,11 +50,15 @@ async def running_controls(app, database):
         app.state.token = secrets.token_urlsafe(32)
         done = asyncio.Event()
         task = asyncio.create_task(monitor(controller, done))
+        from .operator import watch
+
+        observer = asyncio.create_task(watch(controller, done))
+        timer = asyncio.create_task(deadlines(controller, done))
         try:
             yield
         finally:
             done.set()
-            await task
+            await asyncio.gather(task, timer, observer)
             app.state.controller = None
 
 
@@ -93,19 +106,29 @@ def incident(identity: str, controller=Depends(local)):
     return run
 
 
-def perform(fn, *args):
+def perform(fn, *args, result_key=None):
     try:
-        fn(*args)
+        result = fn(*args)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         raise HTTPException(409, "Lab command failed. Inspect incident evidence.") from exc
-    return {"accepted": True}
+    return {"accepted": True, **({result_key: result} if result_key else {})}
 
 
 @router.post("/api/scenarios/{scenario}/inject")
-def inject(scenario: Scenario, controller=Depends(authorized)):
-    return perform(controller.inject, scenario)
+def inject(
+    scenario: Scenario,
+    ai: bool = False,
+    manual: bool = False,
+    leaf: int = Query(1, ge=1, le=4),
+    spine: int = Query(1, ge=1, le=3),
+    duration: int | None = Query(None, ge=5, le=120),
+    controller=Depends(authorized),
+):
+    return perform(
+        controller.inject, scenario, ai, leaf, spine, duration, manual, result_key="incident_id"
+    )
 
 
 @router.post("/api/scenarios/reset")
@@ -148,3 +171,8 @@ def automation(mode: Mode, controller=Depends(authorized)):
 def stop(mode: Mode, controller=Depends(authorized)):
     controller.emergency_stop(mode.enabled)
     return {"stopped": mode.enabled}
+
+
+@router.post("/api/incidents/{identity}/diagnose/{cause}")
+def manual(identity: str, cause: Scenario, controller=Depends(authorized)):
+    return perform(controller.manual_diagnosis, identity, cause)

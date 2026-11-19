@@ -1,0 +1,358 @@
+{
+  "environment": {
+    "guest": "Ubuntu ARM64 on UTM",
+    "docker": "29.10.0",
+    "compose": "5.8.0",
+    "frr_image": "quay.io/frrouting/frr:10.1.1",
+    "model": "qwen2.5:1.5b",
+    "model_revision": {
+      "name": "qwen2.5:1.5b",
+      "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+    },
+    "intent_version": "topology-intent-v10",
+    "experiment_version": "routing-study-v1",
+    "isolation": "Separate disposable local Docker daemon and topology"
+  },
+  "browser": {
+    "exactPrompt": "Design equivalent isolated lab topologies using BGP, OSPF, and IS-IS. Predict their routing convergence behavior under identical link failures, explain protocol tradeoffs, and preview the configurations. After approval, run comparative experiments and present measured convergence times, traffic disruption, and control-plane behavior. Explain where the predictions were inaccurate.",
+    "approvalLabel": "Approve and run comparison",
+    "previewId": "dc07383d951e4dfba5cda4e961ceccf6",
+    "staleApprovalStatus": 409,
+    "unauthorizedStatus": 403,
+    "acceptedStatus": 202,
+    "variant": [
+      "OSPF",
+      "IS-IS"
+    ],
+    "plainAnswer": "Several equal-cost paths between your leaves are likely due to the network design, where multiple paths are used to distribute traffic efficiently across the network. This is common in large-scale networks to ensure redundancy and load balancing. The equal-cost paths are likely established through BGP sessions, which are used to exchange routing information between the routers. The observed traffic paths show that traffic is being forwarded through the spines and leaves, and,"
+  },
+  "experiment_id": "dc07383d951e4dfba5cda4e961ceccf6",
+  "approval": {
+    "time": 1795127736.584002,
+    "digest": "d54de8c3de1cd01ecfb75e78be88ebc348b7f591f85847c135698d1ddca29b60"
+  },
+  "validated_frr_configurations": [
+    "BGP configuration for spine-1",
+    "BGP configuration for spine-2",
+    "BGP configuration for leaf-1",
+    "BGP configuration for leaf-2",
+    "OSPF configuration for spine-1",
+    "OSPF configuration for spine-2",
+    "OSPF configuration for leaf-1",
+    "OSPF configuration for leaf-2",
+    "IS-IS configuration for spine-1",
+    "IS-IS configuration for spine-2",
+    "IS-IS configuration for leaf-1",
+    "IS-IS configuration for leaf-2"
+  ],
+  "method": {
+    "route_interval_ms": 100,
+    "probe_interval_ms": 100,
+    "probe_count": 100,
+    "probe_timeout_s": 14,
+    "warmup_s": 1,
+    "failure_window_s": 8,
+    "stable_samples": 3
+  },
+  "fault": {
+    "link": "leaf-1/spine-1",
+    "port": "transit-s1"
+  },
+  "prediction": {
+    "local_route_upper_ms": 1000,
+    "both_routes_upper_ms": 6000,
+    "lost_probes_upper": 60,
+    "failed_adjacencies_remaining": 1
+  },
+  "measured": {
+    "BGP": {
+      "routes_ms": {
+        "leaf-1": 215,
+        "leaf-2": 3393.3
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 32,
+        "missing_sequences": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42
+        ],
+        "longest_loss_ms": 3200,
+        "last_reply_after_fault_ms": 9371.6
+      },
+      "fault_at": 1795127747.171285,
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    },
+    "OSPF": {
+      "routes_ms": {
+        "leaf-1": 111.6,
+        "leaf-2": 111.6
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 0,
+        "missing_sequences": [],
+        "longest_loss_ms": 0,
+        "last_reply_after_fault_ms": 9396.9
+      },
+      "fault_at": 1795127776.291462,
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    },
+    "IS-IS": {
+      "routes_ms": {
+        "leaf-1": 242.1,
+        "leaf-2": 3395.1
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 31,
+        "missing_sequences": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42
+        ],
+        "longest_loss_ms": 3100,
+        "last_reply_after_fault_ms": 9369.6
+      },
+      "fault_at": 1795127796.8928092,
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    }
+  },
+  "prediction_check": {
+    "BGP": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    },
+    "OSPF": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    },
+    "IS-IS": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    }
+  },
+  "cleanup": {
+    "removed_after_each_trial": [
+      {
+        "command": [
+          "rm",
+          "-f"
+        ],
+        "resources": 6
+      },
+      {
+        "command": [
+          "network",
+          "rm"
+        ],
+        "resources": 6
+      },
+      {
+        "command": [
+          "rm",
+          "-f"
+        ],
+        "resources": 6
+      },
+      {
+        "command": [
+          "network",
+          "rm"
+        ],
+        "resources": 6
+      },
+      {
+        "command": [
+          "rm",
+          "-f"
+        ],
+        "resources": 6
+      },
+      {
+        "command": [
+          "network",
+          "rm"
+        ],
+        "resources": 6
+      }
+    ],
+    "final_phase": "completed",
+    "active_arm": null,
+    "trial_resources_remaining": false,
+    "active_fabric_verification": [
+      {
+        "source": 1,
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "installed_paths": [
+          1,
+          2
+        ]
+      },
+      {
+        "source": 2,
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "installed_paths": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "repeat": {
+    "experiment_id": "6ea5cedf023b4e11ad42dd9fafa8456b",
+    "measured": {
+      "BGP": {
+        "routes_ms": {
+          "leaf-1": 134.3,
+          "leaf-2": 4176.6
+        },
+        "lost_probes": 39
+      },
+      "OSPF": {
+        "routes_ms": {
+          "leaf-1": 1475.1,
+          "leaf-2": 1062.3
+        },
+        "lost_probes": 13
+      },
+      "IS-IS": {
+        "routes_ms": {
+          "leaf-1": 419,
+          "leaf-2": 3619.4
+        },
+        "lost_probes": 32
+      }
+    },
+    "prediction_check": {
+      "BGP": {
+        "excess": {
+          "local_route_ms": 0,
+          "both_routes_ms": 0,
+          "lost_probes": 0
+        },
+        "neighbor_mismatches": {}
+      },
+      "OSPF": {
+        "excess": {
+          "local_route_ms": 475.0999999999999,
+          "both_routes_ms": 0,
+          "lost_probes": 0
+        },
+        "neighbor_mismatches": {}
+      },
+      "IS-IS": {
+        "excess": {
+          "local_route_ms": 0,
+          "both_routes_ms": 0,
+          "lost_probes": 0
+        },
+        "neighbor_mismatches": {}
+      }
+    }
+  },
+  "limits": "Each approval runs one trial per protocol. Kernel samples and echoes are spaced by approximately 100 ms. Timings vary with protocol timers and guest scheduling."
+}

@@ -1,0 +1,3726 @@
+{
+  "verified_phase": "evaluated",
+  "evidence": {
+    "id": "9822751a9de94034963a57c4f466ccbe",
+    "phase": "evaluated",
+    "created": 1795118521.9878185,
+    "prompt": "Evaluate our current incident-diagnosis workflow against an improved prompt and context-retrieval strategy using the same recorded incidents. Include different routers, topology sizes, rare failures, and ambiguous evidence. Compare diagnosis accuracy, latency, tool usage, incorrect repair suggestions, and correct human escalations. Recommend improvements only when supported by evaluation results.",
+    "selection": "",
+    "version": "architecture-v3",
+    "model": "qwen2.5:1.5b",
+    "prompt_sha256": "4316764dc0347eb3f535dcad709ef624715c82196c96f7e728dc82c0ab40109f",
+    "method": {
+      "role": "Alternating paired replay on labeled observations"
+    },
+    "trace": [
+      {
+        "stage": "Understand",
+        "tool": "Read the installed model revision",
+        "started": 1795118522.0103884,
+        "status": "complete",
+        "model": "qwen2.5:1.5b",
+        "result": {
+          "name": "qwen2.5:1.5b",
+          "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+        },
+        "completed": 1795118522.04452
+      },
+      {
+        "stage": "Understand",
+        "tool": "Interpret objective with the local model",
+        "started": 1795118522.0582433,
+        "status": "complete",
+        "model": "qwen2.5:1.5b",
+        "result": "evaluation",
+        "completed": 1795118522.2590244
+      },
+      {
+        "stage": "Investigate",
+        "tool": "Load labeled incident observations",
+        "started": 1795118522.2754948,
+        "status": "complete",
+        "result": {
+          "cases": 11,
+          "dataset_sha256": "04672c497a01a0bad977465d9bc5030f85cfbbee25b42424f296c3156f24676d"
+        },
+        "completed": 1795118522.3006625
+      },
+      {
+        "stage": "Plan",
+        "tool": "Identify the model and workflow versions",
+        "started": 1795118522.3133922,
+        "status": "complete",
+        "result": {
+          "model": {
+            "name": "qwen2.5:1.5b",
+            "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+          },
+          "workflows": {
+            "fabric-triage-v6.1": {
+              "prompt_sha256": "dd1ca461e8c5413bc6981b6f624761edc687df44ad38a083e889d5dfb6b08290",
+              "context": "full observation"
+            },
+            "fabric-triage-v7-candidate": {
+              "prompt_sha256": "b5c39117b0efc30fefc5b165d0cafdc1de3caba87ffff77007e1207268fa70ae",
+              "context": "focused-context-v1"
+            }
+          }
+        },
+        "completed": 1795118522.3263977
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118522.3362074,
+        "status": "complete",
+        "case": "recorded-link",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "recorded-link",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118522.350877,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 57,
+              "load_duration": 928209,
+              "total_duration": 678393792,
+              "completed": 1795118523.0322688
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "verify connectivity to host-1 via alternate paths"
+          },
+          "latency_s": 0.6835447960038437,
+          "context_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "context_bytes": 601,
+          "diagnosis_correct": false,
+          "escalation_correct": false,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118523.0335035
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118523.0527046,
+        "status": "complete",
+        "case": "recorded-link",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "recorded-link",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118523.0876448,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 61,
+              "load_duration": 667750,
+              "total_duration": 894632000,
+              "completed": 1795118523.986185
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping leaf-1"
+          },
+          "latency_s": 0.9014067940006498,
+          "context_sha256": "408578e938c7e2dc4d3f4a297185e95cab8d49910444070473be572402f0eac8",
+          "context_bytes": 373,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118523.9864533
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118524.0073876,
+        "status": "complete",
+        "case": "recorded-bgp",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "recorded-bgp",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118524.0310361,
+              "http_status": 200,
+              "prompt_eval_count": 382,
+              "eval_count": 61,
+              "load_duration": 594375,
+              "total_duration": 812083834,
+              "completed": 1795118524.8454633
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping host-1"
+          },
+          "latency_s": 0.8154022749949945,
+          "context_sha256": "8dbce2130fab8511106c3999163194e8901c9521b480744cc015840aa9c68c11",
+          "context_bytes": 373,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118524.8461373
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118524.8640745,
+        "status": "complete",
+        "case": "recorded-bgp",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "recorded-bgp",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118524.8813107,
+              "http_status": 200,
+              "prompt_eval_count": 455,
+              "eval_count": 59,
+              "load_duration": 898750,
+              "total_duration": 669073458,
+              "completed": 1795118525.5534382
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "check leaf-1/spine-1 interface and peer state"
+          },
+          "latency_s": 0.675654309001402,
+          "context_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "context_bytes": 601,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118525.5538998
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118525.5712328,
+        "status": "complete",
+        "case": "recorded-endpoint",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "recorded-endpoint",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118525.585741,
+              "http_status": 200,
+              "prompt_eval_count": 462,
+              "eval_count": 89,
+              "load_duration": 736584,
+              "total_duration": 953360250,
+              "completed": 1795118526.5439768
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-2",
+              "host-1",
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "leaf-2/spine-1",
+              "leaf-2/spine-2"
+            ],
+            "next_check": "check host-2's connectivity and health"
+          },
+          "latency_s": 0.9602317859971663,
+          "context_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "context_bytes": 619,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118526.5453124
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118526.5769637,
+        "status": "complete",
+        "case": "recorded-endpoint",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "recorded-endpoint",
+          "origin": "Recorded Ubuntu incident",
+          "expected": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118526.6036022,
+              "http_status": 200,
+              "prompt_eval_count": 357,
+              "eval_count": 59,
+              "load_duration": 954958,
+              "total_duration": 919918000,
+              "completed": 1795118527.5325086
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "ping host-2"
+          },
+          "latency_s": 0.9353523070021765,
+          "context_sha256": "b27049cc1f828f2a93658c7771fb626f0fb2206396d10fb8d225879a63987533",
+          "context_bytes": 295,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118527.53531
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118527.5718167,
+        "status": "complete",
+        "case": "recorded-convergence",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "recorded-convergence",
+          "origin": "Recorded transient link fault; safety withheld a wrong diagnosis",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118527.6011474,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 61,
+              "load_duration": 1757333,
+              "total_duration": 856894292,
+              "completed": 1795118528.4624896
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping leaf-1"
+          },
+          "latency_s": 0.8658831180073321,
+          "context_sha256": "37844998f44333016c5931d670370651644faf1566dc190a18792f7d0478e30b",
+          "context_bytes": 373,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118528.4627478
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118528.4856453,
+        "status": "complete",
+        "case": "recorded-convergence",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "recorded-convergence",
+          "origin": "Recorded transient link fault; safety withheld a wrong diagnosis",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118528.503643,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 57,
+              "load_duration": 1967292,
+              "total_duration": 839649250,
+              "completed": 1795118529.347025
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "verify connectivity to host-1 via alternate paths"
+          },
+          "latency_s": 0.8451181080017705,
+          "context_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "context_bytes": 601,
+          "diagnosis_correct": false,
+          "escalation_correct": false,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118529.3480294
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118529.3689978,
+        "status": "complete",
+        "case": "missing peer telemetry",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "missing peer telemetry",
+          "origin": "Explicitly transformed recorded observation",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118529.3853767,
+              "http_status": 200,
+              "prompt_eval_count": 450,
+              "eval_count": 94,
+              "load_duration": 1064041,
+              "total_duration": 1045377416,
+              "completed": 1795118530.4348283
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "leaf-2/spine-1",
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "verify connectivity between leaf and spine pairs and ensure all peers are established"
+          },
+          "latency_s": 1.0512918250024086,
+          "context_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "context_bytes": 587,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118530.4353008
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118530.450471,
+        "status": "complete",
+        "case": "missing peer telemetry",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "missing peer telemetry",
+          "origin": "Explicitly transformed recorded observation",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118530.4657595,
+              "http_status": 200,
+              "prompt_eval_count": 426,
+              "eval_count": 81,
+              "load_duration": 666500,
+              "total_duration": 1458423375,
+              "completed": 1795118531.9375842
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "check for conflicting symptoms or missing endpoint evidence"
+          },
+          "latency_s": 1.474838018999435,
+          "context_sha256": "b3cf087e2f6ccc17c030d70f24b1ee2d06e62552d45ba6b34f655d43b4d6597d",
+          "context_bytes": 489,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118531.9410536
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118531.9871995,
+        "status": "complete",
+        "case": "equivalent fault on spine-2",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "equivalent fault on spine-2",
+          "origin": "Explicitly transformed recorded observation",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118532.0097308,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 65,
+              "load_duration": 1424958,
+              "total_duration": 1233287667,
+              "completed": 1795118533.2471519
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-2"
+            ],
+            "next_check": "ping leaf-1 and spine-2"
+          },
+          "latency_s": 1.2732363370014355,
+          "context_sha256": "a193cc29774d6d84740a146611bfbf42c601cb467188326d16a550d8e8a4d3ff",
+          "context_bytes": 372,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118533.28871
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118533.3186421,
+        "status": "complete",
+        "case": "equivalent fault on spine-2",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "equivalent fault on spine-2",
+          "origin": "Explicitly transformed recorded observation",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118533.3531585,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 56,
+              "load_duration": 2716042,
+              "total_duration": 958749167,
+              "completed": 1795118534.3441615
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-2"
+            ],
+            "next_check": "verify connectivity between leaf-1 and spine-2"
+          },
+          "latency_s": 1.0077692610066151,
+          "context_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "context_bytes": 600,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118534.3637013
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118534.4219754,
+        "status": "complete",
+        "case": "expanded-fabric-link",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "expanded-fabric-link",
+          "origin": "Synthetic link failure applied to recorded six-router topology",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118534.4610884,
+              "http_status": 200,
+              "prompt_eval_count": 670,
+              "eval_count": 55,
+              "load_duration": 864917,
+              "total_duration": 769016000,
+              "completed": 1795118535.232633
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link",
+            "citations": [
+              "leaf-3/spine-3"
+            ],
+            "next_check": "verify connectivity to host-3 via alternate paths"
+          },
+          "latency_s": 0.7750847159913974,
+          "context_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "context_bytes": 1223,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118535.2337801
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118535.2599742,
+        "status": "complete",
+        "case": "expanded-fabric-link",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "expanded-fabric-link",
+          "origin": "Synthetic link failure applied to recorded six-router topology",
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118535.2794583,
+              "http_status": 200,
+              "prompt_eval_count": 437,
+              "eval_count": 67,
+              "load_duration": 540500,
+              "total_duration": 911972833,
+              "completed": 1795118536.1970093
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link",
+            "citations": [
+              "leaf-3/spine-3"
+            ],
+            "next_check": "verify connectivity between leaf-3 and spine-3"
+          },
+          "latency_s": 0.9196282170014456,
+          "context_sha256": "0c6dd87a5beeaddf18482bd5f5e83930e0eb52836a64d91606c9ef7cbc87c75b",
+          "context_bytes": 515,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118536.197959
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118536.2256343,
+        "status": "complete",
+        "case": "expanded-ambiguous",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "expanded-ambiguous",
+          "origin": "Synthetic missing telemetry on recorded expanded topology",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118536.2518947,
+              "http_status": 200,
+              "prompt_eval_count": 476,
+              "eval_count": 88,
+              "load_duration": 774625,
+              "total_duration": 1184582834,
+              "completed": 1795118537.4406028
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-1",
+              "leaf-3/spine-3",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify bidirectional connectivity between leaf and spine interfaces"
+          },
+          "latency_s": 1.1911815060011577,
+          "context_sha256": "43ba81cf3506a8520e9c5922a4ac90b54f91c1290414eb0ff7cec5a322e09f3d",
+          "context_bytes": 627,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118537.4408908
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118537.4645019,
+        "status": "complete",
+        "case": "expanded-ambiguous",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "expanded-ambiguous",
+          "origin": "Synthetic missing telemetry on recorded expanded topology",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118537.4943664,
+              "http_status": 200,
+              "prompt_eval_count": 669,
+              "eval_count": 67,
+              "load_duration": 1078208,
+              "total_duration": 939659667,
+              "completed": 1795118538.436151
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-3",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify connectivity to host-3 and spine-3"
+          },
+          "latency_s": 0.945678433010471,
+          "context_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "context_bytes": 1223,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118538.438276
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118538.459496,
+        "status": "complete",
+        "case": "expanded-dual-link-loss",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "expanded-dual-link-loss",
+          "origin": "Synthetic concurrent link failures on the recorded six-router topology",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118538.4728165,
+              "http_status": 200,
+              "prompt_eval_count": 668,
+              "eval_count": 71,
+              "load_duration": 566792,
+              "total_duration": 844224917,
+              "completed": 1795118539.3201838
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-2/spine-2",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify connectivity between leaf-2 and spine-2"
+          },
+          "latency_s": 0.8492615490104072,
+          "context_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "context_bytes": 1211,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118539.3218906
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118539.3459573,
+        "status": "complete",
+        "case": "expanded-dual-link-loss",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "expanded-dual-link-loss",
+          "origin": "Synthetic concurrent link failures on the recorded six-router topology",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118539.3780608,
+              "http_status": 200,
+              "prompt_eval_count": 467,
+              "eval_count": 94,
+              "load_duration": 1160833,
+              "total_duration": 1170601708,
+              "completed": 1795118540.5530825
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-2/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-1",
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify bidirectional connectivity between leaf and spine"
+          },
+          "latency_s": 1.178789658995811,
+          "context_sha256": "28424d6c330eb45b4b5f439056d98da48a02b08e6c76715e716c75be888b1a69",
+          "context_bytes": 599,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118540.5537324
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118540.5810864,
+        "status": "complete",
+        "case": "expanded-bgp-only",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "expanded-bgp-only",
+          "origin": "Synthetic BGP session failure on the recorded six-router topology",
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118540.6001995,
+              "http_status": 200,
+              "prompt_eval_count": 439,
+              "eval_count": 54,
+              "load_duration": 835917,
+              "total_duration": 734033458,
+              "completed": 1795118541.337865
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-2"
+            ],
+            "next_check": "verify endpoint connectivity"
+          },
+          "latency_s": 0.7414769379975041,
+          "context_sha256": "289fa28df76fa202438ff187ac21c804e4c28f4717d0c38eb27c9e3340172c9e",
+          "context_bytes": 521,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118541.3382926
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118541.3585494,
+        "status": "complete",
+        "case": "expanded-bgp-only",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "expanded-bgp-only",
+          "origin": "Synthetic BGP session failure on the recorded six-router topology",
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118541.3746347,
+              "http_status": 200,
+              "prompt_eval_count": 672,
+              "eval_count": 63,
+              "load_duration": 670459,
+              "total_duration": 930322417,
+              "completed": 1795118542.3104541
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-2"
+            ],
+            "next_check": "verify BGP configuration and peer setup on leaf-3 and spine-2."
+          },
+          "latency_s": 0.9380023940029787,
+          "context_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "context_bytes": 1229,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118542.3106892
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118542.3472993,
+        "status": "complete",
+        "case": "expanded-unexplained-probe-loss",
+        "version": "fabric-triage-v6.1",
+        "result": {
+          "id": "expanded-unexplained-probe-loss",
+          "origin": "Synthetic loss of all probes to one destination with healthy recorded BGP",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118542.373305,
+              "http_status": 200,
+              "prompt_eval_count": 672,
+              "eval_count": 68,
+              "load_duration": 621958,
+              "total_duration": 1057971833,
+              "completed": 1795118543.434614
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-2",
+              "host-1",
+              "host-3"
+            ],
+            "next_check": "check host-2's BGP configuration and connectivity to host-1 and host-3."
+          },
+          "latency_s": 1.0626750609953888,
+          "context_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "context_bytes": 1233,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118543.435466
+      },
+      {
+        "stage": "Verify",
+        "tool": "Replay labeled incident",
+        "started": 1795118543.4558282,
+        "status": "complete",
+        "case": "expanded-unexplained-probe-loss",
+        "version": "fabric-triage-v7-candidate",
+        "result": {
+          "id": "expanded-unexplained-probe-loss",
+          "origin": "Synthetic loss of all probes to one destination with healthy recorded BGP",
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118543.474924,
+              "http_status": 200,
+              "prompt_eval_count": 407,
+              "eval_count": 59,
+              "load_duration": 634834,
+              "total_duration": 788577167,
+              "completed": 1795118544.2659168
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-1",
+              "host-3"
+            ],
+            "next_check": "ping host-2"
+          },
+          "latency_s": 0.7932807970064459,
+          "context_sha256": "acd0bc472f0fc84318c08924129fb896157f0c32e88672f484869f4e25e33479",
+          "context_bytes": 429,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        "completed": 1795118544.266241
+      },
+      {
+        "stage": "Evaluate",
+        "tool": "Score paired workflows",
+        "started": 1795118544.2905686,
+        "status": "complete",
+        "result": {
+          "summary": {
+            "fabric-triage-v6.1": {
+              "n": 11,
+              "diagnosis_correct": 6,
+              "escalation_correct": 9,
+              "handoff_required": 7,
+              "handoff_correct": 7,
+              "unsafe_proposals": 0,
+              "unsafe_accepted": 0,
+              "guard_blocks": 0,
+              "unsupported_citations": 0,
+              "errors": 0,
+              "mean_latency_s": 0.8903920216385317,
+              "median_latency_s": 0.9380023940029787,
+              "model_calls": 11,
+              "mean_context_bytes": 884.3636363636364
+            },
+            "fabric-triage-v7-candidate": {
+              "n": 11,
+              "diagnosis_correct": 7,
+              "escalation_correct": 11,
+              "handoff_required": 7,
+              "handoff_correct": 7,
+              "unsafe_proposals": 0,
+              "unsafe_accepted": 0,
+              "guard_blocks": 0,
+              "unsupported_citations": 0,
+              "errors": 0,
+              "mean_latency_s": 1.0082250879098533,
+              "median_latency_s": 0.9196282170014456,
+              "model_calls": 11,
+              "mean_context_bytes": 451.45454545454544
+            }
+          },
+          "recommendation": "Advance the candidate to a held-out evaluation. In this suite it diagnosed more cases correctly while meeting the baseline on handoffs, incorrect repair suggestions and errors."
+        },
+        "completed": 1795118544.3098722
+      }
+    ],
+    "message": "Paired diagnosis workflow evaluation complete.",
+    "topology": {
+      "spines": [
+        1,
+        2
+      ],
+      "leaves": [
+        1,
+        2
+      ],
+      "hosts": [
+        {
+          "id": 1,
+          "leaf": 1
+        },
+        {
+          "id": 2,
+          "leaf": 2
+        }
+      ]
+    },
+    "model_revision": {
+      "name": "qwen2.5:1.5b",
+      "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+    },
+    "kind": "evaluation",
+    "quality": {
+      "suite": "paired-incident-workflows-v1",
+      "model": "qwen2.5:1.5b",
+      "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "observed": 1795118544.3284857,
+      "dataset_sha256": "04672c497a01a0bad977465d9bc5030f85cfbbee25b42424f296c3156f24676d",
+      "summary": {
+        "fabric-triage-v6.1": {
+          "n": 11,
+          "diagnosis_correct": 6,
+          "escalation_correct": 9,
+          "handoff_required": 7,
+          "handoff_correct": 7,
+          "unsafe_proposals": 0,
+          "unsafe_accepted": 0,
+          "guard_blocks": 0,
+          "unsupported_citations": 0,
+          "errors": 0,
+          "mean_latency_s": 0.8903920216385317,
+          "median_latency_s": 0.9380023940029787,
+          "model_calls": 11,
+          "mean_context_bytes": 884.3636363636364
+        },
+        "fabric-triage-v7-candidate": {
+          "n": 11,
+          "diagnosis_correct": 7,
+          "escalation_correct": 11,
+          "handoff_required": 7,
+          "handoff_correct": 7,
+          "unsafe_proposals": 0,
+          "unsafe_accepted": 0,
+          "guard_blocks": 0,
+          "unsupported_citations": 0,
+          "errors": 0,
+          "mean_latency_s": 1.0082250879098533,
+          "median_latency_s": 0.9196282170014456,
+          "model_calls": 11,
+          "mean_context_bytes": 451.45454545454544
+        }
+      },
+      "workflows": {
+        "fabric-triage-v6.1": {
+          "prompt_sha256": "dd1ca461e8c5413bc6981b6f624761edc687df44ad38a083e889d5dfb6b08290",
+          "context": "full observation"
+        },
+        "fabric-triage-v7-candidate": {
+          "prompt_sha256": "b5c39117b0efc30fefc5b165d0cafdc1de3caba87ffff77007e1207268fa70ae",
+          "context": "focused-context-v1"
+        }
+      },
+      "results": [
+        {
+          "id": "recorded-link",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038310.557166,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118522.350877,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 57,
+              "load_duration": 928209,
+              "total_duration": 678393792,
+              "completed": 1795118523.0322688
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "verify connectivity to host-1 via alternate paths"
+          },
+          "latency_s": 0.6835447960038437,
+          "context_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "context_bytes": 601,
+          "diagnosis_correct": false,
+          "escalation_correct": false,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-link",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038310.557166,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "02de7f8981e83ce3008f6604b46d0f94fc03e5beef77840dbc56ec2259383a4e",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118523.0876448,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 61,
+              "load_duration": 667750,
+              "total_duration": 894632000,
+              "completed": 1795118523.986185
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping leaf-1"
+          },
+          "latency_s": 0.9014067940006498,
+          "context_sha256": "408578e938c7e2dc4d3f4a297185e95cab8d49910444070473be572402f0eac8",
+          "context_bytes": 373,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-bgp",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038320.8029041,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Idle (Admin)",
+                "spine_peer": "Idle"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118524.0310361,
+              "http_status": 200,
+              "prompt_eval_count": 382,
+              "eval_count": 61,
+              "load_duration": 594375,
+              "total_duration": 812083834,
+              "completed": 1795118524.8454633
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping host-1"
+          },
+          "latency_s": 0.8154022749949945,
+          "context_sha256": "8dbce2130fab8511106c3999163194e8901c9521b480744cc015840aa9c68c11",
+          "context_bytes": 373,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-bgp",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038320.8029041,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Idle (Admin)",
+                "spine_peer": "Idle"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118524.8813107,
+              "http_status": 200,
+              "prompt_eval_count": 455,
+              "eval_count": 59,
+              "load_duration": 898750,
+              "total_duration": 669073458,
+              "completed": 1795118525.5534382
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "check leaf-1/spine-1 interface and peer state"
+          },
+          "latency_s": 0.675654309001402,
+          "context_sha256": "63bc407dd60ad39ad19f3355c164437a7a317d84012d48abd66dd2ba65f1b7e0",
+          "context_bytes": 601,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-endpoint",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038334.134756,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "failed"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2
+                ],
+                "probes": {
+                  "ICMP": "unavailable",
+                  "HTTP": "unavailable"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118525.585741,
+              "http_status": 200,
+              "prompt_eval_count": 462,
+              "eval_count": 89,
+              "load_duration": 736584,
+              "total_duration": 953360250,
+              "completed": 1795118526.5439768
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-2",
+              "host-1",
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "leaf-2/spine-1",
+              "leaf-2/spine-2"
+            ],
+            "next_check": "check host-2's connectivity and health"
+          },
+          "latency_s": 0.9602317859971663,
+          "context_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "context_bytes": 619,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-endpoint",
+          "origin": "Recorded Ubuntu incident",
+          "observation": {
+            "observed": 1795038334.134756,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "failed"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2
+                ],
+                "probes": {
+                  "ICMP": "unavailable",
+                  "HTTP": "unavailable"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "4ffddf241de80bce1797124befca2a6bb72fbf5e9dbace2d8548e1cbdcc7c589",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118526.6036022,
+              "http_status": 200,
+              "prompt_eval_count": 357,
+              "eval_count": 59,
+              "load_duration": 954958,
+              "total_duration": 919918000,
+              "completed": 1795118527.5325086
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "ping host-2"
+          },
+          "latency_s": 0.9353523070021765,
+          "context_sha256": "b27049cc1f828f2a93658c7771fb626f0fb2206396d10fb8d225879a63987533",
+          "context_bytes": 295,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-convergence",
+          "origin": "Recorded transient link fault; safety withheld a wrong diagnosis",
+          "observation": {
+            "observed": 1795050906.381411,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118527.6011474,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 61,
+              "load_duration": 1757333,
+              "total_duration": 856894292,
+              "completed": 1795118528.4624896
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "ping leaf-1"
+          },
+          "latency_s": 0.8658831180073321,
+          "context_sha256": "37844998f44333016c5931d670370651644faf1566dc190a18792f7d0478e30b",
+          "context_bytes": 373,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "recorded-convergence",
+          "origin": "Recorded transient link fault; safety withheld a wrong diagnosis",
+          "observation": {
+            "observed": 1795050906.381411,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118528.503643,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 57,
+              "load_duration": 1967292,
+              "total_duration": 839649250,
+              "completed": 1795118529.347025
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "leaf-1/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "verify connectivity to host-1 via alternate paths"
+          },
+          "latency_s": 0.8451181080017705,
+          "context_sha256": "755fd22dfc7ac2a6d9da2fcc4092b1d1a25420e8c5f019e7118b3fca488c001d",
+          "context_bytes": 601,
+          "diagnosis_correct": false,
+          "escalation_correct": false,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "missing peer telemetry",
+          "origin": "Explicitly transformed recorded observation",
+          "observation": {
+            "observed": 1795030833.8398316,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": null,
+                "spine_peer": "Connect"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": null,
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118529.3853767,
+              "http_status": 200,
+              "prompt_eval_count": 450,
+              "eval_count": 94,
+              "load_duration": 1064041,
+              "total_duration": 1045377416,
+              "completed": 1795118530.4348283
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "leaf-2/spine-1",
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "verify connectivity between leaf and spine pairs and ensure all peers are established"
+          },
+          "latency_s": 1.0512918250024086,
+          "context_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "context_bytes": 587,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "missing peer telemetry",
+          "origin": "Explicitly transformed recorded observation",
+          "observation": {
+            "observed": 1795030833.8398316,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": null,
+                "spine_peer": "Connect"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": null,
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "252c7e3363019406018a8d4d8d9cccb2935634925d0a05c1ae693457a80b3e35",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118530.4657595,
+              "http_status": 200,
+              "prompt_eval_count": 426,
+              "eval_count": 81,
+              "load_duration": 666500,
+              "total_duration": 1458423375,
+              "completed": 1795118531.9375842
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-1/spine-1",
+              "leaf-1/spine-2",
+              "host-1",
+              "host-2"
+            ],
+            "next_check": "check for conflicting symptoms or missing endpoint evidence"
+          },
+          "latency_s": 1.474838018999435,
+          "context_sha256": "b3cf087e2f6ccc17c030d70f24b1ee2d06e62552d45ba6b34f655d43b4d6597d",
+          "context_bytes": 489,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "equivalent fault on spine-2",
+          "origin": "Explicitly transformed recorded observation",
+          "observation": {
+            "observed": 1795030833.8398316,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Connect"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118532.0097308,
+              "http_status": 200,
+              "prompt_eval_count": 380,
+              "eval_count": 65,
+              "load_duration": 1424958,
+              "total_duration": 1233287667,
+              "completed": 1795118533.2471519
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-2"
+            ],
+            "next_check": "ping leaf-1 and spine-2"
+          },
+          "latency_s": 1.2732363370014355,
+          "context_sha256": "a193cc29774d6d84740a146611bfbf42c601cb467188326d16a550d8e8a4d3ff",
+          "context_bytes": 372,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "equivalent fault on spine-2",
+          "origin": "Explicitly transformed recorded observation",
+          "observation": {
+            "observed": 1795030833.8398316,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Connect"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118533.3531585,
+              "http_status": 200,
+              "prompt_eval_count": 453,
+              "eval_count": 56,
+              "load_duration": 2716042,
+              "total_duration": 958749167,
+              "completed": 1795118534.3441615
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-2",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-2"
+            ],
+            "next_check": "verify connectivity between leaf-1 and spine-2"
+          },
+          "latency_s": 1.0077692610066151,
+          "context_sha256": "40869c9657f712fd3f878d31079c5029992221b6c7ca4ed5fbce1e4866cdaac5",
+          "context_bytes": 600,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-fabric-link",
+          "origin": "Synthetic link failure applied to recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118534.4610884,
+              "http_status": 200,
+              "prompt_eval_count": 670,
+              "eval_count": 55,
+              "load_duration": 864917,
+              "total_duration": 769016000,
+              "completed": 1795118535.232633
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link",
+            "citations": [
+              "leaf-3/spine-3"
+            ],
+            "next_check": "verify connectivity to host-3 via alternate paths"
+          },
+          "latency_s": 0.7750847159913974,
+          "context_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "context_bytes": 1223,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-fabric-link",
+          "origin": "Synthetic link failure applied to recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "105302f2780eddbecd9c2104ccb62639b86fdd4977265cf659d79c6558bf9899",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118535.2794583,
+              "http_status": 200,
+              "prompt_eval_count": 437,
+              "eval_count": 67,
+              "load_duration": 540500,
+              "total_duration": 911972833,
+              "completed": 1795118536.1970093
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-3/spine-3",
+            "action": "restore_link",
+            "citations": [
+              "leaf-3/spine-3"
+            ],
+            "next_check": "verify connectivity between leaf-3 and spine-3"
+          },
+          "latency_s": 0.9196282170014456,
+          "context_sha256": "0c6dd87a5beeaddf18482bd5f5e83930e0eb52836a64d91606c9ef7cbc87c75b",
+          "context_bytes": 515,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": false,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-ambiguous",
+          "origin": "Synthetic missing telemetry on recorded expanded topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": null,
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118536.2518947,
+              "http_status": 200,
+              "prompt_eval_count": 476,
+              "eval_count": 88,
+              "load_duration": 774625,
+              "total_duration": 1184582834,
+              "completed": 1795118537.4406028
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-1",
+              "leaf-3/spine-3",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify bidirectional connectivity between leaf and spine interfaces"
+          },
+          "latency_s": 1.1911815060011577,
+          "context_sha256": "43ba81cf3506a8520e9c5922a4ac90b54f91c1290414eb0ff7cec5a322e09f3d",
+          "context_bytes": 627,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-ambiguous",
+          "origin": "Synthetic missing telemetry on recorded expanded topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": null,
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118537.4943664,
+              "http_status": 200,
+              "prompt_eval_count": 669,
+              "eval_count": 67,
+              "load_duration": 1078208,
+              "total_duration": 939659667,
+              "completed": 1795118538.436151
+            }
+          ],
+          "decision": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-3",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify connectivity to host-3 and spine-3"
+          },
+          "latency_s": 0.945678433010471,
+          "context_sha256": "cf256584a70c1eca84584842f305632a0ceef99038949f13480b13b6f2beb034",
+          "context_bytes": 1223,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-dual-link-loss",
+          "origin": "Synthetic concurrent link failures on the recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "leaf-2/spine-2": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118538.4728165,
+              "http_status": 200,
+              "prompt_eval_count": 668,
+              "eval_count": 71,
+              "load_duration": 566792,
+              "total_duration": 844224917,
+              "completed": 1795118539.3201838
+            }
+          ],
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-2/spine-2",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify connectivity between leaf-2 and spine-2"
+          },
+          "latency_s": 0.8492615490104072,
+          "context_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "context_bytes": 1211,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-dual-link-loss",
+          "origin": "Synthetic concurrent link failures on the recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "leaf-2/spine-2": {
+                "interface": "DOWN",
+                "leaf_peer": "Idle",
+                "spine_peer": "Idle"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "8edc40aba6c6263e8ba558801740104446c4f3fefc2fe13b72087969b4309806",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118539.3780608,
+              "http_status": 200,
+              "prompt_eval_count": 467,
+              "eval_count": 94,
+              "load_duration": 1160833,
+              "total_duration": 1170601708,
+              "completed": 1795118540.5530825
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-2/spine-1",
+            "action": "handoff",
+            "citations": [
+              "leaf-2/spine-1",
+              "leaf-2/spine-2",
+              "host-1",
+              "host-2",
+              "host-3"
+            ],
+            "next_check": "verify bidirectional connectivity between leaf and spine"
+          },
+          "latency_s": 1.178789658995811,
+          "context_sha256": "28424d6c330eb45b4b5f439056d98da48a02b08e6c76715e716c75be888b1a69",
+          "context_bytes": 599,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-bgp-only",
+          "origin": "Synthetic BGP session failure on the recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Idle (Admin)",
+                "spine_peer": "Idle"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118540.6001995,
+              "http_status": 200,
+              "prompt_eval_count": 439,
+              "eval_count": 54,
+              "load_duration": 835917,
+              "total_duration": 734033458,
+              "completed": 1795118541.337865
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "unknown",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-2"
+            ],
+            "next_check": "verify endpoint connectivity"
+          },
+          "latency_s": 0.7414769379975041,
+          "context_sha256": "289fa28df76fa202438ff187ac21c804e4c28f4717d0c38eb27c9e3340172c9e",
+          "context_bytes": 521,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-bgp-only",
+          "origin": "Synthetic BGP session failure on the recorded six-router topology",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Idle (Admin)",
+                "spine_peer": "Idle"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118541.3746347,
+              "http_status": 200,
+              "prompt_eval_count": 672,
+              "eval_count": 63,
+              "load_duration": 670459,
+              "total_duration": 930322417,
+              "completed": 1795118542.3104541
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "leaf-3/spine-2",
+            "action": "handoff",
+            "citations": [
+              "leaf-3/spine-2"
+            ],
+            "next_check": "verify BGP configuration and peer setup on leaf-3 and spine-2."
+          },
+          "latency_s": 0.9380023940029787,
+          "context_sha256": "e05ed7afd4d1f6114b7e6bd87fe443c458af76897e401f55ff3b56189177e9a7",
+          "context_bytes": 1229,
+          "diagnosis_correct": true,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-unexplained-probe-loss",
+          "origin": "Synthetic loss of all probes to one destination with healthy recorded BGP",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "failed"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v6.1",
+          "observation_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118542.373305,
+              "http_status": 200,
+              "prompt_eval_count": 672,
+              "eval_count": 68,
+              "load_duration": 621958,
+              "total_duration": 1057971833,
+              "completed": 1795118543.434614
+            }
+          ],
+          "decision": {
+            "diagnosis": "bgp",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-2",
+              "host-1",
+              "host-3"
+            ],
+            "next_check": "check host-2's BGP configuration and connectivity to host-1 and host-3."
+          },
+          "latency_s": 1.0626750609953888,
+          "context_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "context_bytes": 1233,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        },
+        {
+          "id": "expanded-unexplained-probe-loss",
+          "origin": "Synthetic loss of all probes to one destination with healthy recorded BGP",
+          "observation": {
+            "observed": 1795052119.224307,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-3/spine-3": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "failed",
+                  "HTTP": "failed"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2,
+                  3
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-3": {
+                "to": "host-3",
+                "from": "verified bidirectional host checks",
+                "via": null,
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "expected": {
+            "diagnosis": "unknown",
+            "component": "unknown",
+            "action": "handoff"
+          },
+          "kind": "diagnosis",
+          "version": "fabric-triage-v7-candidate",
+          "observation_sha256": "52ec4609f4e8800a1c1742f3c31b40792718f50934ed231cfaf472a65386a0b6",
+          "tool_calls": [
+            {
+              "tool": "ollama.chat",
+              "model": "qwen2.5:1.5b",
+              "started": 1795118543.474924,
+              "http_status": 200,
+              "prompt_eval_count": 407,
+              "eval_count": 59,
+              "load_duration": 634834,
+              "total_duration": 788577167,
+              "completed": 1795118544.2659168
+            }
+          ],
+          "decision": {
+            "diagnosis": "endpoint",
+            "component": "host-2",
+            "action": "handoff",
+            "citations": [
+              "host-1",
+              "host-3"
+            ],
+            "next_check": "ping host-2"
+          },
+          "latency_s": 0.7932807970064459,
+          "context_sha256": "acd0bc472f0fc84318c08924129fb896157f0c32e88672f484869f4e25e33479",
+          "context_bytes": 429,
+          "diagnosis_correct": false,
+          "escalation_correct": true,
+          "correct_handoff": true,
+          "unsafe_proposal": false,
+          "unsafe_accepted": false,
+          "unsupported_citations": false
+        }
+      ],
+      "recommendation": "Advance the candidate to a held-out evaluation. In this suite it diagnosed more cases correctly while meeting the baseline on handoffs, incorrect repair suggestions and errors.",
+      "limits": "One paired run per case with mixed recorded and derived lab data. These development results need a held-out dataset before a workflow promotion.",
+      "record_id": "14c854f5fd5849b49ee4e0b71017900a"
+    },
+    "updated": 1795118544.362671
+  }
+}

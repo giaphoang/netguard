@@ -1,0 +1,44 @@
+{
+  "prompt": "Our network must support twice as many hosts while preserving routing redundancy and staying within the Ubuntu VM's existing resource budget. Inspect current capacity, propose the minimum number of new spines, leaves, and hosts, estimate resource requirements, and preview the infrastructure diff. After approval, provision the topology and verify BGP reachability, traffic behavior, and resource consumption.",
+  "active_hosts": [
+    "host-1",
+    "host-2",
+    "host-3"
+  ],
+  "reply": "The target needs 6 hosts. The approved lab limit is 4.",
+  "capacity": [
+    [
+      "Current hosts",
+      3
+    ],
+    [
+      "Target hosts",
+      6
+    ],
+    [
+      "Approved host limit",
+      4
+    ],
+    [
+      "New spines / leaves / hosts",
+      "0 / 0 / 3"
+    ],
+    [
+      "Additional host memory limits",
+      "96 MiB"
+    ],
+    [
+      "Guest memory available",
+      "4999 MiB"
+    ],
+    [
+      "Proposed container CPU limits",
+      "4.50 vCPU"
+    ],
+    [
+      "Guest CPUs",
+      4
+    ]
+  ],
+  "approval_available": false
+}

@@ -1,0 +1,323 @@
+{
+  "id": "133ee74d0e9a4c9081b71673e0309fc9",
+  "phase": "rolled_back",
+  "approval": {
+    "time": 1795117806.326277,
+    "digest": "df566e708c6b255187112909fd62e39987df19a307ed869e5752867f5cb06ba9"
+  },
+  "failure": "Emergency stop requested. End the experiment.",
+  "touched": [
+    "leaf-1",
+    "leaf-2"
+  ],
+  "rollback_verification": {
+    "observed": 1795117814.1596286,
+    "routers": [
+      {
+        "name": "spine-1",
+        "peers": {
+          "10.211.11.2": "Established",
+          "10.211.12.2": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 7 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if348       UP             10.211.11.1/28 \neth1@if347       UP             10.211.12.1/28",
+        "error": null
+      },
+      {
+        "name": "spine-2",
+        "peers": {
+          "10.211.21.2": "Established",
+          "10.211.22.2": "Established"
+        },
+        "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 7 via 10.211.21.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth0 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if345       UP             10.211.22.1/28 \neth1@if349       UP             10.211.21.1/28",
+        "error": null
+      },
+      {
+        "name": "leaf-1",
+        "peers": {
+          "10.211.11.1": "Established",
+          "10.211.21.1": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth2 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth1 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.11.1 dev eth2 weight 1 \n\tnexthop via 10.211.21.1 dev eth0 weight 1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if349       UP             10.211.21.2/28 \neth1@if350       UP             10.212.1.1/28 \neth2@if348       UP             10.211.11.2/28",
+        "error": null
+      },
+      {
+        "name": "leaf-2",
+        "peers": {
+          "10.211.12.1": "Established",
+          "10.211.22.1": "Established"
+        },
+        "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if347       UP             10.211.12.2/28 \neth1@if345       UP             10.211.22.2/28 \neth2@if346       UP             10.212.2.1/28",
+        "error": null
+      }
+    ],
+    "hosts": [
+      {
+        "name": "host-1",
+        "leaf": 1,
+        "address": "10.212.1.2",
+        "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n2: gre0@NONE: <NOARP> mtu 1476 qdisc noop qlen 1000\n    link/gre 0.0.0.0 brd 0.0.0.0\n3: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1462 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n4: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1450 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n360: eth0@if350: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 2e:97:99:b4:f5:47 brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+        "error": null
+      },
+      {
+        "name": "host-2",
+        "leaf": 2,
+        "address": "10.212.2.2",
+        "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n2: gre0@NONE: <NOARP> mtu 1476 qdisc noop qlen 1000\n    link/gre 0.0.0.0 brd 0.0.0.0\n3: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1462 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n4: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1450 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n351: eth0@if346: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 0a:6c:9a:03:39:1a brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+        "error": null
+      }
+    ],
+    "flows": [
+      {
+        "timestamp": "2026-11-19T19:50:14.093235+00:00",
+        "source": 1,
+        "destination": "10.212.2.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      },
+      {
+        "timestamp": "2026-11-19T19:50:14.081176+00:00",
+        "source": 2,
+        "destination": "10.212.1.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        }
+      }
+    ]
+  },
+  "rollback_tools": [
+    {
+      "stage": "Rollback",
+      "tool": "Verify local Docker ownership",
+      "started": 1795117813.1565456,
+      "status": "complete",
+      "result": {
+        "containers": {
+          "spine-1": "6f21f4d12a9b517468e6a98d1d6783078a6e9fb8ef27651c027d0bca35866431",
+          "spine-2": "a0aecf7b6a2bc0cd6ecfc90c1b2ab5dbd1bb27aa967f51e2fe6e9db30e7edbfd",
+          "leaf-1": "e6492831be8f39766f185ea58cf4868a9b765507290ba9b04f389a37a296b260",
+          "leaf-2": "bb596a8aa6766294395a99c88009e57de36b17e1e86141167edd935df6faefb5",
+          "host-1": "318cadd13f71561153ee1b6232dc2de595be7bee294feb7953c9c8b674950ab5",
+          "host-2": "0a4d5718a23eed26a16f815b39830609d137ad6090a3e1787656025246a2581f"
+        },
+        "namespaces": {
+          "leaf-1": {
+            "container": "e6492831be8f39766f185ea58cf4868a9b765507290ba9b04f389a37a296b260",
+            "namespace": "net:[4026533047]",
+            "started": "2026-11-19T19:25:56.173128741Z"
+          },
+          "leaf-2": {
+            "container": "bb596a8aa6766294395a99c88009e57de36b17e1e86141167edd935df6faefb5",
+            "namespace": "net:[4026532982]",
+            "started": "2026-11-19T19:25:55.931712286Z"
+          }
+        }
+      },
+      "completed": 1795117813.5296805
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.5651317,
+      "status": "complete",
+      "node": "leaf-2",
+      "arguments": [
+        "-j",
+        "-d",
+        "link",
+        "show"
+      ],
+      "exit_code": 0,
+      "result": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"loopback\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"00:00:00:00:00:00\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":524280,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":2,\"link\":null,\"ifname\":\"gre0\",\"flags\":[\"NOARP\"],\"mtu\":1476,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"0.0.0.0\",\"broadcast\":\"0.0.0.0\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gre\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false}},\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":3,\"link\":null,\"ifname\":\"gretap0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1462,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gretap\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":4,\"link\":null,\"ifname\":\"erspan0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1450,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"erspan\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false,\"okey\":\"0.0.0.0\",\"erspan_index\":0,\"erspan_ver\":1}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":161795336,\"link\":null,\"ifname\":\"ngg133ee74d0e\",\"flags\":[\"POINTOPOINT\",\"NOARP\",\"UP\",\"LOWER_UP\"],\"mtu\":1476,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"10.212.2.1\",\"link_pointtopoint\":true,\"broadcast\":\"10.212.1.1\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gre\",\"info_data\":{\"remote\":\"10.212.1.1\",\"local\":\"10.212.2.1\",\"ttl\":0,\"pmtudisc\":true}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":352,\"link_index\":347,\"ifname\":\"eth0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"16:19:f9:e1:a8:4b\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":353,\"link_index\":345,\"ifname\":\"eth1\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"0a:df:12:ba:95:5e\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":354,\"link_index\":346,\"ifname\":\"eth2\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"d2:61:39:9a:9a:b1\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536}]",
+      "completed": 1795117813.6024623
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.6258001,
+      "status": "complete",
+      "node": "leaf-2",
+      "arguments": [
+        "link",
+        "delete",
+        "dev",
+        "ngg133ee74d0e"
+      ],
+      "exit_code": 0,
+      "result": "",
+      "completed": 1795117813.6689713
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.6931221,
+      "status": "complete",
+      "node": "leaf-2",
+      "arguments": [
+        "-j",
+        "link",
+        "show"
+      ],
+      "exit_code": 0,
+      "result": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"loopback\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"00:00:00:00:00:00\"},{\"ifindex\":2,\"link\":null,\"ifname\":\"gre0\",\"flags\":[\"NOARP\"],\"mtu\":1476,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"0.0.0.0\",\"broadcast\":\"0.0.0.0\"},{\"ifindex\":3,\"link\":null,\"ifname\":\"gretap0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1462,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\"},{\"ifindex\":4,\"link\":null,\"ifname\":\"erspan0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1450,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\"},{\"ifindex\":352,\"link_index\":347,\"ifname\":\"eth0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"16:19:f9:e1:a8:4b\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0},{\"ifindex\":353,\"link_index\":345,\"ifname\":\"eth1\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"0a:df:12:ba:95:5e\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0},{\"ifindex\":354,\"link_index\":346,\"ifname\":\"eth2\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"d2:61:39:9a:9a:b1\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0}]",
+      "completed": 1795117813.7123814
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.7315354,
+      "status": "complete",
+      "node": "leaf-1",
+      "arguments": [
+        "-j",
+        "-d",
+        "link",
+        "show"
+      ],
+      "exit_code": 0,
+      "result": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"loopback\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"00:00:00:00:00:00\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":524280,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":2,\"link\":null,\"ifname\":\"gre0\",\"flags\":[\"NOARP\"],\"mtu\":1476,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"0.0.0.0\",\"broadcast\":\"0.0.0.0\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gre\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false}},\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":3,\"link\":null,\"ifname\":\"gretap0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1462,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gretap\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":4,\"link\":null,\"ifname\":\"erspan0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1450,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"erspan\",\"info_data\":{\"remote\":\"any\",\"local\":\"any\",\"ttl\":0,\"pmtudisc\":false,\"okey\":\"0.0.0.0\",\"erspan_index\":0,\"erspan_ver\":1}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":161795336,\"link\":null,\"ifname\":\"ngg133ee74d0e\",\"flags\":[\"POINTOPOINT\",\"NOARP\",\"UP\",\"LOWER_UP\"],\"mtu\":1476,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"10.212.1.1\",\"link_pointtopoint\":true,\"broadcast\":\"10.212.2.1\",\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":0,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"gre\",\"info_data\":{\"remote\":\"10.212.2.1\",\"local\":\"10.212.1.1\",\"ttl\":0,\"pmtudisc\":true}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":355,\"link_index\":349,\"ifname\":\"eth0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"ba:cf:93:6e:7e:cf\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":356,\"link_index\":350,\"ifname\":\"eth1\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"76:31:ed:af:aa:87\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536},{\"ifindex\":357,\"link_index\":348,\"ifname\":\"eth2\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"d2:b3:e3:c3:1e:30\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0,\"promiscuity\":0,\"allmulti\":0,\"min_mtu\":68,\"max_mtu\":0,\"linkinfo\":{\"info_kind\":\"macvlan\",\"info_data\":{\"mode\":\"bridge\",\"bcqueuelen\":1000,\"usedbcqueuelen\":1000}},\"inet6_addr_gen_mode\":\"eui64\",\"num_tx_queues\":1,\"num_rx_queues\":1,\"gso_max_size\":65536,\"gso_max_segs\":65535,\"tso_max_size\":65536,\"tso_max_segs\":65535,\"gro_max_size\":65536}]",
+      "completed": 1795117813.7500567
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.7721736,
+      "status": "complete",
+      "node": "leaf-1",
+      "arguments": [
+        "link",
+        "delete",
+        "dev",
+        "ngg133ee74d0e"
+      ],
+      "exit_code": 0,
+      "result": "",
+      "completed": 1795117813.798562
+    },
+    {
+      "stage": "Rollback",
+      "tool": "ip",
+      "started": 1795117813.8096914,
+      "status": "complete",
+      "node": "leaf-1",
+      "arguments": [
+        "-j",
+        "link",
+        "show"
+      ],
+      "exit_code": 0,
+      "result": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"loopback\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"00:00:00:00:00:00\"},{\"ifindex\":2,\"link\":null,\"ifname\":\"gre0\",\"flags\":[\"NOARP\"],\"mtu\":1476,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"gre\",\"address\":\"0.0.0.0\",\"broadcast\":\"0.0.0.0\"},{\"ifindex\":3,\"link\":null,\"ifname\":\"gretap0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1462,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\"},{\"ifindex\":4,\"link\":null,\"ifname\":\"erspan0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1450,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\"},{\"ifindex\":355,\"link_index\":349,\"ifname\":\"eth0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"ba:cf:93:6e:7e:cf\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0},{\"ifindex\":356,\"link_index\":350,\"ifname\":\"eth1\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"76:31:ed:af:aa:87\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0},{\"ifindex\":357,\"link_index\":348,\"ifname\":\"eth2\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"UP\",\"linkmode\":\"DEFAULT\",\"group\":\"default\",\"link_type\":\"ether\",\"address\":\"d2:b3:e3:c3:1e:30\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"link_netnsid\":0}]",
+      "completed": 1795117813.8278823
+    },
+    {
+      "stage": "Rollback",
+      "tool": "Inspect FRR peers, kernel routes and host probes",
+      "started": 1795117813.8439136,
+      "status": "complete",
+      "result": {
+        "observed": 1795117814.1596286,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 7 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if348       UP             10.211.11.1/28 \neth1@if347       UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 7 via 10.211.21.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth0 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if345       UP             10.211.22.1/28 \neth1@if349       UP             10.211.21.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth2 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth1 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.11.1 dev eth2 weight 1 \n\tnexthop via 10.211.21.1 dev eth0 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if349       UP             10.211.21.2/28 \neth1@if350       UP             10.212.1.1/28 \neth2@if348       UP             10.211.11.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if347       UP             10.211.12.2/28 \neth1@if345       UP             10.211.22.2/28 \neth2@if346       UP             10.212.2.1/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n2: gre0@NONE: <NOARP> mtu 1476 qdisc noop qlen 1000\n    link/gre 0.0.0.0 brd 0.0.0.0\n3: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1462 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n4: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1450 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n360: eth0@if350: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 2e:97:99:b4:f5:47 brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n2: gre0@NONE: <NOARP> mtu 1476 qdisc noop qlen 1000\n    link/gre 0.0.0.0 brd 0.0.0.0\n3: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1462 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n4: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1450 qdisc noop qlen 1000\n    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff\n351: eth0@if346: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 0a:6c:9a:03:39:1a brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T19:50:14.093235+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T19:50:14.081176+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      "completed": 1795117814.1597047
+    }
+  ]
+}

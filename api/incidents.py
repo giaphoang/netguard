@@ -1,14 +1,16 @@
 """Persistent, single-worker P1 controller. Every actuation is preceded by a journal entry."""
 
+import http.client
 import json
 import sqlite3
+import subprocess
 import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import presets
+from . import advisor, presets, provision
 
 RUNBOOK = {
     "link": "RESTORE_INJECTED_LINK",
@@ -32,12 +34,15 @@ def observe():
     return {
         "observed": time.time(),
         "routers": routes.result().model_dump()["routers"],
+        "hosts": routes.result().model_dump().get("hosts", []),
         "flows": probes,
     }
 
 
 def reachable(sample):
-    return all(flow["probes"] == {"ICMP": "success", "HTTP": "success"} for flow in sample["flows"])
+    return len(sample["flows"]) == 2 and all(
+        flow["probes"] == {"ICMP": "success", "HTTP": "success"} for flow in sample["flows"]
+    )
 
 
 def peers(sample):
@@ -48,18 +53,55 @@ def peers(sample):
     }
 
 
+def expected_peers(sample):
+    spines = [
+        int(r["name"].split("-")[1]) for r in sample["routers"] if r["name"].startswith("spine-")
+    ]
+    leaves = [
+        int(r["name"].split("-")[1]) for r in sample["routers"] if r["name"].startswith("leaf-")
+    ]
+    if not {1, 2} <= set(spines) or not {1, 2} <= set(leaves):
+        return EXPECTED
+    return {
+        **{f"spine-{s}": {f"10.211.{10*s+n}.2" for n in leaves} for s in spines},
+        **{f"leaf-{n}": {f"10.211.{10*s+n}.1" for s in spines} for n in leaves},
+    }
+
+
 def healthy(sample):
-    expected = {(node, ip): "Established" for node, ips in EXPECTED.items() for ip in ips}
+    expected = {
+        (node, ip): "Established" for node, ips in expected_peers(sample).items() for ip in ips
+    }
     return (
         peers(sample) == expected
         and reachable(sample)
-        and all(f["candidates"] == [1, 2] for f in sample["flows"])
+        and all(
+            not h.get("error") and all(v == "success" for v in h.get("probes", {}).values())
+            for h in sample.get("hosts", [])
+        )
+        and all(
+            f["candidates"]
+            == sorted(
+                int(r["name"].split("-")[1])
+                for r in sample["routers"]
+                if r["name"].startswith("spine-")
+            )
+            for f in sample["flows"]
+        )
     )
 
 
-def diagnose(scenario, sample):
+def alternate_spines(sample, spine):
+    return sorted(
+        int(r["name"].split("-")[1])
+        for r in sample["routers"]
+        if r["name"].startswith("spine-") and r["name"] != f"spine-{spine}"
+    )
+
+
+def diagnose(scenario, sample, leaf_id=1, spine=1):
     states = peers(sample)
-    expected = {(node, ip) for node, ips in EXPECTED.items() for ip in ips}
+    expected = {(node, ip) for node, ips in expected_peers(sample).items() for ip in ips}
     if set(states) != expected:
         return None
     changed = {key for key, state in states.items() if state != "Established"}
@@ -67,25 +109,31 @@ def diagnose(scenario, sample):
         if not changed and sample["flows"][0]["probes"]["HTTP"] == "failed":
             return "Host 2 HTTP probe failed while all routing sessions remained established."
         return None
-    local = ("leaf-1", "10.211.11.1")
-    if local not in changed or changed - {local, ("spine-1", "10.211.11.2")}:
+    net = f"10.211.{spine}{leaf_id}"
+    local = (f"leaf-{leaf_id}", net + ".1")
+    if local not in changed or changed - {local, (f"spine-{spine}", net + ".2")}:
         return None
-    leaf = next(r for r in sample["routers"] if r["name"] == "leaf-1")
+    leaf = next(r for r in sample["routers"] if r["name"] == local[0])
     lines = [
-        line.split() for line in leaf["interfaces"].splitlines() if "10.211.11.2/28" in line.split()
+        line.split() for line in leaf["interfaces"].splitlines() if net + ".2/28" in line.split()
     ]
     expected_state = "DOWN" if scenario == "link" else "UP"
     if (
         len(lines) == 1
         and lines[0][1] == expected_state
-        and sample["flows"][0]["candidates"] == [2]
+        and (
+            leaf_id > 2
+            or all(f["candidates"] == alternate_spines(sample, spine) for f in sample["flows"])
+        )
     ):
-        return f"Leaf 1 transit interface is {expected_state}, its spine-1 peer is {states[local]}, and its remote prefix uses spine-2."
+        return f"Leaf {leaf_id} interface is {expected_state}, its spine-{spine} peer is {states[local]}, and alternate spine paths remain observable."
     return None
 
 
 class Controller:
     def __init__(self, db: Path):
+        from .architecture import recover
+
         self.db = db
         self.lock = threading.RLock()
         self.auto = False
@@ -103,6 +151,10 @@ class Controller:
             row = conn.execute(
                 "SELECT payload FROM incidents ORDER BY rowid DESC LIMIT 1"
             ).fetchone()
+        plan = provision.latest(db)
+        if plan and plan["phase"] in ("applying", "rolling_back"):
+            provision.save(db, plan, "needs_review")
+        recover(db)
         self.run = json.loads(row[0]) if row else None
         if self.active:
             self.event(
@@ -136,11 +188,25 @@ class Controller:
         self.run["events"].append({"time": time.time(), "phase": phase, "reason": reason})
         self.save()
 
-    def inject(self, scenario):
+    def inject(self, scenario, ai=False, leaf=1, spine=1, duration=None, manual=False):
+        from .architecture import require_idle
+
         with self.lock:
+            require_idle(self.db)
+            if manual and (ai or self.auto):
+                raise ValueError("Manual diagnosis requires manual approval mode")
+            plan = provision.latest(self.db)
+            if plan and plan["phase"] in ("applying", "rolling_back", "needs_review"):
+                raise ValueError("Finish the topology change first")
             if self.active or self.stopped:
                 raise ValueError("Reset the active incident or release the emergency stop first")
-            target = presets.identify(scenario)
+            if duration is not None and (scenario != "link" or not 5 <= duration <= 120):
+                raise ValueError("Timed link simulations support 5–120 seconds")
+            target = (
+                presets.identify(scenario)
+                if (leaf, spine) == (1, 1)
+                else presets.identify(scenario, leaf, spine)
+            )
             baseline = observe()
             if not healthy(baseline) or presets.fault_present(scenario, target):
                 raise ValueError(
@@ -149,6 +215,13 @@ class Controller:
             self.run = {
                 "id": uuid.uuid4().hex,
                 "scenario": scenario,
+                "ai": ai,
+                "manual": manual,
+                "duration": duration,
+                "baseline_routers": sorted(r["name"] for r in baseline["routers"]),
+                "leaf": leaf,
+                "spine": spine,
+                "restore_at": time.time() + duration if duration else None,
                 "phase": "baseline",
                 "target": target.model_dump(),
                 "events": [],
@@ -164,10 +237,13 @@ class Controller:
             try:
                 presets.change(scenario, target, True)
                 self.run["t0"] = time.time()
+                if duration:
+                    self.run["restore_at"] = self.run["t0"] + duration
                 self.event("injected", "Preset actuator confirmed")
             except Exception:
                 self.event("handoff", "Injection outcome uncertain. Inspect and reset manually.")
                 raise
+            return self.run["id"]
 
     def restore(self, action, incident_id=None):
         with self.lock:
@@ -183,12 +259,44 @@ class Controller:
             if action == "automatic" and not (self.auto and r["auto"]):
                 raise ValueError("Auto-repair is disabled")
             target = presets.Target(**r["target"])
+            leaf, spine = r.get("leaf", 1), r.get("spine", 1)
+            if (
+                action == "reset"
+                and (
+                    presets.identify(r["scenario"])
+                    if (leaf, spine) == (1, 1)
+                    else presets.identify(r["scenario"], leaf, spine)
+                )
+                != target
+            ):
+                sample = observe()
+                if not healthy(sample):
+                    raise ValueError("Target was replaced and the new fabric is unhealthy")
+                r["samples"].append(sample)
+                r["verified"] = 0
+                self.event(
+                    "verifying",
+                    "Target was replaced. Verifying healthy replacement without actuation.",
+                )
+                return
             if action != "reset":
                 fresh = observe()
                 if (
-                    not diagnose("link", fresh)
+                    not diagnose("link", fresh, leaf, spine)
                     or not reachable(fresh)
-                    or not all(f["candidates"] == [2] for f in fresh["flows"])
+                    or not all(
+                        f["candidates"]
+                        == (
+                            alternate_spines(fresh, spine)
+                            if leaf <= 2
+                            else sorted(
+                                int(n.split("-")[1])
+                                for n in expected_peers(fresh)
+                                if n.startswith("spine-")
+                            )
+                        )
+                        for f in fresh["flows"]
+                    )
                 ):
                     self.event("handoff", "Live evidence no longer supports a single safe repair.")
                     return
@@ -209,6 +317,61 @@ class Controller:
                 )
                 raise
 
+    def manual_diagnosis(self, identity, cause):
+        with self.lock:
+            r = self.run
+            if (
+                not self.active
+                or r["id"] != identity
+                or not r.get("manual")
+                or r["phase"] != "injected"
+            ):
+                raise ValueError("No manual investigation pending")
+            sample = observe()
+            reason = diagnose(cause, sample, r["leaf"], r["spine"])
+            r["samples"].append(sample)
+            r["manual_correct"] = cause == r["scenario"] and bool(reason)
+            if not r["manual_correct"]:
+                self.event("handoff", "Manual diagnosis did not match observed fault evidence.")
+                return
+            r["diagnosed_at"] = time.time()
+            self.event("diagnosed", reason)
+            if cause != "link":
+                self.event("handoff", "Operator reset required.")
+
+    def expire_simulation(self):
+        with self.lock:
+            r = self.run
+            if (
+                self.active
+                and r.get("restore_at")
+                and time.time() >= r["restore_at"]
+                and r["phase"] not in {"verifying", "applying"}
+            ):
+                r["restore_at"] = None
+                self.event(
+                    "handoff", "Approved simulation duration elapsed. Restoring the selected link."
+                )
+                attempts = r["attempts"]
+                try:
+                    self.restore("reset", r["id"])
+                except (OSError, subprocess.SubprocessError):
+                    # A timeout during read-only identity inspection can be retried.
+                    # An uncertain mutation always requires human review.
+                    retries = r.get("timer_checks", 0)
+                    if r["attempts"] == attempts and retries < 2:
+                        r["timer_checks"] = retries + 1
+                        r["restore_at"] = time.time() + 1
+                        self.event(
+                            "handoff",
+                            "Docker identity check timed out. Rechecking before restoration.",
+                        )
+                    else:
+                        self.event(
+                            "handoff", "Scheduled restoration needs a manual state check and reset."
+                        )
+                    raise
+
     def step(self):
         with self.lock:
             if not self.active or self.run["phase"] in {"applying", "injecting"}:
@@ -219,7 +382,31 @@ class Controller:
             ):
                 return
             identity, phase = self.run["id"], self.run["phase"]
+            request_review = (
+                phase == "injected" and self.run.get("ai") and len(self.run["samples"]) >= 2
+            )
         sample = observe()
+        review = None
+        if request_review:
+            # Allow a bounded routing-convergence window before asking the model.
+            # Failed probes during reconvergence are not stable root-cause evidence.
+            with self.lock:
+                elapsed = sample["observed"] - (self.run.get("t0") or sample["observed"])
+            if not reachable(sample) and elapsed < 20:
+                request_review = False
+        if request_review:
+            observation = advisor.evidence(sample)
+            review = {
+                "version": advisor.VERSION,
+                "model": advisor.model_name(),
+                "observation": observation,
+            }
+            try:
+                review["decision"] = advisor.assess(observation).model_dump()
+            except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+                review["error"] = (
+                    "Local model unavailable or invalid response. Check Ollama and the observations."
+                )
         with self.lock:
             r = self.run
             if r["id"] != identity or r["phase"] != phase:
@@ -227,8 +414,11 @@ class Controller:
             r["samples"].append(sample)
             now = sample["observed"]
             elapsed = now - (r["t0"] or now)
+            if phase == "injected" and not healthy(sample):
+                r.setdefault("first_signal_at", now)
+                r["metrics"].setdefault("detection_s", now - (r["t0"] or now))
             ok = reachable(sample)
-            if not ok:
+            if any("failed" in f["probes"].values() for f in sample["flows"]):
                 r["loss"] = True
             r["streak"] = r["streak"] + 1 if ok else 0
             metrics = r["metrics"]
@@ -253,9 +443,39 @@ class Controller:
             elif elapsed > 120:
                 self.event("handoff", "Operator review deadline exceeded.")
             else:
-                reason = diagnose(r["scenario"], sample)
+                leaf, spine = r.get("leaf", 1), r.get("spine", 1)
+                reason = diagnose(r["scenario"], sample, leaf, spine)
+                if r.get("manual") and phase == "injected":
+                    self.save()
+                    return
+                if r.get("ai") and phase == "injected":
+                    if review is None:
+                        self.save()
+                        return
+                    r["review"] = review
+                    r["decision_at"] = time.time()
+                    decision_data = review.get("decision", {})
+                    component = (
+                        "host-2" if r["scenario"] == "endpoint" else f"leaf-{leaf}/spine-{spine}"
+                    )
+                    if (
+                        decision_data.get("diagnosis") == r["scenario"]
+                        and decision_data.get("component") == component
+                    ):
+                        r["diagnosed_at"] = r["decision_at"]
+                    if "error" in review:
+                        self.event("handoff", review["error"])
+                        return
+                    decision = advisor.Decision(**review["decision"])
+                    if not (
+                        advisor.supports_restore(decision, f"leaf-{leaf}/spine-{spine}")
+                        and r["scenario"] == "link"
+                        and reason
+                    ):
+                        self.event("handoff", "Human review required. " + decision.next_check)
+                        return
                 if reason and phase == "injected":
-                    metrics["detection_s"] = elapsed
+                    metrics.setdefault("detection_s", elapsed)
                     self.event("detected", reason)
                     self.event("diagnosed", reason)
                     if r["scenario"] != "link":
@@ -269,14 +489,32 @@ class Controller:
                     reason
                     and r["phase"] == "diagnosed"
                     and r["streak"] >= 2
-                    and all(f["candidates"] == [2] for f in sample["flows"])
+                    and all(
+                        f["candidates"]
+                        == (
+                            alternate_spines(sample, spine)
+                            if leaf <= 2
+                            else sorted(
+                                int(n.split("-")[1])
+                                for n in expected_peers(sample)
+                                if n.startswith("spine-")
+                            )
+                        )
+                        for f in sample["flows"]
+                    )
                 ):
                     metrics["verified_failover_s"] = elapsed
                     self.event(
                         "proposed",
-                        "BGP restored traffic via spine-2. Restore the injected link to regain redundancy.",
+                        "Alternate routing passed the probe checks. Restore the selected link to regain redundancy.",
                     )
-                if r["phase"] == "proposed" and self.auto and r["auto"] and not self.stopped:
+                if (
+                    r["phase"] == "proposed"
+                    and self.auto
+                    and r["auto"]
+                    and not self.stopped
+                    and not r.get("restore_at")
+                ):
                     self.restore("automatic", identity)
                 if r["phase"] == "injected" and elapsed > 25:
                     self.event("handoff", "Evidence does not match the requested preset.")
@@ -295,7 +533,15 @@ class Controller:
             ):
                 run = json.loads(payload)
                 samples = run.pop("samples")
-                run.pop("target")
+                target = run.pop("target")
+                run["before"] = samples[0]["flows"]
+                if run["scenario"] == "link":
+                    run["repair_command"] = f"ip link set dev {target['interface']} up"
                 run["latest"] = samples[-1]["flows"]
                 recent.append(run)
-            return {"automatic": self.auto, "stopped": self.stopped, "incidents": recent}
+            return {
+                "automatic": self.auto,
+                "stopped": self.stopped,
+                "incidents": recent,
+                "signal": getattr(self, "signal", None),
+            }

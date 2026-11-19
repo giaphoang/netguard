@@ -2,6 +2,18 @@
 
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
+**Overview** opens the Command Center. Select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. The sidebar opens the dedicated AI Agent, Incidents, Provisioning, and AI Impact workspaces. Chat history and drafts follow you between workspaces. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
+
+Architecture experiments run inside **AI Agent**. Ask about throughput, GRE, or diagnosis quality to see the design, tool activity, approval controls, and measured results in the same reply. [Architecture experiments and evidence](docs/ARCHITECTURE_LAB.md)
+
+P3 adds proactive investigations, topology-aware structured intent, approved spine/leaf/host provisioning with verification and rollback, and reproducible AI evaluation. The existing P0–P2 fabric, controls and benchmark history remain intact. [P3 stages and evidence](docs/P3_OPERATIONS.md) · [Earlier P2 diagnosis](docs/P2_AI.md)
+
+Three recruiter demonstrations: inject a fault and watch an unprompted investigation; ask to add a router or host and approve its preview; ask what could break if Spine 2 were removed, then inspect the policy block and versioned evaluation in **AI Impact**. The current guarded workflow identified 5/8 labeled diagnoses versus 4/8 for the frozen P2 reference. These are small lab regression results; failures remain visible and no time saved is reported without a matched manual baseline.
+
+## Incident walkthrough
+
+On the Ubuntu guest, open the tunneled dashboard at http://127.0.0.1:3001. Trace traffic, inject the leaf–spine link failure, watch BGP fail over, and approve restoration of redundancy. The BGP-session and endpoint presets exercise manual handoff. Auto-repair is off by default. [P1 controls, measurements and replay](docs/P1_INCIDENTS.md)
+
 ## Run on localhost
 
 Install Docker Engine with Compose v2 (or Docker Desktop with Linux containers), uv, Node.js and npm. From this checkout run:
@@ -9,9 +21,9 @@ Install Docker Engine with Compose v2 (or Docker Desktop with Linux containers),
     make setup
     make demo-up
 
-Open http://localhost:3000. Click a leaf to inspect its neighbor table and kernel routes. Select a host pair and click **Trace traffic**. Blue interconnects represent possible routes. ICMP and HTTP report the results of probes sent from the selected host. A green session by itself says nothing about end-to-end reachability.
+Open http://localhost:3000. Click a leaf to inspect its neighbor table and kernel routes. Select a host pair and click **Run probe**. Green interconnects show established BGP adjacencies, and the blue marker follows a verified ICMP path. The probe readout reports ICMP and HTTP results from the selected host.
 
-Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab containers and networks. `make demo-reset` recreates the six nodes. To review the stored healthy capture without Docker, run `make demo-replay` after setup. It shares the same port as the live service.
+Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab containers and networks. `make demo-reset` recreates the currently approved topology. To review the recorded incident walkthrough without Docker, run `make demo-replay` after setup. It shares the same port as the live service.
 
 ## Verification
 
@@ -19,7 +31,7 @@ Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab 
     make smoke
     NETGUARD_CONTEXT=$(scripts/local-context) .venv/bin/python -m scripts.verify_failover
 
-The smoke check requires two established peers on each router, two kernel next hops per leaf, and successful ICMP and HTTP in both directions. The failover check temporarily disables the leaf-1 interface facing spine-1 and restores it in a finally block. Launch it only on the local demo fabric. Captures are in scenarios/. Recovery benchmarks and AI evaluation are pending.
+The smoke check requires two established peers on each router, two kernel next hops per leaf, and successful ICMP and HTTP in both directions. The failover check temporarily disables the leaf-1 interface facing spine-1 and restores it in a finally block. Launch it only on the local demo fabric. Captures are in scenarios/. P1 measures incident workflow timing. P2 compares local AI decisions against the P1 evidence checks.
 
 ## Demonstration evidence
 
@@ -27,7 +39,7 @@ The November 18 live run established all four eBGP adjacencies. Each leaf instal
 
 [Dashboard screenshot](docs/proof/healthy.png) · [90-second screen recording](docs/proof/walkthrough.mp4) · [Healthy router evidence](scenarios/healthy.json) · [Degraded fabric and probe evidence](scenarios/failover.json)
 
-The dashboard’s Replay demo link opens a recorded view. Select the healthy or failed-link capture and trace either direction to inspect the saved results. The P0 screen recording is silent. Failure injection is currently exercised by the integration check. Incident approvals, local model diagnoses, and manual-versus-automatic timing belong to later milestones.
+The dashboard’s Replay demo link opens a recorded P1 link incident. Select a stage and trace either direction to inspect its saved results. The linked P0 video documents the original read-only dashboard.
 
 ## Native Ubuntu ARM64 demonstration
 

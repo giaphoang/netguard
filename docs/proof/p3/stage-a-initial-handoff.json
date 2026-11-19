@@ -1,0 +1,560 @@
+{
+  "id": "2dc1c11dcee34d8ba9acbb70d966e07b",
+  "scenario": "link",
+  "ai": true,
+  "manual": false,
+  "duration": null,
+  "baseline_routers": [
+    "leaf-1",
+    "leaf-2",
+    "spine-1",
+    "spine-2"
+  ],
+  "leaf": 1,
+  "spine": 1,
+  "restore_at": null,
+  "phase": "resolved",
+  "target": {
+    "container": "698083a9b55e916420bf59fd086d70d675952a7e4743d56fac8da380da167a2f",
+    "interface": "eth1",
+    "leaf": 1,
+    "spine": 1
+  },
+  "events": [
+    {
+      "time": 1795050897.4257674,
+      "phase": "injecting",
+      "reason": "Saved verified baseline and target before injection"
+    },
+    {
+      "time": 1795050897.5564733,
+      "phase": "injected",
+      "reason": "Preset actuator confirmed"
+    },
+    {
+      "time": 1795050908.4959598,
+      "phase": "handoff",
+      "reason": "Human review required. check leaf-1/spine-1 interface and peer state"
+    },
+    {
+      "time": 1795050909.047405,
+      "phase": "applying",
+      "reason": "reset: RESTORE_INJECTED_LINK"
+    },
+    {
+      "time": 1795050909.2366557,
+      "phase": "verifying",
+      "reason": "Waiting for two consecutive healthy routing and traffic samples"
+    },
+    {
+      "time": 1795050912.4069781,
+      "phase": "resolved",
+      "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+    }
+  ],
+  "samples": [
+    {
+      "observed": 1795050897.3507264,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Established",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 309 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:14:57.279295+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:14:57.323653+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      ]
+    },
+    {
+      "observed": 1795050902.1401424,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Idle",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:15:02.139933+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "failed"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:15:02.139813+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "failed"
+          }
+        }
+      ]
+    },
+    {
+      "observed": 1795050906.381411,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Active",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:15:06.380970+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:15:06.381250+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        }
+      ]
+    },
+    {
+      "observed": 1795050909.7708485,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Established",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 8 via 10.211.22.1 dev eth1 proto bgp metric 20 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:15:09.728006+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:15:09.703060+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      ]
+    },
+    {
+      "observed": 1795050911.134673,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Established",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 316 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:15:11.110804+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:15:11.010769+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      ]
+    },
+    {
+      "observed": 1795050912.4069366,
+      "routers": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.1/28 \neth1@if8         UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Established",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 316 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 194 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if9         UP             10.211.12.2/28 \neth1@if4         UP             10.211.22.2/28 \neth2@if5         UP             10.212.2.1/28",
+          "error": null
+        }
+      ],
+      "flows": [
+        {
+          "timestamp": "2026-11-19T01:15:12.386692+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        },
+        {
+          "timestamp": "2026-11-19T01:15:12.359573+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          }
+        }
+      ]
+    }
+  ],
+  "attempts": 1,
+  "streak": 3,
+  "loss": true,
+  "metrics": {
+    "traffic_recovery_s": 13.578202486038208,
+    "closure_s": 14.850466012954712
+  },
+  "auto": true,
+  "t0": 1795050897.5564706,
+  "first_signal_at": 1795050902.1401424,
+  "review": {
+    "version": "fabric-triage-v5",
+    "model": "qwen2.5:1.5b",
+    "observation": {
+      "observed": 1795050906.381411,
+      "facts": {
+        "leaf-1/spine-1": {
+          "interface": "DOWN",
+          "leaf_peer": "Active",
+          "spine_peer": "Established"
+        },
+        "leaf-1/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-1": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "leaf-2/spine-2": {
+          "interface": "UP",
+          "leaf_peer": "Established",
+          "spine_peer": "Established"
+        },
+        "host-1": {
+          "to": "host-2",
+          "via": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        },
+        "host-2": {
+          "to": "host-1",
+          "via": [
+            2
+          ],
+          "probes": {
+            "ICMP": "failed",
+            "HTTP": "success"
+          }
+        }
+      }
+    },
+    "decision": {
+      "diagnosis": "bgp",
+      "component": "leaf-1/spine-1",
+      "action": "handoff",
+      "citations": [
+        "leaf-1/spine-1"
+      ],
+      "next_check": "check leaf-1/spine-1 interface and peer state"
+    }
+  },
+  "decision_at": 1795050908.4957993,
+  "verified": 2
+}

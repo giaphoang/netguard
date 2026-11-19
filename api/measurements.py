@@ -24,6 +24,8 @@ def summaries(db):
 def comparison(runs):
     groups = {False: [], True: []}
     for r in runs:
+        if r.get("ai"):
+            continue
         if r["scenario"] == "link" and r["phase"] == "resolved" and r["attempts"] == 1:
             expected = "automatic" if r["auto"] else "approved"
             if any(e["reason"] == expected + ": RESTORE_INJECTED_LINK" for e in r["events"]):
@@ -111,3 +113,295 @@ def export(db, snapshot, flows):
 
     registry.register(Totals())
     return generate_latest(registry)
+
+
+def outcome(run):
+    if run["phase"] != "resolved":
+        return run["phase"]
+    applied = [e for e in run.get("events", []) if e["phase"] == "applying"]
+    if not applied:
+        return "observed_recovery"
+    action = applied[-1]["reason"].split(":", 1)[0]
+    if action in {"approved", "automatic"}:
+        return (
+            "ai_repair"
+            if run.get("ai")
+            else "manual_repair"
+            if run.get("manual")
+            else "rule_repair"
+        )
+    if run.get("duration") and any(
+        "simulation duration elapsed" in e["reason"] for e in run.get("events", [])
+    ):
+        return "timer_restoration"
+    return "human_reset"
+
+
+def provision_topologies(plans):
+    from .expansion import names, spec
+
+    topologies = []
+    for plan in plans:
+        topology = spec(plan)
+        recorded = {
+            "routers": [name for name in names(topology) if not name.startswith("host-")],
+            "hosts": topology["hosts"],
+        }
+        if recorded not in topologies:
+            topologies.append(recorded)
+    return topologies
+
+
+def impact(db, include_evidence=False):
+    """Matched medians require the same fabric, fault, timing and approval policy."""
+    groups = {}
+    diagnosed = evaluated = rejected = escalated = verified = attempted = 0
+    recent = []
+    required_handoffs = correct_handoffs = 0
+    provisions = {}
+    records = summaries(db)
+    outcomes = Counter()
+    outcome_evidence = {}
+    for r in records:
+        recorded_outcome = outcome(r)
+        outcomes[recorded_outcome] += 1
+        kind = "assisted" if r.get("ai") else "manual" if r.get("manual") else None
+        run = {
+            "at": r["events"][-1]["time"] if r.get("events") else 0,
+            "task": r["scenario"],
+            "mode": kind or "rule",
+            "outcome": recorded_outcome,
+            "seconds": r.get("metrics", {}).get("closure_s"),
+        }
+        if include_evidence:
+            run["url"] = "/api/incidents/" + r["id"]
+            outcome_evidence.setdefault(recorded_outcome, []).append(run)
+        if not kind:
+            continue
+        decision = (r.get("review") or {}).get("decision") or {}
+        leaf, spine = r.get("leaf", 1), r.get("spine", 1)
+        expected = "host-2" if r["scenario"] == "endpoint" else f"leaf-{leaf}/spine-{spine}"
+        correct = (
+            decision.get("diagnosis") == r["scenario"] and decision.get("component") == expected
+        )
+        if kind == "assisted" and r.get("review"):
+            evaluated += 1
+            diagnosed += correct
+            human_review = any(
+                e["phase"] == "handoff" and e["reason"].startswith(("Human review", "Local model"))
+                for e in r["events"]
+            )
+            escalated += human_review
+            if r["scenario"] in {"bgp", "endpoint"}:
+                required_handoffs += 1
+                correct_handoffs += human_review
+            rejected += (
+                decision.get("action") == "restore_link"
+                and not any(e["phase"] == "proposed" for e in r["events"])
+                and human_review
+            )
+        if r.get("attempts"):
+            attempted += r["attempts"]
+            verified += r["phase"] == "resolved"
+        recent.append(run)
+        if "baseline_routers" not in r:
+            continue
+        key = (
+            r["scenario"],
+            leaf,
+            spine,
+            tuple(r["baseline_routers"]),
+            r["auto"],
+            r.get("duration"),
+            "repair"
+            if recorded_outcome in {"ai_repair", "manual_repair", "rule_repair"}
+            else recorded_outcome,
+        )
+        group = groups.setdefault(key, {"manual": {}, "assisted": {}})[kind]
+        if r.get("first_signal_at") and r.get("diagnosed_at"):
+            group.setdefault("Diagnosis", []).append(
+                (max(0, r["diagnosed_at"] - r["first_signal_at"]), run)
+            )
+        if "traffic_recovery_s" in r["metrics"]:
+            group.setdefault("Routing failover", []).append((r["metrics"]["traffic_recovery_s"], run))
+        if r["phase"] == "resolved" and "closure_s" in r["metrics"]:
+            group.setdefault("Verified closure", []).append((r["metrics"]["closure_s"], run))
+    rows = []
+    for key, modes in groups.items():
+        for metric in ("Diagnosis", "Routing failover", "Verified closure"):
+            a, b = (modes[k].get(metric, []) for k in ("manual", "assisted"))
+            if a or b:
+                row = {
+                    "metric": metric,
+                    "scenario": f"{key[0]} · L{key[1]} / S{key[2]} · {len(key[3])} routers · {'automatic' if key[4] else 'approval'}"
+                    + (f" · {key[5]}s" if key[5] else "")
+                    + f" · {key[6]}",
+                    "manual": median(seconds for seconds, _ in a) if a else None,
+                    "assisted": median(seconds for seconds, _ in b) if b else None,
+                    "n": [len(a), len(b)],
+                }
+                if include_evidence:
+                    row["evidence"] = {
+                        "scenario": key[0],
+                        "leaf": key[1],
+                        "spine": key[2],
+                        "simulation_seconds": key[5],
+                        "approval": "automatic" if key[4] else "approval",
+                        "topologies": [{"routers": list(key[3])}],
+                        "runs": [{**run, "seconds": seconds} for seconds, run in [*a, *b]],
+                    }
+                rows.append(row)
+    with sqlite3.connect(db) as conn:
+        for (raw,) in conn.execute("SELECT data FROM expansions ORDER BY rowid"):
+            p = json.loads(raw)
+            end = next((e["time"] for e in p["events"] if e["phase"] == "verified"), None)
+            if any(e["phase"] == "applying" for e in p["events"]):
+                attempted += 1
+                verified += end is not None
+                run = {
+                    "at": p["events"][-1]["time"],
+                    "task": "Provisioning",
+                    "mode": "assisted",
+                    "outcome": p["phase"],
+                    "seconds": end - p["started"] if end else None,
+                }
+                if include_evidence:
+                    run["url"] = "/api/provision/" + p["id"]
+                recent.append(run)
+                if end:
+                    provisions.setdefault(
+                        ", ".join(p.get("added", [f"leaf-{n}" for n in p["leaves"]])), []
+                    ).append((run, p))
+    for size, samples in provisions.items():
+        row = {
+            "metric": "Provisioning",
+            "scenario": size,
+            "manual": None,
+            "assisted": median(run["seconds"] for run, _ in samples),
+            "n": [0, len(samples)],
+        }
+        if include_evidence:
+            row["evidence"] = {
+                "scenario": "provisioning",
+                "approval": "approval",
+                "topologies": provision_topologies(plan for _, plan in samples),
+                "runs": [run for run, _ in samples],
+            }
+        rows.append(row)
+    matched = [
+        r["manual"] - r["assisted"]
+        for r in rows
+        if r["metric"] == "Verified closure" and all(r["n"]) and r["scenario"].endswith(" · repair")
+    ]
+    from .investigations import cases
+
+    investigations = [r for r in cases(db) if r["kind"] != "intent"]
+    evaluations = cases(db, kind="reliability evaluation")
+
+    def metric(label, value, runs):
+        return {
+            "label": label,
+            "value": value,
+            "evidence": [
+                {"url": "/api/incidents/" + r["id"], "label": r["scenario"] + " · " + r["id"][:8]}
+                for r in runs
+            ],
+        }
+
+    timed = [
+        r for r in records if r.get("ai") and r.get("first_signal_at") and r.get("diagnosed_at")
+    ]
+    autonomous = [
+        r
+        for r in records
+        if r.get("ai") and any(e["reason"].startswith("automatic:") for e in r.get("events", []))
+    ]
+    escalations = [
+        r
+        for r in records
+        if r.get("ai") and r.get("review") and r["scenario"] in {"bgp", "endpoint"}
+    ]
+    kpis = [
+        metric(
+            "Mean time to correct AI diagnosis",
+            f"{sum(r['diagnosed_at']-r['first_signal_at'] for r in timed)/len(timed):.2f} s"
+            if timed
+            else "—",
+            timed,
+        ),
+        metric(
+            "Verified autonomous recovery",
+            f"{sum(outcome(r)=='ai_repair' and r['attempts']==1 for r in autonomous)}/{len(autonomous)}",
+            autonomous,
+        ),
+        metric(
+            "Correct required escalation", f"{correct_handoffs}/{required_handoffs}", escalations
+        ),
+        metric(
+            "Matched manual minus assisted closure",
+            f"{median(matched):.2f} s" if matched else "—",
+            [r for r in records if r.get("baseline_routers") and (r.get("manual") or r.get("ai"))],
+        ),
+    ]
+    risk_checks = [r for r in cases(db, kind="change risk") if "policy_check" in r["facts"]]
+    kpis.append(
+        {
+            "label": "Changes blocked by redundancy/availability policy (not prediction accuracy)",
+            "value": f"{sum(r['facts']['policy_check']['observed']=='block' for r in risk_checks)}/{len(risk_checks)}",
+            "evidence": [
+                {
+                    "url": "/api/investigations/" + r["id"],
+                    "label": r["facts"]["policy_check"]["scenario"],
+                }
+                for r in risk_checks
+            ],
+        }
+    )
+    result = {
+        "evaluations": [
+            {
+                "id": r["id"],
+                "observed": r["observed"],
+                "summary": r["facts"].get("summary", {}),
+                "results": [
+                    {
+                        key: case[key]
+                        for key in (
+                            "id",
+                            "kind",
+                            "version",
+                            "passed",
+                            "diagnosis_correct",
+                            "error",
+                            "latency_s",
+                        )
+                        if key in case
+                    }
+                    for case in r["facts"].get("results", [])
+                ],
+                "limits": r["facts"].get("limits", "Historical evaluation"),
+                "url": "/api/investigations/" + r["id"],
+            }
+            for r in evaluations
+        ],
+        "outcomes": dict(outcomes),
+        "kpis": kpis,
+        "investigations": [
+            {"kind": r["kind"], "text": r["text"], "url": "/api/investigations/" + r["id"]}
+            for r in investigations
+        ],
+        "rows": rows,
+        "saved": median(matched) if matched else None,
+        "correct": diagnosed,
+        "evaluated": evaluated,
+        "verified": verified,
+        "attempted": attempted,
+        "rejected": rejected,
+        "escalated": escalated,
+        "required_handoffs": required_handoffs,
+        "correct_handoffs": correct_handoffs,
+        "recent": sorted(recent, key=lambda row: row["at"], reverse=True)[:8],
+    }
+    if include_evidence:
+        result["outcome_evidence"] = outcome_evidence
+    return result

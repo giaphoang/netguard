@@ -1,0 +1,1368 @@
+{
+  "incident": {
+    "id": "326a42a1469d4fb2a0285c4ab1999739",
+    "scenario": "link",
+    "ai": true,
+    "manual": false,
+    "duration": null,
+    "baseline_routers": [
+      "leaf-1",
+      "leaf-2",
+      "spine-1",
+      "spine-2"
+    ],
+    "leaf": 1,
+    "spine": 1,
+    "restore_at": null,
+    "phase": "resolved",
+    "target": {
+      "container": "a1fc30a2ed272afa5387b1b4d21a3ec70a8c46d85dd9ac289d593c4b2c8b86fc",
+      "interface": "eth1",
+      "leaf": 1,
+      "spine": 1
+    },
+    "events": [
+      {
+        "time": 1795053093.2942872,
+        "phase": "injecting",
+        "reason": "Saved verified baseline and target before injection"
+      },
+      {
+        "time": 1795053093.428588,
+        "phase": "injected",
+        "reason": "Preset actuator confirmed"
+      },
+      {
+        "time": 1795053104.1706133,
+        "phase": "detected",
+        "reason": "Leaf 1 interface is DOWN, its spine-1 peer is Active, and alternate spine paths remain observable."
+      },
+      {
+        "time": 1795053104.1889892,
+        "phase": "diagnosed",
+        "reason": "Leaf 1 interface is DOWN, its spine-1 peer is Active, and alternate spine paths remain observable."
+      },
+      {
+        "time": 1795053105.533008,
+        "phase": "proposed",
+        "reason": "Alternate routing passed the probe checks. Restore the selected link to regain redundancy."
+      },
+      {
+        "time": 1795053105.7666564,
+        "phase": "applying",
+        "reason": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795053105.971732,
+        "phase": "verifying",
+        "reason": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795053109.8068151,
+        "phase": "resolved",
+        "reason": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "samples": [
+      {
+        "observed": 1795053093.219209,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:33.122577+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:33.152797+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053097.6398952,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Idle",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 via 10.211.21.1 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:37.639641+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "failed"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:37.639174+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "failed"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053101.9218435,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Active",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:41.921085+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:41.921554+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "failed",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053103.3095813,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Connect",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Active",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 8 via 10.211.22.1 dev eth0 proto bgp metric 20 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:43.141689+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:43.183351+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053105.5329177,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Connect",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Active",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 8 via 10.211.22.1 dev eth0 proto bgp metric 20 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:45.450889+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:45.472656+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053107.2124658,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 8 via 10.211.22.1 dev eth0 proto bgp metric 20 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:47.148604+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:47.149922+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053108.5085964,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 20 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:48.417890+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:48.432413+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      },
+      {
+        "observed": 1795053109.806754,
+        "routers": [
+          {
+            "name": "spine-1",
+            "peers": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+            "error": null
+          },
+          {
+            "name": "spine-2",
+            "peers": {
+              "10.211.21.2": "Established",
+              "10.211.22.2": "Established"
+            },
+            "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+            "error": null
+          },
+          {
+            "name": "leaf-1",
+            "peers": {
+              "10.211.11.1": "Established",
+              "10.211.21.1": "Established"
+            },
+            "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 20 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         UP             10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+            "error": null
+          },
+          {
+            "name": "leaf-2",
+            "peers": {
+              "10.211.12.1": "Established",
+              "10.211.22.1": "Established"
+            },
+            "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+            "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+            "error": null
+          }
+        ],
+        "hosts": [
+          {
+            "name": "host-1",
+            "leaf": 1,
+            "address": "10.212.1.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n271: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether 1e:f0:52:61:a6:5b brd ff:ff:ff:ff:ff:ff\n    inet 10.212.1.2/28 brd 10.212.1.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          },
+          {
+            "name": "host-2",
+            "leaf": 2,
+            "address": "10.212.2.2",
+            "interfaces": "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000\n    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n    inet6 ::1/128 scope host \n       valid_lft forever preferred_lft forever\n270: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue \n    link/ether de:55:75:f1:4c:1d brd ff:ff:ff:ff:ff:ff\n    inet 10.212.2.2/28 brd 10.212.2.15 scope global eth0\n       valid_lft forever preferred_lft forever",
+            "error": null
+          }
+        ],
+        "flows": [
+          {
+            "timestamp": "2026-11-19T01:51:49.721049+00:00",
+            "source": 1,
+            "destination": "10.212.2.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          {
+            "timestamp": "2026-11-19T01:51:49.699013+00:00",
+            "source": 2,
+            "destination": "10.212.1.2",
+            "candidates": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        ]
+      }
+    ],
+    "attempts": 1,
+    "streak": 5,
+    "loss": true,
+    "metrics": {
+      "detection_s": 4.211309909820557,
+      "traffic_recovery_s": 12.104332447052002,
+      "verified_failover_s": 12.104332447052002,
+      "closure_s": 16.37816882133484
+    },
+    "auto": true,
+    "t0": 1795053093.4285853,
+    "first_signal_at": 1795053097.6398952,
+    "review": {
+      "version": "fabric-triage-v6",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795053103.3095813,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "DOWN",
+            "leaf_peer": "Active",
+            "spine_peer": "Connect"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "link",
+        "component": "leaf-1/spine-1",
+        "action": "restore_link",
+        "citations": [
+          "leaf-1/spine-1"
+        ],
+        "next_check": "verify connectivity between leaf-1 and spine-1"
+      }
+    },
+    "decision_at": 1795053104.170576,
+    "diagnosed_at": 1795053104.170576,
+    "verified": 2
+  },
+  "investigation": {
+    "id": "0278a36b139447c189da07e9b043c3fc",
+    "kind": "monitor",
+    "text": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice.",
+    "observed": 1795053104.3059893,
+    "facts": {
+      "history": [
+        {
+          "observed": 1795053089.468852,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795053092.765888,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795053096.041473,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "failed",
+                "HTTP": "failed"
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "failed",
+                "HTTP": "failed"
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795053103.463913,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Connect"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            }
+          }
+        }
+      ],
+      "routing": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Connect",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.2.0/28 nhid 6 via 10.211.12.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if8         UP             10.211.11.1/28 \neth1@if9         UP             10.211.12.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 8 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 6 via 10.211.22.2 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if6         UP             10.211.21.1/28 \neth1@if4         UP             10.211.22.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Active",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 8 via 10.211.21.1 dev eth2 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if7         UP             10.212.1.1/28 \neth1@if8         DOWN           10.211.11.2/28 \neth2@if6         UP             10.211.21.2/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 8 via 10.211.22.1 dev eth0 proto bgp metric 20 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \neth0@if4         UP             10.211.22.2/28 \neth1@if5         UP             10.212.2.1/28 \neth2@if9         UP             10.211.12.2/28",
+          "error": null
+        }
+      ],
+      "probes": [
+        {
+          "timestamp": "2026-11-19T01:51:43.354046+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          },
+          "spine": 2
+        },
+        {
+          "timestamp": "2026-11-19T01:51:43.407563+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          },
+          "spine": 2
+        }
+      ],
+      "drift": null,
+      "rules": {
+        "window_s": 60,
+        "degraded_samples": 2,
+        "flap_transitions": 3,
+        "cooldown_s": 120,
+        "drift_interval_s": 60,
+        "recovery_samples": 2
+      },
+      "findings": [
+        [
+          "link_or_peer_failure",
+          "leaf-1/spine-1",
+          2
+        ]
+      ]
+    },
+    "status": "verified",
+    "incident_id": "326a42a1469d4fb2a0285c4ab1999739",
+    "affected": [
+      "leaf-1/spine-1"
+    ],
+    "events": [
+      {
+        "time": 1795053103.463913,
+        "stage": "Observed",
+        "tool": "telemetry.collect",
+        "result": {
+          "observed": 1795053103.463913
+        }
+      },
+      {
+        "time": 1795053104.3222587,
+        "stage": "Detected",
+        "tool": "monitor.rules",
+        "result": [
+          [
+            "link_or_peer_failure",
+            "leaf-1/spine-1",
+            2
+          ]
+        ]
+      },
+      {
+        "time": 1795053104.322261,
+        "stage": "Evidence Retrieved",
+        "tool": "telemetry.snapshot",
+        "result": {
+          "observed": 1795053103.463913,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Connect"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              }
+            }
+          }
+        }
+      },
+      {
+        "time": 1795053104.170576,
+        "stage": "Diagnosis",
+        "tool": "ollama.assess",
+        "result": {
+          "version": "fabric-triage-v6",
+          "model": "qwen2.5:1.5b",
+          "observation": {
+            "observed": 1795053103.3095813,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Connect"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                }
+              }
+            }
+          },
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "verify connectivity between leaf-1 and spine-1"
+          }
+        }
+      },
+      {
+        "time": 1795053105.533008,
+        "stage": "Risk Check",
+        "tool": "controller.proposed",
+        "result": "Alternate routing passed the probe checks. Restore the selected link to regain redundancy."
+      },
+      {
+        "time": 1795053105.7666564,
+        "stage": "Approved",
+        "tool": "controller.authorization",
+        "result": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795053105.7666564,
+        "stage": "Executed",
+        "tool": "controller.applying",
+        "result": "automatic: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795053105.971732,
+        "stage": "Verification Started",
+        "tool": "controller.verifying",
+        "result": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795053109.8068151,
+        "stage": "Verified",
+        "tool": "controller.resolved",
+        "result": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "review": {
+      "version": "fabric-triage-v6",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795053103.3095813,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "DOWN",
+            "leaf_peer": "Active",
+            "spine_peer": "Connect"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "link",
+        "component": "leaf-1/spine-1",
+        "action": "restore_link",
+        "citations": [
+          "leaf-1/spine-1"
+        ],
+        "next_check": "verify connectivity between leaf-1 and spine-1"
+      }
+    },
+    "triaged_at": 1795053104.170576,
+    "decision": {
+      "diagnosis": "link",
+      "component": "leaf-1/spine-1",
+      "action": "restore_link",
+      "citations": [
+        "leaf-1/spine-1"
+      ],
+      "next_check": "verify connectivity between leaf-1 and spine-1"
+    },
+    "controller_events": 8,
+    "verified_healthy_at": 1795053110.07852,
+    "outcome": "ai_repair"
+  },
+  "operator_prompts": 0
+}
