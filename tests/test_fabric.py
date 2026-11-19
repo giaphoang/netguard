@@ -56,3 +56,19 @@ def test_probe_spine_uses_forwarded_flow_tuple(monkeypatch):
     assert fabric.probe_spine(leaf, 2) == 2
     monkeypatch.setattr(fabric, "command", lambda *_: '[{"dev":"lo"}]')
     assert fabric.probe_spine(leaf, 2) is None
+
+
+def test_host_inventory_uses_busybox_compatible_ip_command(monkeypatch):
+    from api import fabric, expansion
+
+    calls = []
+
+    def run(node, *args):
+        calls.append((node, args))
+        assert args == ("ip", "addr", "show")
+        return "2: eth0 UP inet 10.212.1.2/28"
+
+    monkeypatch.setattr(fabric, "command", run)
+    result = fabric.host_state(({"id": 1, "leaf": 1}, expansion.BASE))
+    assert result["error"] is None and result["name"] == "host-1"
+    assert calls

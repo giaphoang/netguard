@@ -96,7 +96,7 @@ def host_state(pair):
     host, topology = pair
     name = f"host-{host['id']}"
     try:
-        interfaces = command(name, "ip", "-br", "addr")
+        interfaces = command(name, "ip", "addr", "show")
         result = {
             "name": name,
             "leaf": host["leaf"],
