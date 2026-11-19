@@ -36,7 +36,7 @@ Return JSON only.
 Use compare_diagnosis_workflows to compare the current diagnosis workflow with a candidate or
 improved prompt or context retrieval strategy on the same recorded incidents. For a general run
 of the existing AI test suite or a question about diagnosis accuracy, use evaluate_ai_quality.
-Requests to design, optimize or benchmark aggregate network throughput, ECMP or a GRE tunnel use
+Requests to design, optimize or benchmark aggregate throughput, ECMP, GRE or IPv4-in-IPv4 use
 design_network_experiment. Comparing GRE, IP-in-IP and MPLS to choose an implementation also uses
 design_network_experiment. Read-only explanations of performance or protocol concepts use
 answer_question. A throughput objective can include proposed extra spines without requesting provisioning.

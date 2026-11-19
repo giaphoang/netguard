@@ -51,19 +51,16 @@ class Request(BaseModel):
 
 
 class Objective(BaseModel):
-    objective: Literal["throughput", "gre", "evaluation", "unsupported"]
+    objective: Literal["throughput", "gre", "ipip", "evaluation", "unsupported"]
 
 
 def objective_schema(prompt):
     schema = Objective.model_json_schema()
     # Narrow the tools when the request names a tunnel protocol and contains no AI evaluation target.
-    tunnel = re.search(r"\b(?:gre|generic routing encapsulation|mpls|ip.in.ip)\b", prompt, re.I)
+    requested = gre.requested(prompt)
     workflow = re.search(r"\b(?:prompt|retrieval|diagnosis workflow|model)\b", prompt, re.I)
-    if tunnel and not workflow:
-        options = ["unsupported"]
-        if re.search(r"\b(?:gre|generic routing encapsulation)\b", prompt, re.I):
-            options.insert(0, "gre")
-        schema["properties"]["objective"]["enum"] = options
+    if (requested or re.search(r"\bmpls\b", prompt, re.I)) and not workflow:
+        schema["properties"]["objective"]["enum"] = [*requested, "unsupported"]
     return schema
 
 
@@ -271,7 +268,10 @@ def prepare(controller, run):
             event["result"] = objective
             run["kind"] = objective
         if objective == "unsupported":
-            trace.mark("blocked", "Choose a throughput, GRE or workflow evaluation objective.")
+            trace.mark(
+                "blocked",
+                "Choose a throughput, GRE, IPv4-in-IPv4 or workflow evaluation objective.",
+            )
             return
         if objective == "evaluation":
             run["method"] = {"role": "Alternating paired replay on labeled observations"}
@@ -285,27 +285,32 @@ def prepare(controller, run):
             run["quality"] = {**report, "record_id": record["id"]}
             trace.mark("evaluated", "Paired diagnosis workflow evaluation complete.")
             return
-        is_gre = objective == "gre"
-        multiplier = None if is_gre else plans.requested_multiplier(run["prompt"])
+        encapsulated = objective in gre.TUNNELS
+        multiplier = None if encapsulated else plans.requested_multiplier(run["prompt"])
         run["requested_multiplier"] = multiplier
         trace.stage = "Investigate"
         run["snapshot"] = inspect_fabric(trace, spec)
-        select_endpoints = gre.endpoints if is_gre else plans.endpoints
-        pair = select_endpoints(run["prompt"], run["selection"], spec, run["snapshot"])
+        endpoint_args = (run["prompt"], run["selection"], spec, run["snapshot"])
+        pair = (
+            gre.endpoints(*endpoint_args, mode=objective)
+            if encapsulated
+            else plans.endpoints(*endpoint_args)
+        )
         run["endpoints"] = [asdict(endpoint) for endpoint in pair]
         with Lab(trace) as lab:
             run["scope"] = open_scope(controller, lab, active, spec, pair)
-            underlay = gre.underlay(lab, pair, spec["spines"]) if is_gre else {}
+            underlay = (
+                gre.underlay(lab, pair, spec["spines"], mode=objective) if encapsulated else {}
+            )
             run["baseline"] = {
                 **underlay,
-                **measure(controller, lab, pair, spec, single=not is_gre),
+                **measure(controller, lab, pair, spec, single=not encapsulated),
             }
             trace.stage = "Plan"
-            run["plan"] = (
-                gre.plan(lab, pair, spec, run["baseline"], run["id"])
-                if is_gre
-                else plans.throughput(lab, pair, spec, run["baseline"], multiplier)
-            )
+            if encapsulated:
+                run["plan"] = gre.plan(lab, pair, spec, run["baseline"], run["id"], mode=objective)
+            else:
+                run["plan"] = plans.throughput(lab, pair, spec, run["baseline"], multiplier)
         trace.stage = "Validate"
         with trace.tool("Review policy, capacity and rollback") as event:
             checkpoint(controller)
@@ -481,10 +486,10 @@ def verdict(run):
         )
     if min(actual["guest_cpu_pct"], baseline["guest_cpu_pct"]) >= 90:
         interpretation.append("Median guest CPU utilization was at least 90% in both arms.")
-    if run["kind"] == "gre":
+    if tunnel := gre.TUNNELS.get(run["kind"]):
         interpretation.append(
             f"DF pings measured an inner MTU of {actual['mtu_bytes']} bytes. "
-            "The wire capture confirmed bidirectional GRE."
+            f"The wire capture confirmed bidirectional {tunnel.label}."
         )
     return {
         "measured_multiplier": measured,
@@ -507,6 +512,8 @@ def apply(controller, run):
     try:
         active, spec = current_fabric(controller)
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
+        kind = run["kind"]
+        adapter = gre if kind in gre.TUNNELS else None
         trace.stage = "Approve and implement"
         with Lab(trace) as lab:
             scope = open_scope(controller, lab, active, spec, pair)
@@ -515,12 +522,11 @@ def apply(controller, run):
                     "The topology or endpoint namespaces changed. Review the saved plan."
                 )
             inspect_fabric(trace, spec)
-            is_gre = run["kind"] == "gre"
-            if is_gre:
-                live = gre.underlay(lab, pair, spec["spines"])
+            if adapter:
+                live = gre.underlay(lab, pair, spec["spines"], mode=kind)
                 if live["route_mtu"] != run["baseline"]["route_mtu"]:
                     raise ValueError("The underlay MTU changed. Generate a fresh preview.")
-            configure = gre.configure if is_gre else plans.set_policies
+            configure = adapter.configure if adapter else plans.set_policies
             configure(
                 lab,
                 run["plan"],
@@ -529,11 +535,11 @@ def apply(controller, run):
             trace.stage = "Verify"
             run["verification"] = inspect_fabric(trace, spec)
             sockets = None
-            if is_gre:
-                run["encapsulation"] = gre.verify(lab, run["plan"])
-                sockets = gre.sockets(run["plan"]["change"])
+            if adapter:
+                run["encapsulation"] = adapter.verify(lab, run["plan"])
+                sockets = adapter.sockets(run["plan"]["change"])
             run["actual"] = measure(controller, lab, pair, spec, sockets=sockets)
-            if is_gre:
+            if adapter:
                 run["actual"]["mtu_bytes"] = run["encapsulation"]["mtu_bytes"]
             inspect_fabric(trace, spec)
             trace.stage = "Evaluate"
@@ -570,6 +576,7 @@ def restore(controller, run, trace):
     try:
         active, spec = current_fabric(controller)
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
+        kind = run["kind"]
         with Lab(trace) as lab:
             scope = open_scope(controller, lab, active, spec, pair, benchmark=False)
             if (
@@ -577,7 +584,7 @@ def restore(controller, run, trace):
                 or scope["provision_id"] != run["scope"]["provision_id"]
             ):
                 raise ValueError("The approved topology changed. Review rollback manually.")
-            restore_change = gre.restore if run["kind"] == "gre" else plans.restore_policies
+            restore_change = gre.restore if kind in gre.TUNNELS else plans.restore_policies
             restore_change(lab, run["plan"], run["touched"], run["scope"]["identities"])
             run["rollback_verification"] = inspect_fabric(trace, spec)
         trace.mark("rolled_back", "Original configuration restored and connectivity verified.")

@@ -1,9 +1,11 @@
-"""A scoped IPv4 GRE overlay with comparable direct and tunneled measurements."""
+"""Scoped GRE and IPv4-in-IPv4 overlays with direct and tunneled measurements."""
 
 import os
+import re
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
 from ipaddress import ip_network
 from pathlib import Path
 from tempfile import TemporaryFile
@@ -11,10 +13,30 @@ from tempfile import TemporaryFile
 from .architecture_plans import Endpoint, configuration_diff, resolve_targets, route_hops
 
 OVERLAY = ip_network("10.215.0.0/30")
-OVERHEAD = 24
 
 
-def endpoints(prompt, selection, spec, sample):
+@dataclass(frozen=True)
+class Tunnel:
+    label: str
+    module: str
+    protocol: int
+    overhead: int
+    prefix: str
+    pattern: str
+
+
+TUNNELS = {
+    "gre": Tunnel("GRE", "ip_gre", 47, 24, "ngg", r"\b(?:gre|generic routing encapsulation)\b"),
+    "ipip": Tunnel("IPv4-in-IPv4", "ipip", 4, 20, "ngi", r"\b(?:ipip|ip.in.ip|ipv4.in.ipv4)\b"),
+}
+
+
+def requested(prompt):
+    return [name for name, tunnel in TUNNELS.items() if re.search(tunnel.pattern, prompt, re.I)]
+
+
+def endpoints(prompt, selection, spec, sample, mode="gre"):
+    label = TUNNELS[mode].label
     interfaces = {row["name"]: row["interfaces"].split() for row in sample["routers"]}
     eligible = {
         f"leaf-{n}": Endpoint(f"leaf-{n}", f"10.212.{n}.1", n)
@@ -23,10 +45,12 @@ def endpoints(prompt, selection, spec, sample):
     }
     targets = resolve_targets(prompt, selection, sample)
     if len(targets) > 2 or any(target not in eligible for target in targets):
-        raise ValueError("Choose up to two existing leaves with routed access interfaces for GRE.")
+        raise ValueError(
+            f"Choose up to two existing leaves with routed access interfaces for {label}."
+        )
     nodes = list(dict.fromkeys([*targets, *eligible]))[:2]
     if len(nodes) < 2:
-        raise ValueError("GRE needs two leaves with reachable underlay addresses.")
+        raise ValueError(f"{label} needs two leaves with reachable underlay addresses.")
     return tuple(eligible[node] for node in nodes)
 
 
@@ -57,14 +81,14 @@ def module(trace, name):
         return state
 
 
-def underlay(lab, pair, spines):
+def underlay(lab, pair, spines, mode="gre"):
     if not shutil.which("tcpdump"):
         raise ValueError("Install tcpdump on the NetGuard guest for wire verification.")
     support = {
         name: module(lab.trace, name) for name in ("ip_gre", "ipip", "mpls_router", "mpls_iptunnel")
     }
-    if support["ip_gre"] == "unavailable":
-        raise ValueError("This Linux kernel does not provide an available IPv4 GRE module.")
+    if support[TUNNELS[mode].module] == "unavailable":
+        raise ValueError(f"This Linux kernel does not provide {TUNNELS[mode].label} support.")
     route_mtu = {}
     for source, target in (pair, pair[::-1]):
         hops = route_hops(lab, source, target, spines)
@@ -122,25 +146,33 @@ def verify_mtu(lab, sockets, mtu):
 def free_slot(lab, change):
     for node in change["ends"]:
         links = lab.json(node, "ip", "-j", "link", "show")
-        routes = lab.json(node, "ip", "-j", "-4", "route", "show", "table", "all")
         if any(
             link["ifname"] == change["interface"] or link["ifindex"] == change["ifindex"]
             for link in links
-        ) or any(
-            ip_network(route["dst"], strict=False).overlaps(OVERLAY)
-            for route in routes
-            if route.get("dst") not in (None, "default")
         ):
             raise ValueError(f"{node} has a tunnel name or address conflict.")
+        check_overlay_addresses(lab, node)
 
 
-def plan(lab, pair, spec, baseline, identity):
-    mtu = baseline["outer_mtu_bytes"] - OVERHEAD
+def check_overlay_addresses(lab, node):
+    routes = lab.json(node, "ip", "-j", "-4", "route", "show", "table", "all")
+    if any(
+        ip_network(route["dst"], strict=False).overlaps(OVERLAY)
+        for route in routes
+        if route.get("dst") not in (None, "default")
+    ):
+        raise ValueError(f"{node} has an address conflict in the experiment subnet.")
+
+
+def plan(lab, pair, spec, baseline, identity, mode="gre"):
+    tunnel = TUNNELS[mode]
+    mtu = baseline["outer_mtu_bytes"] - tunnel.overhead
     if mtu < 68:
-        raise ValueError("The measured underlay MTU is too small for IPv4 GRE.")
-    name = "ngg" + identity[:10]
+        raise ValueError(f"The measured underlay MTU is too small for {tunnel.label}.")
+    name = tunnel.prefix + identity[:10]
     overlay = [str(address) for address in OVERLAY.hosts()]
     change = {
+        "mode": mode,
         "interface": name,
         "ifindex": 1024 + int(identity[10:17], 16),
         "mtu": mtu,
@@ -162,8 +194,7 @@ def plan(lab, pair, spec, baseline, identity):
             },
             {
                 "name": "2. IPv4-in-IPv4",
-                "assessment": "A simpler IP-only tunnel with the same routed underlay. "
-                "Comparative performance would require a separate trial.",
+                "assessment": "An IPv4-only tunnel with the same routed underlay and a smaller header.",
                 "cost": f"20 bytes of overhead without outer IP options. Kernel support is {support['ipip']}.",
             },
             {
@@ -185,7 +216,11 @@ def plan(lab, pair, spec, baseline, identity):
         ),
         "before": spec,
         "after": spec,
-        "overlay": {"source": pair[0].node, "target": pair[1].node, "label": "GRE overlay"},
+        "overlay": {
+            "source": pair[0].node,
+            "target": pair[1].node,
+            "label": f"{tunnel.label} overlay",
+        },
         "prediction": {
             "gbps": baseline["gbps"] * payload_ratio,
             "mtu_bytes": mtu,
@@ -198,14 +233,14 @@ def plan(lab, pair, spec, baseline, identity):
             "The goodput estimate assumes equal packet rates and 40 bytes of IPv4/TCP headers. "
             "The p95 RTT estimate uses the direct run as the reference. The CPU estimate scales "
             "guest load by the packet count needed for equal TCP payload and caps it at 100%. "
-            "GRE processing, offloads, flow distribution and shared VM load can change each result."
+            "Encapsulation processing, offloads, flow distribution and shared VM load can change each result."
         ),
         "risk": {
             "eligible": True,
             "reason": "Tunnel traffic uses a dedicated /30 between the selected leaves. "
             "BGP and host routes continue to carry regular fabric traffic. "
-            "The single outer address pair can concentrate GRE traffic on one spine.",
-            "rollback": "Delete the experiment-owned GRE devices and verify underlay reachability.",
+            "The single outer address pair can concentrate tunneled traffic on one spine.",
+            "rollback": f"Delete the experiment-owned {tunnel.label} devices and verify underlay reachability.",
         },
     }
 
@@ -224,7 +259,7 @@ def commands(change, node):
             "mtu",
             str(change["mtu"]),
             "type",
-            "gre",
+            change.get("mode", "gre"),
             "local",
             end["local"],
             "remote",
@@ -250,7 +285,7 @@ def owned_link(link, change, node):
     end = change["ends"][node]
     return (
         link.get("ifindex") == change["ifindex"]
-        and info.get("info_kind") == "gre"
+        and info.get("info_kind") == change.get("mode", "gre")
         and data.get("local") == end["local"]
         and data.get("remote") == end["remote"]
     )
@@ -262,6 +297,7 @@ def sockets(change):
 
 def verify(lab, plan):
     change = plan["change"]
+    tunnel = TUNNELS[change.get("mode", "gre")]
     name = change["interface"]
     overlay = sockets(change)
     for source, target in (overlay, overlay[::-1]):
@@ -275,17 +311,20 @@ def verify(lab, plan):
             or "UP" not in link["flags"]
             or route.get("dev") != name
         ):
-            raise ValueError(f"{source[0]} GRE interface or route failed verification.")
+            raise ValueError(f"{source[0]} {tunnel.label} interface or route failed verification.")
     return {
         "mtu_bytes": verify_mtu(lab, overlay, change["mtu"]),
         "capture": capture(lab, overlay, change),
+        "ip_protocol": tunnel.protocol,
     }
 
 
 def capture(lab, overlay, change):
-    (left, left_ip), (_, right_ip) = overlay
+    left = overlay[0][0]
     one = change["ends"][left]["local"]
     two = change["ends"][left]["remote"]
+    mode = change.get("mode", "gre")
+    tunnel = TUNNELS[mode]
     args = (
         "tcpdump",
         "-nn",
@@ -294,11 +333,21 @@ def capture(lab, overlay, change):
         "any",
         "-c",
         "2",
-        f"ip proto 47 and host {one} and host {two}",
+        f"ip proto {tunnel.protocol} and host {one} and host {two}",
     )
-    argv, options = lab.command(left, args)
+    report = capture_ping(lab, left, args, overlay)
+    if not all(f"{src} > {dst}:" in report for src, dst in ((one, two), (two, one))):
+        raise ValueError(
+            f"The wire capture did not show {tunnel.label} packets in both directions."
+        )
+    return report
+
+
+def capture_ping(lab, node, args, sockets):
+    (source, left_ip), (_, right_ip) = sockets
+    argv, options = lab.command(node, args)
     with (
-        lab.trace.tool("tcpdump", node=left, arguments=args[1:]) as event,
+        lab.trace.tool("tcpdump", node=node, arguments=args[1:]) as event,
         TemporaryFile() as output,
         subprocess.Popen(argv, **options, stdout=output, stderr=output) as listener,
     ):
@@ -309,15 +358,13 @@ def capture(lab, overlay, change):
                     break
                 time.sleep(0.05)
             else:
-                raise ValueError("GRE packet capture did not start.")
-            lab.run(left, "ping", "-n", "-I", left_ip, "-c", "1", "-W", "2", right_ip)
+                raise ValueError("The wire capture did not start.")
+            lab.run(source, "ping", "-n", "-I", left_ip, "-c", "1", "-W", "2", right_ip)
             listener.wait(timeout=4)
             report = os.pread(output.fileno(), 8192, 0).decode()
             event.update(result=report, exit_code=listener.returncode)
-            if listener.returncode or not all(
-                f"{src} > {dst}: GRE" in report for src, dst in ((one, two), (two, one))
-            ):
-                raise ValueError("The wire capture did not show GRE packets in both directions.")
+            if listener.returncode:
+                raise ValueError("The wire capture failed.")
             return report
         finally:
             if listener.poll() is None:

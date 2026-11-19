@@ -30,3 +30,9 @@ Approval rechecks guest resources, ownership, and the rendered revision. Deploym
 Automatic repair requires a preauthorized local link preset, the original owned target, current fault evidence, a working alternate path, and an unused attempt. Each repair records an operation ID, recovery procedure, verification deadline and outcome. The persistent emergency stop can engage during precondition checks. The actuator checks it again immediately before a network write. Manual restoration of the pre-fault state remains available for a stopped operation.
 
 **Verification.** All 104 Python tests passed, including a stop requested during a concurrent repair check, recorded rejection of unapproved repair, target replacement, and repeated clean verification. The Desktop lab returned HTTP 409 for an injection while stopped. A preauthorized link repair completed with zero operator prompts in 19.32 seconds. BGP and endpoint preset repairs remain operator-controlled. [Live verification](proof/harness/p14-remediation.json)
+
+## P2.1 · Multi-protocol engineering
+
+The tunnel workflow supports IPv4-in-IPv4 alongside GRE. It verifies the underlay, sizes the overlay for the selected header, and binds the approved configuration to the selected leaves. Verification includes wire capture, measured MTU, matched direct and tunneled workloads, and removal of the owned interfaces.
+
+**IPv4-in-IPv4 verification.** The disposable Ubuntu ARM64 lab captured IP protocol 4 in both directions and measured a 1,480-byte inner MTU. The median TCP goodput was 1.36× the direct run with no observed ICMP loss, and rollback verified the original fabric. This comparison measures local virtual interfaces and shared guest CPU. [Live verification](proof/harness/p21-ipip.json)

@@ -10,6 +10,7 @@ from .benchmarks import HASH_POLICY
 VERSION = "architecture-v3"
 INTENT_PROMPT = """Choose a tool by the subject of the experiment.
 gre covers a GRE tunnel design or a tunnel protocol comparison that considers GRE for this lab.
+ipip covers a requested IPv4-in-IPv4 or IPIP tunnel design and benchmark.
 throughput covers a general capacity or ECMP trial on the existing fabric.
 evaluation covers A/B replay of AI diagnosis workflows on labeled incidents.
 Comparing, predicting, evaluating or benchmarking network protocols still concerns the network.

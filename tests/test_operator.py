@@ -121,7 +121,7 @@ def test_chat_starts_and_reopens_the_experiment_without_leaving_the_transcript(t
     assert blocked.status_code == 409
     assert architecture.objective_schema("Benchmark GRE against IPv4-in-IPv4.")[
         "properties"
-    ]["objective"]["enum"] == ["gre", "unsupported"]
+    ]["objective"]["enum"] == ["gre", "ipip", "unsupported"]
 
 
 def test_incident_chat_reads_saved_runs_and_investigations(tmp_path, monkeypatch):
