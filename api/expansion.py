@@ -6,7 +6,9 @@ import os
 import subprocess
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from itertools import permutations
 
 from . import provision as p
 
@@ -14,6 +16,7 @@ BASE = {"spines": [1, 2], "leaves": [1, 2], "hosts": [{"id": 1, "leaf": 1}, {"id
 MAX_HOSTS = 4
 HOST_MEMORY_MIB = 32
 HOST_CPUS = 0.25
+ROUTER_MEMORY_MIB = 192
 ROUTER_CPUS = 0.5
 
 
@@ -128,7 +131,7 @@ def render(topology, folder):
             services[name] = {
                 "image": "quay.io/frrouting/frr:10.1.1",
                 "cap_add": ["NET_ADMIN", "SYS_ADMIN"],
-                "mem_limit": "192m",
+                "mem_limit": f"{ROUTER_MEMORY_MIB}m",
                 "cpus": ROUTER_CPUS,
                 "sysctls": {"net.ipv4.ip_forward": "1"},
                 "networks": attachments,
@@ -155,8 +158,14 @@ def render(topology, folder):
     return {"services": services, "networks": networks}, configs
 
 
-def propose(c, kind, count, targets, started, *, capacity=None):
+def propose(c, kind, count, targets, started, *, capacity=None, observation=None):
+    from . import topology as inventory
+    from .architecture import require_idle
+    from .capacity import deployment_budget
+    from .incidents import healthy
+
     with c.lock:
+        require_idle(c.db)
         prior = current(c.db)
         if c.active or c.stopped or prior and prior["phase"] != "verified":
             raise ValueError("Finish the active operation before provisioning")
@@ -180,14 +189,25 @@ def propose(c, kind, count, targets, started, *, capacity=None):
             first = max(topology[key]) + 1
             topology[key] += list(range(first, first + count))
         validate(topology)
+        before = spec(prior)
+        preflight = None
+        if observation is not None:
+            expected_routers = {name for name in names(before) if not name.startswith("host-")}
+            if {r["name"] for r in observation["routers"]} != expected_routers or not healthy(
+                observation
+            ):
+                raise ValueError(
+                    "Restore healthy routing and bidirectional host connectivity before provisioning."
+                )
+            preflight = deployment_budget(before, topology)
         plan = {
             "id": uuid.uuid4().hex,
             "version": 3,
             "topology": topology,
-            "before": spec(prior),
+            "before": before,
             "previous_id": prior["id"] if prior else None,
             "leaves": [n for n in topology["leaves"] if n > 2],
-            "added": sorted(set(names(topology)) - set(names(spec(prior)))),
+            "added": sorted(set(names(topology)) - set(names(before))),
             "events": [],
             "started": started,
             "risk": {
@@ -196,6 +216,19 @@ def propose(c, kind, count, targets, started, *, capacity=None):
                 "reason": "Router and host containers may be recreated; traffic can pause during reconvergence.",
                 "rollback": "Restore the previously verified topology and remove only this change’s owned resources.",
             },
+        }
+        if preflight:
+            plan["preflight"] = preflight
+        existing_links = set(inventory.managed_links(before))
+        plan["topology_diff"] = {
+            "added_links": [
+                list(link)
+                for link in inventory.managed_links(topology)
+                if link not in existing_links
+            ],
+            "expected_bgp_adjacencies_before": len(before["leaves"]) * len(before["spines"]),
+            "expected_bgp_adjacencies_after": len(topology["leaves"]) * len(topology["spines"]),
+            "expected_spine_paths_per_leaf": len(topology["spines"]),
         }
         if capacity:
             plan["capacity"] = capacity
@@ -220,74 +253,88 @@ def propose(c, kind, count, targets, started, *, capacity=None):
 
 
 def verify(topology):
-    from .fabric import router, trace, command
+    from .fabric import command, probe_observations, router, trace
+    from .investigations import configuration_facts
+    from .risk_preview import installed_paths
 
+    expected = {
+        **{
+            f"spine-{s}": {f"10.211.{10*s+n}.2": "Established" for n in topology["leaves"]}
+            for s in topology["spines"]
+        },
+        **{
+            f"leaf-{n}": {f"10.211.{10*s+n}.1": "Established" for s in topology["spines"]}
+            for n in topology["leaves"]
+        },
+    }
     deadline = time.monotonic() + 75
-    last = {}
+
+    def host_path(pair):
+        source, target = pair
+        probes, icmp = probe_observations(f"host-{source['id']}", host_ip(target, topology))
+        return {"source": source["id"], "destination": target["id"], **probes, "icmp": icmp}
+
     while time.monotonic() < deadline:
-        routers = [router(n).model_dump() for n in names(topology) if not n.startswith("host")]
-        expected = {}
-        for s in topology["spines"]:
-            expected[f"spine-{s}"] = {
-                f"10.211.{10*s+n}.2": "Established" for n in topology["leaves"]
-            }
-        for n in topology["leaves"]:
-            expected[f"leaf-{n}"] = {
-                f"10.211.{10*s+n}.1": "Established" for s in topology["spines"]
-            }
-        last = {
-            "observed": time.time(),
-            "routers": routers,
-            "flows": [trace(1), trace(2)],
-            "host_checks": [],
-        }
-        if all(r["peers"] == expected[r["name"]] for r in routers) and all(
-            f["probes"] == {"ICMP": "success", "HTTP": "success"}
-            and f["candidates"] == topology["spines"]
-            for f in last["flows"]
-        ):
-            try:
-                for h in topology["hosts"]:
-                    dest = next(v for v in topology["hosts"] if v["leaf"] != h["leaf"])
-                    addr = host_ip(dest, topology)
-                    command(f"host-{h['id']}", "ping", "-c", "1", "-W", "2", addr)
-                    command(f"host-{h['id']}", "wget", "-T", "2", "-qO-", f"http://{addr}:8080/")
-                    command(
-                        f"host-{dest['id']}", "ping", "-c", "1", "-W", "2", host_ip(h, topology)
-                    )
-                    command(
-                        f"host-{dest['id']}",
-                        "wget",
-                        "-T",
-                        "2",
-                        "-qO-",
-                        f"http://{host_ip(h,topology)}:8080/",
-                    )
-                    last["host_checks"].append(
-                        {
-                            "source": h["id"],
-                            "destination": dest["id"],
-                            "ICMP": "success",
-                            "HTTP": "success",
-                            "bidirectional": True,
-                        }
-                    )
-                for n in topology["leaves"]:
-                    if n > 2:
-                        command(
-                            f"leaf-{n}",
-                            "ping",
-                            "-I",
-                            f"10.214.0.{n}",
-                            "-c",
-                            "1",
-                            "-W",
-                            "2",
-                            "10.212.1.1",
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            routers = {r.name: r for r in pool.map(router, expected)}
+            forwarding = [
+                {
+                    "source": f"leaf-{src}",
+                    "prefix": f"10.212.{dst}.0/28",
+                    "spines": installed_paths(routers[f"leaf-{src}"].routes, src, dst),
+                }
+                for src, dst in permutations(topology["leaves"], 2)
+            ]
+            if all(r.peers == expected[r.name] for r in routers.values()) and all(
+                f["spines"] == sorted(topology["spines"]) for f in forwarding
+            ):
+                flows = list(pool.map(trace, (1, 2)))
+                checks = list(pool.map(host_path, permutations(topology["hosts"], 2)))
+                if all(h["ICMP"] == h["HTTP"] == "success" for h in checks) and all(
+                    f["probes"] == {"ICMP": "success", "HTTP": "success"}
+                    and f["candidates"] == sorted(topology["spines"])
+                    for f in flows
+                ):
+                    config = configuration_facts(routers)
+                    if any(not v or any(v.values()) for v in config.values()):
+                        raise ValueError(
+                            "Running BGP configuration differs from the mounted plan or is unavailable."
                         )
-                return last
-            except (OSError, subprocess.SubprocessError):
-                pass
+                    try:
+                        loopbacks = []
+                        for n in topology["leaves"]:
+                            if n > 2:
+                                source = f"10.214.0.{n}"
+                                command(
+                                    f"leaf-{n}",
+                                    "ping",
+                                    "-I",
+                                    source,
+                                    "-c",
+                                    "1",
+                                    "-W",
+                                    "2",
+                                    "10.212.1.1",
+                                )
+                                loopbacks.append(
+                                    {
+                                        "source": source,
+                                        "destination": "10.212.1.1",
+                                        "ICMP": "success",
+                                    }
+                                )
+                    except (OSError, subprocess.SubprocessError):
+                        pass
+                    else:
+                        return {
+                            "observed": time.time(),
+                            "routers": [r.model_dump() for r in routers.values()],
+                            "flows": flows,
+                            "host_checks": checks,
+                            "forwarding": forwarding,
+                            "configuration": config,
+                            "loopbacks": loopbacks,
+                        }
         time.sleep(1)
     raise ValueError("Topology BGP, routes or bidirectional host checks did not converge")
 
@@ -341,9 +388,31 @@ def ownership(topology, origins):
     return owners
 
 
+def initialize_loopbacks(topology, origins):
+    """Install approved loopback addresses if FRR startup left them absent."""
+    leaves = [n for n in topology["leaves"] if n > 2]
+    if not leaves:
+        return []
+    owners = ownership(topology, origins)
+    restored = []
+    for leaf in leaves:
+        node = f"leaf-{leaf}"
+        identity = owners[node]["Id"]
+        address = f"10.214.0.{leaf}/32"
+        current = p.presets.docker(
+            "exec", identity, "ip", "-4", "-br", "address", "show", "dev", "lo"
+        )
+        if address not in current.split():
+            p.presets.docker(
+                "exec", identity, "ip", "-4", "address", "replace", address, "dev", "lo"
+            )
+            restored.append({"node": node, "address": address})
+    return restored
+
+
 def execute(c, identity, rollback=False):
     from .architecture import require_idle
-    from .capacity import budget_failure, resources
+    from .capacity import deployment_budget, resources
 
     with c.lock:
         require_idle(c.db)
@@ -376,10 +445,7 @@ def execute(c, identity, rollback=False):
         origins = approved_origins(c.db, prior) | {str(p.BASE) + "," + str(overlay)}
         if not rollback:
             ownership(previous, origins - {str(p.BASE) + "," + str(overlay)})
-            if plan.get("capacity"):
-                reason = budget_failure(plan["capacity"]["requirements"], resources(previous))
-                if reason:
-                    raise ValueError(reason)
+            plan["approved_budget"] = deployment_budget(previous, plan["topology"])
             existing = set(p.presets.docker("ps", "-a", "--format", "{{.Names}}").splitlines())
             if any(f"netguard-{n}-1" in existing for n in plan["added"]):
                 raise ValueError("A requested resource already exists")
@@ -400,6 +466,7 @@ def execute(c, identity, rollback=False):
     if not rollback:
         try:
             p.compose(overlay, "up", "-d", "--no-deps", *names(plan["topology"]))
+            plan["initialized_loopbacks"] = initialize_loopbacks(plan["topology"], origins)
             plan["verification"] = verify(plan["topology"])
             if plan.get("capacity"):
                 plan["verification"]["resources"] = resources(plan["topology"], include_usage=True)
@@ -422,6 +489,7 @@ def execute(c, identity, rollback=False):
         ownership(present, origins)
         p.compose(overlay, "rm", "--stop", "--force", *plan["added"])
         p.compose(old_overlay, "up", "-d", "--no-deps", *names(previous))
+        plan["rollback_initialized_loopbacks"] = initialize_loopbacks(previous, origins)
         extra_nets = set(render(plan["topology"], folder)[0]["networks"]) - set(
             render(previous, folder)[0]["networks"]
         )

@@ -15,10 +15,16 @@ def target_hosts(prompt, current):
     if multiplier is not None:
         return math.ceil(current * multiplier)
     text = topology.normalize(prompt)
-    match = re.search(r"\b(\d+|" + "|".join(topology.WORDS) + r")\s+(?:total\s+)?hosts?\b", text)
+    match = re.search(
+        r"\b(\d+|"
+        + "|".join(topology.WORDS)
+        + r")\s+(?:(total|additional|new|more|extra)\s+)?hosts?\b",
+        text,
+    )
     if not match:
         raise ValueError("Specify a target host count or a growth multiplier.")
-    return int(match[1]) if match[1].isdigit() else topology.WORDS.index(match[1])
+    count = int(match[1]) if match[1].isdigit() else topology.WORDS.index(match[1])
+    return current + count if match[2] and match[2] != "total" else count
 
 
 def has_host_growth_goal(prompt):
@@ -44,9 +50,13 @@ def resources(spec, *, include_usage=False):
     ).startswith("unix://"):
         raise ValueError("Capacity planning requires the local Docker daemon.")
     memory = Path("/proc/meminfo")
-    if not memory.exists():
-        raise ValueError("Run capacity planning on the Linux guest to measure its memory budget.")
-    available = re.search(r"^MemAvailable:\s+(\d+)", memory.read_text(), re.M)
+    if memory.exists():
+        contents = memory.read_text()
+    else:
+        from .fabric import command
+
+        contents = command(f"spine-{spec['spines'][0]}", "cat", "/proc/meminfo")
+    available = re.search(r"^MemAvailable:\s+(\d+)", contents, re.M)
     if not available:
         raise ValueError("The guest memory budget is unavailable.")
     cpus = int(presets.docker("info", "--format", "{{.NCPU}}"))
@@ -81,12 +91,30 @@ def requirements(spec, target):
     }
 
 
+def topology_requirements(before, after):
+    delta = requirements(after, len(after["hosts"]))
+    for tier in ("spines", "leaves", "hosts"):
+        delta[tier] = len(after[tier]) - len(before[tier])
+    delta["additional_memory_mib"] = (
+        delta["spines"] + delta["leaves"]
+    ) * expansion.ROUTER_MEMORY_MIB + delta["hosts"] * expansion.HOST_MEMORY_MIB
+    return delta
+
+
 def budget_failure(need, observed):
     if need["additional_memory_mib"] > observed["memory_available_mib"]:
-        return "The proposed host memory limits exceed the guest's available memory."
+        return "The proposed additional memory limits exceed the guest's available memory."
     if need["total_cpu_limits"] > observed["cpus"]:
         return "The aggregate container CPU limits exceed the guest vCPU budget."
     return None
+
+
+def deployment_budget(before, after):
+    need = topology_requirements(before, after)
+    guest = resources(before)
+    if reason := budget_failure(need, guest):
+        raise ValueError(reason)
+    return {"requirements": need, "baseline_resources": guest}
 
 
 def plan(controller, prompt, sample, started):
@@ -121,6 +149,14 @@ def plan(controller, prompt, sample, started):
             return details, None, budget
         leaf = min(spec["leaves"], key=lambda n: sum(host["leaf"] == n for host in spec["hosts"]))
         details["attachment"] = f"leaf-{leaf}"
+        details["candidates"] = [
+            {
+                "leaf": f"leaf-{n}",
+                "hosts_before": sum(h["leaf"] == n for h in spec["hosts"]),
+                "estimated_uplinks": len(spec["spines"]),
+            }
+            for n in spec["leaves"]
+        ]
         deployment = expansion.propose(
             controller,
             "host",
@@ -165,6 +201,17 @@ def blocks(details, measured=None):
         result.append(
             chat_views.text(
                 f"The attachments use {details['attachment']}, with both spine paths checked after rollout."
+            )
+        )
+    if details.get("candidates"):
+        result.append(
+            chat_views.table(
+                "Host placement options",
+                ["Leaf", "Current hosts", "Expected spine paths"],
+                [
+                    [row["leaf"], row["hosts_before"], row["estimated_uplinks"]]
+                    for row in details["candidates"]
+                ],
             )
         )
     if measured:

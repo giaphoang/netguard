@@ -1,0 +1,382 @@
+{
+  "oversized_request": "The target needs 12 hosts. The approved lab limit is 4.",
+  "stale_approval_http_status": 409,
+  "expansions": [
+    {
+      "name": "spine-3",
+      "id": "b6f59fe1044e4d3e9df0e07f0c916202",
+      "guest_budget": {
+        "requirements": {
+          "spines": 1,
+          "leaves": 0,
+          "hosts": 0,
+          "additional_memory_mib": 192,
+          "total_cpu_limits": 3.0
+        },
+        "baseline_resources": {
+          "cpus": 11,
+          "memory_available_mib": 1366
+        }
+      },
+      "estimates": {
+        "added_links": [
+          [
+            "spine-3",
+            "leaf-1"
+          ],
+          [
+            "spine-3",
+            "leaf-2"
+          ]
+        ],
+        "expected_bgp_adjacencies_before": 4,
+        "expected_bgp_adjacencies_after": 6,
+        "expected_spine_paths_per_leaf": 3
+      },
+      "established_peer_ends": 12,
+      "forwarding": [
+        {
+          "source": "leaf-1",
+          "prefix": "10.212.2.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-2",
+          "prefix": "10.212.1.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "host_checks": [
+        {
+          "source": 1,
+          "destination": 2,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.042
+          }
+        },
+        {
+          "source": 2,
+          "destination": 1,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.129
+          }
+        }
+      ],
+      "matched_bgp_configurations": [
+        "spine-1",
+        "spine-2",
+        "spine-3",
+        "leaf-1",
+        "leaf-2"
+      ]
+    },
+    {
+      "name": "leaf-3",
+      "id": "b3791e4e1d504f9cba6e7c0db0643009",
+      "guest_budget": {
+        "requirements": {
+          "spines": 0,
+          "leaves": 1,
+          "hosts": 0,
+          "additional_memory_mib": 192,
+          "total_cpu_limits": 3.5
+        },
+        "baseline_resources": {
+          "cpus": 11,
+          "memory_available_mib": 1320
+        }
+      },
+      "estimates": {
+        "added_links": [
+          [
+            "spine-1",
+            "leaf-3"
+          ],
+          [
+            "spine-2",
+            "leaf-3"
+          ],
+          [
+            "spine-3",
+            "leaf-3"
+          ]
+        ],
+        "expected_bgp_adjacencies_before": 6,
+        "expected_bgp_adjacencies_after": 9,
+        "expected_spine_paths_per_leaf": 3
+      },
+      "established_peer_ends": 18,
+      "forwarding": [
+        {
+          "source": "leaf-1",
+          "prefix": "10.212.2.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-1",
+          "prefix": "10.212.3.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-2",
+          "prefix": "10.212.1.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-2",
+          "prefix": "10.212.3.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-3",
+          "prefix": "10.212.1.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-3",
+          "prefix": "10.212.2.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "host_checks": [
+        {
+          "source": 1,
+          "destination": 2,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 1.161
+          }
+        },
+        {
+          "source": 2,
+          "destination": 1,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.146
+          }
+        }
+      ],
+      "matched_bgp_configurations": [
+        "spine-1",
+        "spine-2",
+        "spine-3",
+        "leaf-1",
+        "leaf-2",
+        "leaf-3"
+      ]
+    },
+    {
+      "name": "host-3",
+      "id": "801a2155b4aa49d09265b56c073f9c50",
+      "guest_budget": {
+        "requirements": {
+          "spines": 0,
+          "leaves": 0,
+          "hosts": 1,
+          "additional_memory_mib": 32,
+          "total_cpu_limits": 3.75
+        },
+        "baseline_resources": {
+          "cpus": 11,
+          "memory_available_mib": 1187
+        }
+      },
+      "estimates": {
+        "added_links": [
+          [
+            "leaf-3",
+            "host-3"
+          ]
+        ],
+        "expected_bgp_adjacencies_before": 9,
+        "expected_bgp_adjacencies_after": 9,
+        "expected_spine_paths_per_leaf": 3
+      },
+      "established_peer_ends": 18,
+      "forwarding": [
+        {
+          "source": "leaf-1",
+          "prefix": "10.212.2.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-1",
+          "prefix": "10.212.3.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-2",
+          "prefix": "10.212.1.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-2",
+          "prefix": "10.212.3.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-3",
+          "prefix": "10.212.1.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "source": "leaf-3",
+          "prefix": "10.212.2.0/28",
+          "spines": [
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "host_checks": [
+        {
+          "source": 1,
+          "destination": 2,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.148
+          }
+        },
+        {
+          "source": 1,
+          "destination": 3,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.059
+          }
+        },
+        {
+          "source": 2,
+          "destination": 1,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.058
+          }
+        },
+        {
+          "source": 2,
+          "destination": 3,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.088
+          }
+        },
+        {
+          "source": 3,
+          "destination": 1,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.198
+          }
+        },
+        {
+          "source": 3,
+          "destination": 2,
+          "ICMP": "success",
+          "HTTP": "success",
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.154
+          }
+        }
+      ],
+      "matched_bgp_configurations": [
+        "spine-1",
+        "spine-2",
+        "spine-3",
+        "leaf-1",
+        "leaf-2",
+        "leaf-3"
+      ]
+    }
+  ],
+  "rollback_verified": [
+    "801a2155b4aa49d09265b56c073f9c50",
+    "b3791e4e1d504f9cba6e7c0db0643009",
+    "b6f59fe1044e4d3e9df0e07f0c916202"
+  ],
+  "final_router_count": 4
+}

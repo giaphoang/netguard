@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from api import advisor, fabric, network_tools as tools, operator, topology
+from api import advisor, capacity, fabric, network_tools as tools, operator, topology
 from api.incidents import Controller
 from test_incidents import sample
 
@@ -118,7 +118,8 @@ def test_probes_bind_addresses_and_protocols_to_inventory(monkeypatch):
 
 
 def test_provisioning_registry_blocks_unapproved_and_stale_actions(tmp_path, monkeypatch):
-    observation = expanded_sample()
+    monkeypatch.setattr(capacity, "resources", lambda *_: {"cpus": 4, "memory_available_mib": 512})
+    observation = sample()
     ctx = tools.Context(
         observation, topology.inventory(observation), Controller(tmp_path / "journal")
     )
@@ -127,7 +128,9 @@ def test_provisioning_registry_blocks_unapproved_and_stale_actions(tmp_path, mon
     )
     identity = result["identity"]
     assert result["phase"] == "preview"
-    assert tools.invoke("validate_change", {"identity": identity}, ctx)["approval_required"]
+    validation = tools.invoke("validate_change", {"identity": identity}, ctx)
+    assert validation["approval_required"]
+    assert validation["preflight"]["requirements"]["additional_memory_mib"] == 32
     monkeypatch.setattr(tools.provision, "execute", lambda *_: pytest.fail("Unexpected write"))
     args = {"identity": identity, "digest": "0" * 64}
     with pytest.raises(ValueError, match="authorization"):

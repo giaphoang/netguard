@@ -104,23 +104,46 @@ class EvaluationMode(BaseModel):
 
 
 def explicit_inspections(text):
-    if re.search(r"\b(?:configuration drift|(?:intended|mounted|startup) and running config(?:uration)?)\b", text):
+    if re.search(
+        r"\b(?:configuration drift|(?:intended|mounted|startup) and running config(?:uration)?)\b",
+        text,
+    ):
         if re.match(r"^(?:please )?(?:inspect|show|compare|check|detect|list)\b", text):
             return ["inspect_configuration"]
-    if not re.match(r"^(?:please )?(?:inspect|show|list|get|read|retrieve|check|run|probe|ping)\b", text):
+    if not re.match(
+        r"^(?:please )?(?:inspect|show|list|get|read|retrieve|check|run|probe|ping)\b", text
+    ):
         return []
     if re.search(r"\b(?:remov\w+|propos\w+|design\w*|hypothetical|add)\b", text):
         return []
     tools = [
-        tool for tool, pattern in (
-            ("inspect_topology", r"\b(?:topology|inventory|interfaces?|addresses?|busiest leaf|traffic counters?|links?)\b"),
+        tool
+        for tool, pattern in (
+            (
+                "inspect_topology",
+                r"\b(?:topology|inventory|interfaces?|addresses?|busiest leaf|traffic counters?|links?)\b",
+            ),
             ("inspect_routing", r"\b(?:bgp|ospf|is is|isis|routing|routes?|neighbors?|peers?)\b"),
-            ("inspect_connectivity", r"\b(?:icmp|tcp|http|ping|probes?|reachability|connectivity)\b"),
-        ) if re.search(pattern, text)
+            (
+                "inspect_connectivity",
+                r"\b(?:icmp|tcp|http|ping|probes?|reachability|connectivity)\b",
+            ),
+        )
+        if re.search(pattern, text)
     ]
-    if not tools and re.match(r"^(?:please )?inspect\b", text) and not re.search(r"\b(?:incident|impact|experiment)\b", text):
+    if (
+        not tools
+        and re.match(r"^(?:please )?inspect\b", text)
+        and not re.search(r"\b(?:incident|impact|experiment)\b", text)
+    ):
         tools.append("inspect_topology")
-    if "inspect_connectivity" in tools and "inspect_topology" in tools and not re.search(r"\b(?:interfaces?|addresses?|inventory|topology|traffic counters?)\b", text):
+    if (
+        "inspect_connectivity" in tools
+        and "inspect_topology" in tools
+        and not re.search(
+            r"\b(?:interfaces?|addresses?|inventory|topology|traffic counters?)\b", text
+        )
+    ):
         tools.remove("inspect_topology")
     return tools
 
@@ -133,7 +156,11 @@ def interpret(prompt, selection, sample):
     schema = Intent.model_json_schema()
     choices = list(WORKFLOWS)
     if requested_tools:
-        choices = ["detect_configuration_drift" if requested_tools == ["inspect_configuration"] else "answer_question"]
+        choices = [
+            "detect_configuration_drift"
+            if requested_tools == ["inspect_configuration"]
+            else "answer_question"
+        ]
     elif len(protocol_study.requested_protocols(prompt)) >= 2:
         choices = ["design_routing_study", "answer_question"]
     elif not references and capacity.has_host_growth_goal(prompt):
@@ -149,6 +176,18 @@ def interpret(prompt, selection, sample):
         r"\b(\d+|one|two|three|four|a|an|another)\s+(?:(?:new|additional)\s+)?(leaves|leaf|spines?|hosts?)\b",
         text,
     )
+    if (
+        quantity_match
+        and not requested_tools
+        and not capacity.has_host_growth_goal(prompt)
+        and re.match(r"^(?:please )?(?:add|provision|deploy|create|attach)\b", text)
+    ):
+        choices = ["provision_nodes"]
+        schema["properties"]["intent"]["enum"] = choices
+        added = quantity_match[2]
+        schema["properties"]["node_type"]["enum"] = [
+            "leaf" if added == "leaves" else added.rstrip("s")
+        ]
     quantity = (
         amounts.get(
             quantity_match[1], int(quantity_match[1]) if quantity_match[1].isdigit() else None
@@ -203,8 +242,10 @@ def interpret(prompt, selection, sample):
                 raise ValueError(
                     "The model supplied a target that was not in your request. Please clarify."
                 )
-    selected_risk = spec.intent in {"risk", "remove"} and selection and re.search(
-        r"\b(?:this|that|selected)\b", text
+    selected_risk = (
+        spec.intent in {"risk", "remove"}
+        and selection
+        and re.search(r"\b(?:this|that|selected)\b", text)
     )
     selected_inspection = requested_tools and re.search(r"\b(?:this|that|selected)\b", text)
     if (spec.scope == "selection" or selected_risk or selected_inspection) and not explicit:
@@ -217,7 +258,10 @@ def interpret(prompt, selection, sample):
         len(references) == 2 and f"{references[0]}/{references[1]}" in text
     )
     if len(targets) == 2 and mentions_link:
-        link = next((edge for edge in graph["links"] if set(targets) == {edge["source"], edge["target"]}), None)
+        link = next(
+            (edge for edge in graph["links"] if set(targets) == {edge["source"], edge["target"]}),
+            None,
+        )
         if link and spec.intent in {"answer", "diagnose", "drift", "simulate", "risk", "remove"}:
             targets = [link["id"]]
     if spec.intent in {"risk", "remove", "simulate"} and not targets:

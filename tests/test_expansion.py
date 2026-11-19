@@ -104,3 +104,34 @@ def test_unchanged_containers_keep_authorized_ancestor_origins(tmp_path):
         in origins
     )
     assert len(origins) == 3
+
+
+def test_rollout_initializes_a_missing_loopback_in_the_owned_leaf(monkeypatch):
+    spec = {**expansion.BASE, "leaves": [1, 2, 3]}
+    origins = {"approved"}
+    calls = []
+
+    def owner(topology, allowed):
+        assert topology == spec and allowed == origins
+        return {"leaf-3": {"Id": "owned-leaf-3"}}
+
+    def docker(*args):
+        calls.append(args)
+        return "lo UNKNOWN 127.0.0.1/8"
+
+    monkeypatch.setattr(expansion, "ownership", owner)
+    monkeypatch.setattr(provision.presets, "docker", docker)
+    assert expansion.initialize_loopbacks(spec, origins) == [
+        {"node": "leaf-3", "address": "10.214.0.3/32"}
+    ]
+    assert calls[-1] == (
+        "exec",
+        "owned-leaf-3",
+        "ip",
+        "-4",
+        "address",
+        "replace",
+        "10.214.0.3/32",
+        "dev",
+        "lo",
+    )

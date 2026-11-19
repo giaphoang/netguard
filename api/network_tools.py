@@ -142,6 +142,7 @@ class ValidationResult(ChangeReference):
     digest: str
     approval_required: Literal[True] = True
     devices: list[str]
+    preflight: dict[str, JsonValue] | None = None
 
 
 class VerificationResult(ChangeReference):
@@ -149,6 +150,9 @@ class VerificationResult(ChangeReference):
     routers: list[dict[str, JsonValue]]
     flows: list[dict[str, JsonValue]]
     host_checks: list[dict[str, JsonValue]]
+    forwarding: list[dict[str, JsonValue]]
+    configuration: dict[str, ConfigurationDifference]
+    loopbacks: list[dict[str, JsonValue]]
 
 
 @dataclass
@@ -320,8 +324,13 @@ def change_result(plan):
 def plan_change(ctx, req):
     ctx.select(req.targets)
     return change_result(
-        provision.propose(
-            ctx.controller, req.quantity, ctx.started or time.time(), req.kind, req.targets
+        expansion.propose(
+            ctx.controller,
+            req.kind,
+            req.quantity,
+            req.targets,
+            ctx.started or time.time(),
+            observation=ctx.sample,
         )
     )
 
@@ -343,7 +352,12 @@ def validate_change(ctx, req):
         digest = provision.material(c.db, plan)[2]
         if digest != plan["digest"]:
             raise ValueError("Configuration changed; request a fresh preview")
-        return {"identity": plan["id"], "digest": digest, "devices": expansion.names(spec)}
+        return {
+            "identity": plan["id"],
+            "digest": digest,
+            "devices": expansion.names(spec),
+            "preflight": plan.get("preflight"),
+        }
 
 
 def execute_approved_change(ctx, req):

@@ -330,13 +330,23 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
         }
     if tool == "provision":
         ctx = network_tools.Context(sample, graph, c, started)
+        began = time.time()
         result = network_tools.invoke(
             "plan_change", {"kind": spec.node_type, "quantity": spec.quantity, "targets": targets}, ctx
         )
-        network_tools.invoke("validate_change", {"identity": result["identity"]}, ctx)
+        validation = network_tools.invoke("validate_change", {"identity": result["identity"]}, ctx)
+        plan = result["record"]
+        projection = plan["topology_diff"]
         return {
-            "text": "Preview ready. Review the topology, configuration diff and risk. Deployment requires approval and verified routing; failed checks restore the prior topology.",
-            "plan": result["record"],
+            "text": (
+                f"The preview adds {', '.join(plan['added'])} and projects "
+                f"{projection['expected_bgp_adjacencies_after']} BGP adjacencies. "
+                "Review the configuration diff and measured guest budget before approving deployment."
+            ),
+            "plan": plan,
+            "trace": [{"label": "Render and validate the topology proposal", "stage": "Validate",
+                       "started": began, "completed": time.time(), "status": "complete",
+                       "result": {**validation, "estimated_topology": projection}}],
         }
     if tool == "capacity":
         began = time.time()
