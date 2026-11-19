@@ -1,43 +1,30 @@
 # Using NetGuard Agent
 
-Open the Ubuntu dashboard on port 3001 through its SSH tunnel, or run `make demo-up` for the local Docker dashboard on port 3000. Both use the same React Flow workspace and API. Install the local model with `ollama pull qwen2.5:1.5b`. When Ollama runs on the Mac, include `-R 127.0.0.1:11434:127.0.0.1:11434` in the SSH dashboard tunnel. [Ubuntu setup](UTM_ARM64_SETUP.md)
+Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or use `make demo-up` for local Docker on port 3000. Qwen runs through Ollama (`qwen2.5:1.5b`); a Mac-hosted model needs the existing reverse loopback tunnel to Ubuntu. [Ubuntu setup](UTM_ARM64_SETUP.md)
 
-In **Command Center**, find **NetGuard Agent** beside the topology. Select a link for context, enter one complete lab request, and press **Enter**. Start with a diagnosis to inspect the network without changing it. The agent handles the workflows below. Each message is processed independently, so repeat the target and duration when revising a request.
+## Four workspaces
 
-| Try | Expected behavior |
+- **Command Center:** live React Flow topology, packet-counter activity, route animation, proactive notifications and a compact NetGuard Agent panel. Select a link before simulating a fault or asking about it.
+- **Provisioning:** enter a change request, compare the current and proposed graph, review the configuration diff and risk, then approve. Watch deployment and verification; **Roll back this change** restores the previous topology.
+- **Incidents:** search investigations by device, finding or status. Open a case for its diagnosis, observations and actual tool timeline. Full timestamped evidence is collapsed. Use the controller controls for approvals, escalation, manual benchmarks and emergency stop.
+- **AI Impact:** inspect measured durations, sample counts and supporting experiment records. A dash means the comparison or baseline is missing.
+
+## Recruiter workflows
+
+| Request or action | Result |
 |---|---|
-| **Why is this connection failing?** | Inspect a timestamped routing and probe sample. Degraded observations receive a local model assessment. Unexpected degradation also surfaces in the operator panel. |
-| **Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.** | Review the target and duration. Approval checks the healthy baseline and alternate path. Linux disables the selected virtual interface. A server-side timer restores it, and probes verify recovery. |
-| **Fix this network.** | For an eligible repair, inspect the interface command, risk and approval. The controller independently checks the component, executes the runbook and verifies both directions. Unsupported proposals reach a human. |
-| **Expand this fabric.** | Choose one or two leaves, inspect the dashed topology preview and FRR/Compose diff, then approve. Verification checks BGP, host HTTP/ICMP and reachability from each new loopback. **Restore base topology** reverses the expansion. |
-| **Compare automated recovery performance against manual operations.** | Inspect measured durations, sample counts, diagnosis accuracy, required handoffs, withheld proposals and recent failures. |
+| Inject a selected link fault with Local AI diagnosis | Monitoring detects it without a chat prompt. The local model investigates; the controller validates a repair or escalates. Automatic restoration requires explicitly enabled lab auto-repair. |
+| “What could break if I remove Spine 1?” | Current surviving adjacencies and the two-path policy determine the risk. Works with current nodes, including added components. Unknown targets require clarification. |
+| “Add two leaves connected to every spine.” | Preview a validated, approval-required expansion. |
+| “Provision another spine with appropriate BGP neighbors.” | Preview a spine connected to every current leaf. |
+| “Add a host under Leaf 2.” | Allocate an unused host address and preview its attachment. |
+| “Investigate the most unstable BGP peer.” | Compare recorded transitions; say when history is insufficient. |
+| “Find configuration drift.” | Compare supported running BGP statements with mounted startup configuration; propose human review. |
+| “Review this incident and generate a verified postmortem.” | Generate a proposed read-only runbook check linked to a real event; adoption requires review. |
+| “Evaluate the AI operator against our incident test suite.” | Compare diagnostic workflows on identical labeled observations. No live actuator runs. |
 
-A single API orchestrates observation, inference and execution. Changes use fixed tools and explicit target parameters. Expansion adds up to two leaves with isolated transit segments, 192 MiB and half a CPU per leaf. Applying or rolling back an expansion recreates both spines and can interrupt traffic. The preview and event log persist across reloads. Use the Makefile lifecycle commands for an expanded Desktop fabric. On Ubuntu, use the guest Python and the dashboard's same `NETGUARD_TIMELINE_DB` with `python -m scripts.fabric_compose up|down|reset`.
+Each request is independent: include the target and quantity or fault duration in follow-ups. The model interprets structured intent; backend validation resolves current devices and enforces scope, resource capacity, approvals and rollback. The bounded lab supports up to three spines, four leaves and four hosts. Provisioning can recreate containers and interrupt traffic. Nodes cannot be removed through a model command; removal risk assessments require human review, and approved additions have an explicit rollback.
 
-## Reading live transmission
+The blue marker follows the observed Linux ICMP forwarding lookup between the original hosts. Its speed is illustrative, not a packet capture. Transmission counters and routing/probe status come from the lab. Missing or stale observations suppress animation. Newly added hosts receive live reachability checks; provisioning verifies bidirectional HTTP and ICMP.
 
-The Command Center samples Linux packet and byte counters at each leaf. One blue marker follows the selected ICMP probe from host to host via both leaves and the spine selected by the source leaf’s Linux forwarding lookup. Use **Probe route** to reverse direction. Playback requires a fresh successful probe and a known next hop. Its speed is illustrative. Select a link to read its received and transmitted packet counts. The byte rate sums measured interfaces and can count forwarded traffic at multiple links. BGP session state and bidirectional ICMP and HTTP probe outcomes appear separately. Historical replay shows recorded probe outcomes.
-
-## Reading the impact panel
-
-Choose **Human operator** or **Local AI** when starting a graph-selected fault. A manual run requires the operator to record a diagnosis. Diagnosis timing runs from the first observed signal to a correct decision. Recovery requires observed loss followed by two successful probe rounds. Verified closure includes the restoration and checks. Provisioning starts when the request arrives and ends after verification.
-
-The time-saved KPI compares median **verified closure** across matched manual and assisted groups. Matching uses the fault, target, initial router set, approval policy and timer. Scripted P1 approvals remain separate. A dash means there is insufficient matched data. The operator configuring a manual fault may know its cause, so this comparison measures a lab workflow. Prompt and policy changes are reviewed in code and evaluated against recorded cases.
-
-## Validation
-
-Chrome exercised graph preview, deployment, six live routers, rollback, timed simulation and measured results on the Ubuntu VM. The initial model proposed the wrong spine during a live fault. The controller withheld the repair and the approved timer restored the correct link. Subsequent model constraints limited eligible targets to observed abnormal adjacencies. [Dashboard capture](proof/operator/dashboard.png) · [Ubuntu simulation and expansion](proof/operator/ubuntu-run.json) · [Converged and missing-evidence evaluations](proof/operator/converged.json) · [Final Ubuntu repair run](proof/operator/approved-repair.json)
-
-## Proactive investigations
-
-Monitoring starts with the live API. Two distinct degraded samples open an investigation. Three peer-state transitions on one adjacency within 60 seconds flag instability. The journal retains the sample window, kernel routes, probes, Qwen decision and subsequent observed recovery. Missing telemetry can also trigger investigation. Detection depends on sampling frequency.
-
-| Demo | How to inspect it |
-|---|---|
-| Catch instability | In the isolated lab, interrupt and reset the same BGP peer twice within one minute. Open **AI Impact → Experiment evidence**, or ask “Monitor my network proactively.” |
-| Preview risk | Ask “What could break if I remove Spine 2?” Inspect each leaf’s surviving adjacency and routing table. The two-path policy blocks this request. This preview models single-spine redundancy only. |
-| Detect drift | Ask “Find configuration drift.” The agent compares supported running BGP statements with the mounted FRR configuration. Background scans run approximately once per minute outside controlled incidents. Review missing and unexpected statements before any correction. |
-| Learn from closure | Ask “Review this incident and generate a verified postmortem.” Inspect the journal event supporting the proposed runbook check. Adoption requires human review. |
-| Compare workflows | Ask “Evaluate the AI operator against our incident test suite.” The same local model processes the same two recorded variations using schema-only and telemetry-constrained workflows. Inspect the expected labels, decisions, latency, model call counts and disposition. |
-
-The risk KPI measures blocked two-spine removal previews. It cannot establish general outage prediction accuracy. Drift comparison covers supported BGP statements, and assumes the mounted startup configuration is trusted. Unlabeled background anomalies require operator adjudication before measuring false positives. [Ubuntu experiment records](proof/investigations/ubuntu.json)
+Do not claim AI time savings without a matched manual baseline. A successful BGP failover, timer restoration, human reset, AI repair and provisioning rollback are different outcomes. [P3 implementation and acceptance evidence](P3_OPERATIONS.md) · [Earlier P2 validation](P2_AI.md)

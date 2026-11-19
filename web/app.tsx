@@ -5,6 +5,8 @@ import "@xyflow/react/dist/style.css";
 import "./style.css";
 import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
 import { Operator } from "./Operator";
+import { FabricSpec } from "./TopologyPreview";
+import { Cases } from "./Cases";
 import { IncidentPanel, Run } from "./Incidents";
 
 type Router = {
@@ -22,6 +24,7 @@ type Probe = {
 type Sample = {
   timestamp: string;
   routers: Router[];
+  hosts?: {name:string;leaf:number;error:string|null}[];
   traffic?: Record<string, LinkActivity>;
   flows?: Probe[];
 };
@@ -33,13 +36,12 @@ function displayName(id: string) {
   return id.replace("-", " ").replace(/^./, (c) => c.toUpperCase());
 }
 function App() {
-  const [preview, setPreview] = useState<number[]>([]);
+  const [preview, setPreview] = useState<FabricSpec>();
   const [signal, setSignal] = useState("");
   const [loaded, setLoaded] = useState(false);
   const pages = [
     "Command Center",
     "AI Impact",
-    "Diagnostics",
     "Provisioning",
     "Incidents",
   ];
@@ -55,7 +57,7 @@ function App() {
   function navigate(name: string) {
     setPage(name);
     setNotice("");
-    if (name === "Incidents") setDrawerOpen(true);
+
   }
 
   const [sample, setSample] = useState<Sample>(),
@@ -173,24 +175,17 @@ function App() {
       ...observedNames
         .filter((n) => n.startsWith("leaf-"))
         .map((n) => Number(n.slice(5))),
-      ...preview,
+      ...(preview?.leaves || []),
     ]),
   ).sort();
-  const names = [
-    "spine-1",
-    "spine-2",
-    ...leaves.map((i) => "leaf-" + i),
-    "host-1",
-    "host-2",
-  ];
+  const spines = Array.from(new Set([...observedNames.filter(n=>n.startsWith("spine-")).map(n=>Number(n.split("-")[1])),...(preview?.spines || []),1,2])).sort();
+  const hosts = preview?.hosts || sample?.hosts?.map(h=>({id:Number(h.name.split("-")[1]),leaf:h.leaf})) || [{id:1,leaf:1},{id:2,leaf:2}];
+  const names = [...spines.map(n=>"spine-"+n),...leaves.map(n=>"leaf-"+n),...hosts.map(h=>"host-"+h.id)];
   const nodes = names.map((id) => {
     const n = Number(id.split("-")[1]);
     const host = id.startsWith("host");
     const spine = id.startsWith("spine");
-    const pending =
-      preview.includes(n) &&
-      id.startsWith("leaf") &&
-      !observedNames.includes(id);
+    const pending = !!preview && !observedNames.includes(id) && !(sample?.hosts || []).some(h=>h.name===id);
     const peers = sample?.routers.find((r) => r.name === id)?.peers;
     const states = Object.values(peers || {});
     const status = pending
@@ -204,7 +199,7 @@ function App() {
       id,
       position: { x: (n - 1) * 225, y: spine ? 0 : host ? 232 : 140 },
       className: host
-        ? "host"
+        ? pending ? "pending" : sample?.hosts?.find(h=>h.name===id)?.error ? "impaired" : "host"
         : pending
           ? "pending"
           : status === "BGP UP"
@@ -240,17 +235,19 @@ function App() {
     ? sample.flows?.find((f) => f.source === source)
     : undefined;
   const spine =
-    flow?.probes.ICMP === "success" && (flow.spine === 1 || flow.spine === 2)
+    flow?.probes.ICMP === "success" && spines.includes(flow.spine || 0)
       ? flow.spine
       : undefined;
   const edges = [];
-  let warnings = 0;
+  let warnings = 0, unknownLinks = 0;
   for (const l of leaves)
-    for (const s of [1, 2]) {
+    for (const s of spines) {
       const state = sample?.routers.find((r) => r.name === "leaf-" + l)
         ?.peers?.["10.211." + (10 * s + l) + ".1"];
-      const failed = !!state && state !== "Established";
-      const live = !offline && state === "Established";
+      const remote = sample?.routers.find(r=>r.name === "spine-"+s)?.peers?.["10.211."+(10*s+l)+".2"];
+      if (!state || !remote) unknownLinks++;
+      const failed = (!!state && state !== "Established") || (!!remote && remote !== "Established");
+      const live = !offline && state === "Established" && remote === "Established";
       const chosen =
         incident && incident.phase !== "resolved"
           ? incident.latest
@@ -275,11 +272,11 @@ function App() {
         },
       });
     }
-  for (const n of [1, 2])
+  for (const h of hosts)
     edges.push({
-      id: "access" + n,
-      source: "leaf-" + n,
-      target: "host-" + n,
+      id: "access" + h.id,
+      source: "leaf-" + h.leaf,
+      target: "host-" + h.id,
       type: "traffic",
 
       style: { stroke: "#606f89", strokeWidth: 2 },
@@ -287,7 +284,7 @@ function App() {
   const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
   const health = offline
     ? "stale"
-    : !sample || sample.routers.some((r) => !r.peers) || answered.length < 4
+    : !sample || sample.routers.some((r) => !r.peers) || answered.length < 4 || unknownLinks
       ? "unknown"
       : warnings || percent !== 100
         ? "degraded"
@@ -331,7 +328,7 @@ function App() {
   const sessions = leaves
     .filter((l) => observedNames.includes("leaf-" + l))
     .flatMap((l) =>
-      [1, 2].map(
+      spines.map(
         (s) =>
           sample?.routers.find((r) => r.name === "leaf-" + l)?.peers?.[
             `10.211.${s}${l}.1`
@@ -411,7 +408,7 @@ function App() {
         <span className="env">
           DEMO ENVIRONMENT · {environment.toUpperCase()}
         </span>
-        <b className="sim">{frames.length ? "● Replay" : "● Simulation"}</b>
+        <b className="sim">{frames.length ? "● Replay" : "● Live isolated lab"}</b>
       </header>
       <div className="shell">
         <aside className="rail" aria-label="Workspace navigation">
@@ -455,15 +452,15 @@ function App() {
                 }
               </p>
             </div>
-            <button onClick={resetIncident}>
-              {frames.length ? "↺ Reset replay" : "↺ Reset incident"}
+            <button onClick={()=>navigate("Incidents")}>
+              Review incidents
             </button>
           </div>
           {notice && <p role="status">{notice}</p>}
           <div className="kpis">
             {[
               [
-                "Network nodes",
+                "Routers online",
                 up === undefined || offline
                   ? "—"
                   : up + " / " + sample!.routers.length,
@@ -496,6 +493,8 @@ function App() {
               </div>
             ))}
           </div>
+          {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
+          {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
           <div className="workspace">
             <section className="fabric">
               <div className="fabric-head">
@@ -584,11 +583,11 @@ function App() {
                   disabled={!liveMode || !!active}
                   onClick={() =>
                     requestOperator({
-                      text: "Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.",
+                      text: /^([1-3])-([1-4])$/.test(faultTarget) ? `Simulate a Leaf ${faultTarget.split("-")[1]} to Spine ${faultTarget.split("-")[0]} link failure for 30 seconds.` : "Simulate a Leaf 1 to Spine 2 link failure for 30 seconds.",
                     })
                   }
                 >
-                  Inject example fault
+                  Simulate selected link
                 </button>
                 <button disabled={!liveMode || !active} onClick={resetIncident}>
                   {active && incident?.scenario !== "link"

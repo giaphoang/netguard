@@ -71,7 +71,7 @@ export function IncidentPanel({
   const [engine, setEngine] = useState("ai");
   const [timed, setTimed] = useState(30);
   const [cause, setCause] = useState("link");
-  const edge = /^([12])-([12])$/.exec(target);
+  const edge = /^([1-3])-([1-4])$/.exec(target);
   const [linkFault, setLinkFault] = useState("link");
   const fault = edge ? linkFault : target === "host-2" ? "endpoint" : "";
   const [selected, setSelected] = useState("");
@@ -127,11 +127,14 @@ export function IncidentPanel({
     setError("");
     setSelected("");
     try {
+      const freshSession = await fetch("/api/session", { cache: "no-store" });
+      if (!freshSession.ok) throw Error("Live session unavailable");
+      const sessionToken = (await freshSession.json()).token;
       const r = await fetch("/api/" + path, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-NetGuard-Session": token,
+          "X-NetGuard-Session": sessionToken,
         },
         body: JSON.stringify(data ?? {}),
       });
@@ -217,7 +220,7 @@ export function IncidentPanel({
             Inject selected fault
           </button>
         ) : (
-          <span>Select a base leaf–spine link or Host B on the graph.</span>
+          <span>Select a leaf–spine link or Host B on the graph.</span>
         )}
         <button
           disabled={locked || !active || current?.phase === "verifying"}

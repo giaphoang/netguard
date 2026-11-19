@@ -121,8 +121,8 @@ def inject(
     scenario: Scenario,
     ai: bool = False,
     manual: bool = False,
-    leaf: int = Query(1, ge=1, le=2),
-    spine: int = Query(1, ge=1, le=2),
+    leaf: int = Query(1, ge=1, le=4),
+    spine: int = Query(1, ge=1, le=3),
     duration: int | None = Query(None, ge=5, le=120),
     controller=Depends(authorized),
 ):

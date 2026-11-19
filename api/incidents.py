@@ -34,6 +34,7 @@ def observe():
     return {
         "observed": time.time(),
         "routers": routes.result().model_dump()["routers"],
+        "hosts": routes.result().model_dump().get("hosts", []),
         "flows": probes,
     }
 
@@ -53,14 +54,18 @@ def peers(sample):
 
 
 def expected_peers(sample):
-    expected = {node: set(ips) for node, ips in EXPECTED.items()}
-    for n in (3, 4):
-        name = f"leaf-{n}"
-        if any(r["name"] == name for r in sample["routers"]):
-            expected[name] = {f"10.211.{s}{n}.1" for s in (1, 2)}
-            for s in (1, 2):
-                expected[f"spine-{s}"].add(f"10.211.{s}{n}.2")
-    return expected
+    spines = [
+        int(r["name"].split("-")[1]) for r in sample["routers"] if r["name"].startswith("spine-")
+    ]
+    leaves = [
+        int(r["name"].split("-")[1]) for r in sample["routers"] if r["name"].startswith("leaf-")
+    ]
+    if not {1, 2} <= set(spines) or not {1, 2} <= set(leaves):
+        return EXPECTED
+    return {
+        **{f"spine-{s}": {f"10.211.{10*s+n}.2" for n in leaves} for s in spines},
+        **{f"leaf-{n}": {f"10.211.{10*s+n}.1" for s in spines} for n in leaves},
+    }
 
 
 def healthy(sample):
@@ -70,7 +75,27 @@ def healthy(sample):
     return (
         peers(sample) == expected
         and reachable(sample)
-        and all(f["candidates"] == [1, 2] for f in sample["flows"])
+        and all(
+            not h.get("error") and all(v == "success" for v in h.get("probes", {}).values())
+            for h in sample.get("hosts", [])
+        )
+        and all(
+            f["candidates"]
+            == sorted(
+                int(r["name"].split("-")[1])
+                for r in sample["routers"]
+                if r["name"].startswith("spine-")
+            )
+            for f in sample["flows"]
+        )
+    )
+
+
+def alternate_spines(sample, spine):
+    return sorted(
+        int(r["name"].split("-")[1])
+        for r in sample["routers"]
+        if r["name"].startswith("spine-") and r["name"] != f"spine-{spine}"
     )
 
 
@@ -96,9 +121,12 @@ def diagnose(scenario, sample, leaf_id=1, spine=1):
     if (
         len(lines) == 1
         and lines[0][1] == expected_state
-        and sample["flows"][leaf_id - 1]["candidates"] == [3 - spine]
+        and (
+            leaf_id > 2
+            or all(f["candidates"] == alternate_spines(sample, spine) for f in sample["flows"])
+        )
     ):
-        return f"Leaf {leaf_id} interface is {expected_state}, its spine-{spine} peer is {states[local]}, and its route uses spine-{3-spine}."
+        return f"Leaf {leaf_id} interface is {expected_state}, its spine-{spine} peer is {states[local]}, and alternate spine paths remain observable."
     return None
 
 
@@ -249,7 +277,19 @@ class Controller:
                 if (
                     not diagnose("link", fresh, leaf, spine)
                     or not reachable(fresh)
-                    or not all(f["candidates"] == [3 - spine] for f in fresh["flows"])
+                    or not all(
+                        f["candidates"]
+                        == (
+                            alternate_spines(fresh, spine)
+                            if leaf <= 2
+                            else sorted(
+                                int(n.split("-")[1])
+                                for n in expected_peers(fresh)
+                                if n.startswith("spine-")
+                            )
+                        )
+                        for f in fresh["flows"]
+                    )
                 ):
                     self.event("handoff", "Live evidence no longer supports a single safe repair.")
                     return
@@ -441,12 +481,24 @@ class Controller:
                     reason
                     and r["phase"] == "diagnosed"
                     and r["streak"] >= 2
-                    and all(f["candidates"] == [3 - spine] for f in sample["flows"])
+                    and all(
+                        f["candidates"]
+                        == (
+                            alternate_spines(sample, spine)
+                            if leaf <= 2
+                            else sorted(
+                                int(n.split("-")[1])
+                                for n in expected_peers(sample)
+                                if n.startswith("spine-")
+                            )
+                        )
+                        for f in sample["flows"]
+                    )
                 ):
                     metrics["verified_failover_s"] = elapsed
                     self.event(
                         "proposed",
-                        f"BGP restored traffic via spine-{3-spine}. Restore the selected link to regain redundancy.",
+                        "Alternate routing passed the probe checks. Restore the selected link to regain redundancy.",
                     )
                 if (
                     r["phase"] == "proposed"

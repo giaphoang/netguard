@@ -4,11 +4,11 @@ import argparse
 import os
 from pathlib import Path
 
-from api import provision
+from api import provision, expansion
 
 
 def commands(db, operation):
-    plan = provision.latest(db) if db.exists() else None
+    plan = expansion.current(db) if db.exists() else None
     start = ["up", "-d"] + (["--force-recreate"] if operation == "reset" else [])
     if not plan or plan["phase"] not in provision.ACTIVE:
         return [(None, ["down"] if operation == "down" else start)]
@@ -26,6 +26,8 @@ def commands(db, operation):
     overlay = folder / "compose.json"
     if operation == "down":
         return [(overlay, ["down"])]
+    if plan.get("version") == 3:
+        return [(overlay, [*start, "--no-deps", *expansion.names(plan["topology"])])]
     return [
         (None, [*start, "--no-deps", "leaf-1", "leaf-2", "host-1", "host-2"]),
         (

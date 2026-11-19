@@ -6,7 +6,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import advisor, provision, intents, topology, investigations as inv
+from . import advisor, provision, expansion, intents, topology, investigations as inv
 from .controls import authorized, local, perform
 from .incidents import healthy, observe
 
@@ -25,7 +25,6 @@ def operator(req: Request, c=Depends(authorized)):
         sample = observe()
         spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
         tool = spec.intent
-        args = {"count": spec.quantity, "seconds": spec.duration_s}
         inv.record(
             c.db,
             "intent",
@@ -100,9 +99,9 @@ def operator(req: Request, c=Depends(authorized)):
             if len(leaves) != 1 or len(spines) != 1 or spec.duration_s is None:
                 raise ValueError("Specify one existing leaf–spine link and a duration.")
             leaf, spine, sec = leaves[0], spines[0], spec.duration_s
-            if leaf not in (1, 2) or spine not in (1, 2) or not 5 <= sec <= 120:
+            if not 5 <= sec <= 120:
                 raise ValueError(
-                    "Specify a base leaf, spine and duration between 5 and 120 seconds."
+                    "Specify an existing leaf, spine and duration between 5 and 120 seconds."
                 )
             return {
                 "text": f"Disable Leaf {leaf} → Spine {spine} for {sec} seconds. Approval checks both paths and bidirectional probes. Traffic may drop during reconvergence. The controller restores the original interface at expiry.",
@@ -110,17 +109,9 @@ def operator(req: Request, c=Depends(authorized)):
                 "label": "Approve simulation",
             }
         if tool == "provision":
-            if spec.node_type != "leaf" or spec.quantity is None:
-                raise ValueError(
-                    "Specify the number and type of components. Spine and host deployment is not enabled yet."
-                )
-            if targets and set(targets) != {
-                n["id"] for n in graph["nodes"] if n["kind"] == "spine"
-            }:
-                raise ValueError("Leaf provisioning requires every existing spine.")
-            plan = provision.propose(c, args["count"], started)
+            plan = provision.propose(c, spec.quantity, started, spec.node_type, targets)
             return {
-                "text": "Preview ready. Both spines will reload their BGP configuration. Traffic can be interrupted. Failed verification restores the base topology.",
+                "text": "Preview ready. Review the topology, configuration diff and risk. Deployment requires approval and verified routing; failed checks restore the prior topology.",
                 "plan": plan,
             }
         if tool == "repair":
@@ -185,7 +176,11 @@ def operator(req: Request, c=Depends(authorized)):
 
 @router.get("/api/monitoring")
 def monitoring(c=Depends(local)):
-    return {"rules": getattr(c, "monitor_rules", {}), "investigations": inv.cases(c.db)}
+    rows = inv.cases(c.db, kind="monitor") + inv.cases(c.db, kind="configuration drift")
+    return {
+        "rules": getattr(c, "monitor_rules", {}),
+        "investigations": sorted(rows, key=lambda r: r["observed"], reverse=True),
+    }
 
 
 @router.get("/api/investigations/{identity}")
@@ -202,7 +197,12 @@ def investigation(identity: str, c=Depends(local)):
 
 @router.get("/api/provision")
 def state(c=Depends(local)):
-    return provision.latest(c.db)
+    latest = provision.latest(c.db)
+    return (
+        (expansion.current(c.db) or latest)
+        if latest and latest["phase"] in {"rolled_back", "cancelled"}
+        else latest
+    )
 
 
 @router.post("/api/provision/{identity}/approve")
@@ -242,6 +242,7 @@ async def watch(controller, done):
                     {
                         "observed": datetime.fromisoformat(snapshot.timestamp).timestamp(),
                         "routers": snapshot.model_dump()["routers"],
+                        "hosts": snapshot.model_dump().get("hosts", []),
                         "flows": app.state.flows,
                     },
                 )

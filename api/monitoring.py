@@ -78,6 +78,11 @@ class Observer:
         if stamp <= self.previous or time.time() - stamp > 30:
             return
         self.previous = stamp
+        from .expansion import current
+
+        change = current(self.c.db)
+        if change and change["phase"] in {"applying", "rolling_back"}:
+            return  # The provisioning journal owns expected convergence and verification.
         obs = advisor.evidence(sample)
         self.history = [h for h in self.history if stamp - h["observed"] <= self.rules.window_s]
         self.history.append(obs)

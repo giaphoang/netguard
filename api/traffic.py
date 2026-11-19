@@ -9,8 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 def counters(leaf):
     from .fabric import command
 
-    addresses = {f"10.211.{spine}{leaf}.2": f"{spine}-{leaf}" for spine in (1, 2)}
-    if leaf <= 2:
+    addresses = {f"10.211.{spine}{leaf}.2": f"{spine}-{leaf}" for spine in range(1, 4)}
+    if leaf <= 4:
         addresses[f"10.212.{leaf}.1"] = f"access{leaf}"
     result = {}
     try:

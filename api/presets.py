@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 class Target(BaseModel):
     container: str
     interface: str = ""
-    leaf: int = Field(default=1, ge=1, le=2)
-    spine: int = Field(default=1, ge=1, le=2)
+    leaf: int = Field(default=1, ge=1, le=4)
+    spine: int = Field(default=1, ge=1, le=3)
 
 
 def docker(*args: str) -> str:
@@ -36,7 +36,12 @@ def identify(scenario: Scenario, leaf=1, spine=1) -> Target:
         "{{.Endpoints.docker.Host}}",
     ).startswith("unix://"):
         raise ValueError("A local Docker socket is required")
-    if leaf not in (1, 2) or spine not in (1, 2):
+    from .fabric import DB
+    from . import expansion, provision
+
+    plan = expansion.current(DB)
+    topology = expansion.spec(plan)
+    if leaf not in topology["leaves"] or spine not in topology["spines"]:
         raise ValueError("Unknown lab adjacency")
     node = "host-2" if scenario == "endpoint" else f"leaf-{leaf}"
     (info,) = json.loads(docker("inspect", f"netguard-{node}-1"))
@@ -44,12 +49,20 @@ def identify(scenario: Scenario, leaf=1, spine=1) -> Target:
     networks = (
         {"netguard_access2"}
         if node == "host-2"
-        else {f"netguard_access{leaf}", f"netguard_s1l{leaf}", f"netguard_s2l{leaf}"}
+        else {
+            *(f"netguard_s{s}l{leaf}" for s in topology["spines"]),
+            *([f"netguard_access{leaf}"] if leaf <= 2 or plan and plan.get("version") == 3 else []),
+        }
     )
+    origins = {str(ROOT / "fabric.yml")}
+    if plan:
+        origins.add(
+            str(ROOT / "fabric.yml") + "," + str(provision.material(DB, plan)[0] / "compose.json")
+        )
     if (
         labels.get("com.docker.compose.project") != "netguard"
         or labels.get("com.docker.compose.service") != node
-        or labels.get("com.docker.compose.project.config_files") != str(ROOT / "fabric.yml")
+        or labels.get("com.docker.compose.project.config_files") not in origins
         or set(info["NetworkSettings"]["Networks"]) != networks
         or info["HostConfig"]["Privileged"]
         or not info["State"]["Running"]
@@ -112,7 +125,7 @@ def change(scenario: Scenario, target: Target, inject: bool) -> None:
             "-c",
             "configure terminal",
             "-c",
-            f"router bgp 6510{target.leaf}",
+            f"router bgp {65100+target.leaf}",
             "-c",
             statement if inject else "no " + statement,
         )

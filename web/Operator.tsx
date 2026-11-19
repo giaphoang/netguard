@@ -1,9 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Run } from "./Incidents";
+import { FabricSpec, TopologyPreview } from "./TopologyPreview";
 
 type Plan = {
   id: string;
   leaves: number[];
+  topology?: FabricSpec;
+  before?: FabricSpec;
+  added?: string[];
+  risk?: {reason:string;rollback:string};
+  events?: {phase:string;time:number}[];
   diff: string;
   phase: string;
   failure?: string;
@@ -54,7 +60,7 @@ type Props = {
   run?: Run;
   observed: string;
   replayText?: string;
-  preview: (leaves: number[]) => void;
+  preview: (topology?: FabricSpec) => void;
   trace: () => Promise<void>;
   probe: string;
 };
@@ -100,7 +106,7 @@ export function Operator({
           i: Impact = await b.json();
         if (active) {
           setPlan(p);
-          preview(p?.phase === "preview" ? p.leaves : []);
+          preview(p?.phase === "preview" ? p.topology : undefined);
           setImpact(i);
         }
       } catch {}
@@ -169,7 +175,8 @@ export function Operator({
         setAnswer(a);
         if (a.plan) {
           setPlan(a.plan);
-          preview(a.plan.leaves);
+          preview(a.plan.topology);
+          navigate("Provisioning");
         }
         if (a.impact) navigate("AI Impact");
       }
@@ -186,7 +193,7 @@ export function Operator({
       if (path.startsWith("provision/")) {
         const p = await (await fetch("/api/provision")).json();
         setPlan(p);
-        preview([]);
+        preview(undefined);
         setAnswer({
           text:
             "Provisioning result · " +
@@ -217,7 +224,7 @@ export function Operator({
       <div className="operator-head">
         <b className="op-icon">✳</b>
         <div>
-          <h2>NetGuard Agent</h2>
+          <h2>{page === "Provisioning" ? "Plan a topology change" : "NetGuard Agent"}</h2>
           <small>Local model · Policy controlled</small>
         </div>
         <b className="tag">ASSIST</b>
@@ -259,10 +266,7 @@ export function Operator({
         )}
         {question === "Inspect traffic" && <p>{probe}</p>}
       </div>
-      <div className="workflow">
-        <strong>Workflow preview</strong>
-        <p>Observe → Diagnose → Validate → Act / Escalate</p>
-      </div>
+
       <div className="policy">
         <strong>◇ Safety policy enforced</strong>
         <small>
@@ -311,20 +315,21 @@ export function Operator({
         <button onClick={() => navigate("AI Impact")}>Show impact</button>
       </div>
       {plan && !["rolled_back", "cancelled"].includes(plan.phase) && (
-        <div className="drawer">
+        <div className="drawer provision-plan">
           <strong>Fabric expansion · {plan.phase.replace(/_/g, " ")}</strong>
           <p>
-            {plan.leaves.map((n) => "Leaf " + n).join(", ")} · BGP to both
-            spines · 192 MiB and 0.5 CPU per new router
+            {(plan.added || plan.leaves.map(n=>"leaf-"+n)).join(", ")} · Validated lab capacity
           </p>
+          {plan.before && plan.topology && <TopologyPreview before={plan.before} after={plan.topology}/>}
+          <p>{plan.risk?.reason}</p>
           <details>
             <summary>Configuration diff and rollback</summary>
             <p>
-              Both spines are recreated. Failed checks restore the base
-              configuration and remove the added leaves and transit networks.
+              {plan.risk?.rollback || "Failed checks restore the prior topology."}
             </p>
             <pre>{plan.diff}</pre>
           </details>
+          {plan.events?.map((e,i)=><p key={i}><time>{new Date(e.time*1000).toLocaleTimeString()}</time> · {e.phase}</p>)}
           {plan.phase === "preview" && (
             <>
               <button
@@ -346,7 +351,7 @@ export function Operator({
               disabled={busy}
               onClick={() => apply("provision/" + plan.id + "/rollback")}
             >
-              Restore base topology
+              Roll back this change
             </button>
           )}
         </div>

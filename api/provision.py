@@ -1,13 +1,11 @@
 """Bounded, approval-based expansion of the local two-spine Compose project."""
 
-import difflib
 import hashlib
 import json
 import os
 import sqlite3
 import subprocess
 import time
-import uuid
 
 from . import presets
 
@@ -85,7 +83,13 @@ def render(leaves, folder):
 
 def material(db, plan):
     folder = db.parent.resolve() / "expansions" / plan["id"]
-    overlay, configs = render(plan["leaves"], folder)
+    from . import expansion
+
+    overlay, configs = (
+        expansion.render(plan["topology"], folder)
+        if "topology" in plan
+        else render(plan["leaves"], folder)
+    )
     files = {n + ".conf": s for n, s in configs.items()}
     files["compose.json"] = json.dumps(overlay, indent=2)
     digest = hashlib.sha256(
@@ -94,36 +98,10 @@ def material(db, plan):
     return folder, files, digest
 
 
-def propose(c, count, started):
-    with c.lock:
-        old = latest(c.db)
-        if c.active or c.stopped or old and old["phase"] in ACTIVE:
-            raise ValueError("Finish the current operation before expanding the fabric")
-        if count not in (1, 2):
-            raise ValueError("Capacity is two additional leaf routers")
-        plan = {
-            "id": uuid.uuid4().hex,
-            "leaves": list(range(3, 3 + count)),
-            "events": [],
-            "started": started,
-        }
-        _, files, plan["digest"] = material(c.db, plan)
+def propose(c, count, started, kind="leaf", targets=None):
+    from .expansion import propose as preview
 
-        plan["diff"] = "\n".join(
-            line
-            for name, content in files.items()
-            for line in difflib.unified_diff(
-                (ROOT / "lab" / name).read_text().splitlines()
-                if (ROOT / "lab" / name).exists()
-                else [],
-                content.splitlines(),
-                fromfile=name,
-                tofile=name,
-                lineterm="",
-            )
-        )
-        save(c.db, plan, "preview")
-        return plan
+    return preview(c, kind, count, targets or [], started)
 
 
 def compose(overlay, *args):
@@ -162,6 +140,11 @@ def verify(leaves):
 
 
 def execute(c, identity, rollback=False):
+    from . import expansion
+
+    candidate = expansion.current(c.db) if rollback else latest(c.db)
+    if candidate and candidate.get("version") == 3:
+        return expansion.execute(c, identity, rollback)
     # Reserve the operation under lock, then release it during Compose and probes.
     with c.lock:
         plan = latest(c.db)

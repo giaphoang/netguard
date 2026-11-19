@@ -55,6 +55,14 @@ def evidence(sample):
             "via": flow["candidates"],
             "probes": flow["probes"],
         }
+    for host in sample.get("hosts", []):
+        if host["name"] not in facts:
+            facts[host["name"]] = {
+                "to": host["name"],
+                "from": host.get("probe_from"),
+                "via": None,
+                "probes": host.get("probes", {"ICMP": "unavailable", "HTTP": "unavailable"}),
+            }
     return {"observed": sample["observed"], "facts": facts}
 
 
@@ -85,12 +93,7 @@ def assess(observation):
     if incomplete:
         candidates = ["unknown"]
         schema["properties"]["diagnosis"]["enum"] = ["unknown"]
-    repairable = (
-        not incomplete
-        and len(abnormal) == 1
-        and links[abnormal[0]]["interface"] == "DOWN"
-        and abnormal[0] in {f"leaf-{leaf}/spine-{spine}" for leaf in (1, 2) for spine in (1, 2)}
-    )
+    repairable = not incomplete and len(abnormal) == 1 and links[abnormal[0]]["interface"] == "DOWN"
     if not incomplete and len(abnormal) == 1 and links[abnormal[0]]["interface"] == "DOWN":
         # A physically down interface is direct evidence, even during BGP convergence.
         schema["properties"]["diagnosis"]["enum"] = ["link", "unknown"]

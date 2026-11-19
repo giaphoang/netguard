@@ -851,3 +851,37 @@ main:not([data-page="Diagnostics"]) .collector {
   margin-left: 6px;
   padding: 3px 6px;
 }
+/* Four focused workspaces share the same live topology and controller. */
+main[data-page="Incidents"] .workspace,
+main[data-page="AI Impact"] .inspection,
+main[data-page="Provisioning"] .inspection,
+main:not([data-page="Incidents"]):not([data-page="Command Center"]) .incident-drawer,
+main[data-page="Command Center"] .provision-plan,
+main[data-page="Incidents"] .collector { display:none; }
+main[data-page="Provisioning"] .operator > .chips,
+main[data-page="Provisioning"] .operator > .policy { display:none; }
+main[data-page="Provisioning"] .operator form { max-width:850px; }
+main[data-page="Command Center"] .operator { align-self:start; position:sticky; top:16px; }
+main[data-page="Command Center"] .workspace { grid-template-columns:minmax(0, 1fr) 320px; }
+main[data-page="Command Center"] .canvas { height:440px; }
+main[data-page="Incidents"] .incident-drawer { display:block; }
+.topology-compare { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0; }
+.topology-compare > div { min-width:0;border:1px solid #dbe3f1;border-radius:12px;background:#f8faff; }
+.topology-compare h3 { margin:12px; }
+.monitor-notice { display:flex;align-items:center;gap:14px;border:1px solid #dbe4f5;border-radius:12px;padding:12px 16px;margin-bottom:16px;background:white;font-size:12px; }
+.monitor-notice strong { color:#245ac8;white-space:nowrap; }
+.monitor-notice p { flex:1;margin:0; }
+.case-workspace { display:grid;grid-template-columns:280px minmax(0,1fr);gap:16px;margin-bottom:20px; }
+.case-list,.case-detail { background:#fff;border:1px solid #dbe4f5;border-radius:12px;padding:16px;min-width:0; }
+.case-list input { width:100%;margin:10px 0; }
+.case-list button { display:grid;text-align:left;width:100%;gap:6px;margin:8px 0;padding:12px; }
+.case-list button[aria-pressed="true"] { background:#eaf0ff;border-color:#527bff; }
+.case-list small { color:#7483a0; }
+.case-detail h2 { font-size:17px;line-height:1.5;margin:14px 0; }
+.case-detail li { margin:9px 0;overflow-wrap:anywhere; }
+.case-events details { border-left:2px solid #4673f7;padding:9px 12px;margin:8px 0; }
+.case-detail pre { max-height:300px;overflow:auto; }
+@media(max-width:1000px) { main[data-page="Command Center"] .workspace { grid-template-columns:minmax(0,1fr) 280px; } }
+@media(max-width:760px) { main[data-page="Command Center"] .workspace,.case-workspace,.topology-compare { grid-template-columns:1fr; } .monitor-notice { flex-wrap:wrap; } main[data-page="Command Center"] .canvas { height:320px; } main[data-page="Command Center"] .operator { position:static; } }
+.case-list { max-height:72vh;overflow:auto; }
+.case-detail { align-self:start; }

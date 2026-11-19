@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from . import measurements, operator, provision, traffic
+from . import measurements, operator, expansion, traffic
 from .controls import router as control_routes, running_controls
 
 from fastapi import FastAPI, Query
@@ -38,6 +38,7 @@ class Router(BaseModel):
 class Snapshot(BaseModel):
     timestamp: str
     routers: list[Router]
+    hosts: list[dict] = []
 
 
 def command(node: str, *args: str) -> str:
@@ -82,11 +83,45 @@ def router(node: str) -> Router:
 
 
 def collect() -> Snapshot:
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        plan = provision.latest(DB)
-        leaves = plan["leaves"] if plan and plan["phase"] in provision.ACTIVE else []
-        routers = list(pool.map(router, [*ROUTERS, *(f"leaf-{n}" for n in leaves)]))
-    return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers)
+    topology = expansion.spec(expansion.current(DB))
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        routers = list(
+            pool.map(router, [n for n in expansion.names(topology) if not n.startswith("host")])
+        )
+        hosts = list(pool.map(host_state, [(h, topology) for h in topology["hosts"]]))
+    return Snapshot(timestamp=datetime.now(timezone.utc).isoformat(), routers=routers, hosts=hosts)
+
+
+def host_state(pair):
+    host, topology = pair
+    name = f"host-{host['id']}"
+    try:
+        interfaces = command(name, "ip", "-br", "addr")
+        result = {
+            "name": name,
+            "leaf": host["leaf"],
+            "address": expansion.host_ip(host, topology),
+            "interfaces": interfaces,
+            "error": None,
+        }
+        if host["id"] > 2:
+            source = 2 if host["leaf"] == 1 else 1
+            probes = {}
+            for protocol, args in {
+                "ICMP": ["ping", "-c", "1", "-W", "2", result["address"]],
+                "HTTP": ["wget", "-T", "2", "-qO-", f"http://{result['address']}:8080/"],
+            }.items():
+                try:
+                    command(f"host-{source}", *args)
+                    probes[protocol] = "success"
+                except subprocess.CalledProcessError:
+                    probes[protocol] = "failed"
+                except (OSError, subprocess.SubprocessError):
+                    probes[protocol] = "unavailable"
+            result.update(probes=probes, probe_from=f"host-{source}")
+        return result
+    except (OSError, subprocess.SubprocessError):
+        return {"name": name, "leaf": host["leaf"], "error": "Host telemetry unavailable"}
 
 
 DB = Path(os.environ.get("NETGUARD_TIMELINE_DB", ROOT / ".runtime/timeline.sqlite"))
@@ -134,9 +169,9 @@ def probe_spine(leaf: Router, source: int) -> int | None:
             )
         except (OSError, ValueError, subprocess.SubprocessError):
             return None
-        for spine in (1, 2):
-            if route.get("gateway") == f"10.211.{spine}{source}.1":
-                return spine
+        match = re.fullmatch(r"10\.211\.(\d+)\.1", route.get("gateway", ""))
+        if match and int(match[1]) % 10 == source:
+            return int(match[1]) // 10
     return None
 
 
@@ -234,11 +269,12 @@ def comparison():
 
 @app.get("/api/topology")
 def topology():
+    spec = expansion.spec(expansion.current(DB)) if not REPLAY else expansion.spec(None)
     return {
-        "routers": ROUTERS,
-        "hosts": ["host-1", "host-2"],
-        "links": [[f"spine-{spine}", f"leaf-{leaf}"] for spine in (1, 2) for leaf in (1, 2)]
-        + [[f"leaf-{i}", f"host-{i}"] for i in (1, 2)],
+        "routers": [n for n in expansion.names(spec) if not n.startswith("host")],
+        "hosts": [f"host-{h['id']}" for h in spec["hosts"]],
+        "links": [[f"spine-{s}", f"leaf-{n}"] for s in spec["spines"] for n in spec["leaves"]]
+        + [[f"leaf-{h['leaf']}", f"host-{h['id']}"] for h in spec["hosts"]],
     }
 
 
@@ -338,7 +374,13 @@ def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
         candidates = (
             []
             if route is None
-            else [i for i in (1, 2) if f"via 10.211.{10*i+source}.1 " in route.group()]
+            else sorted(
+                {
+                    int(n) // 10
+                    for n in re.findall(r"via 10\.211\.(\d+)\.1", route.group())
+                    if int(n) % 10 == source
+                }
+            )
         )
     except (OSError, subprocess.SubprocessError):
         pass
