@@ -224,6 +224,11 @@ def operator(req: Request, c=Depends(authorized)):
         raise HTTPException(409, str(exc)) from exc
 
 
+@router.get("/api/monitoring")
+def monitoring(c=Depends(local)):
+    return {"rules": getattr(c, "monitor_rules", {}), "investigations": inv.cases(c.db)}
+
+
 @router.get("/api/investigations/{identity}")
 def investigation(identity: str, c=Depends(local)):
     import sqlite3
@@ -262,71 +267,25 @@ def cancel(identity: str, c=Depends(authorized)):
 
 
 async def watch(controller, done):
-    """Review unplanned degradation once per episode while the actuator stays idle."""
     import asyncio
     import logging
-
-    controller.signal = None
     from datetime import datetime
     from .fabric import app
+    from .monitoring import Observer
 
-    history = []
-    previous = None
-    episode = None
-    next_drift = time.monotonic() + 10
+    observer = Observer(controller)
     while not done.is_set():
-        await asyncio.sleep(1)
         try:
             snapshot = app.state.snapshot
-            if not snapshot or snapshot.timestamp == previous or not app.state.flows:
-                continue
-            previous = snapshot.timestamp
-            stamp = datetime.fromisoformat(previous).timestamp()
-            sample = {
-                "observed": stamp,
-                "routers": snapshot.model_dump()["routers"],
-                "flows": app.state.flows,
-            }
-            if time.monotonic() >= next_drift and not controller.active:
-                next_drift = time.monotonic() + 60
-                await asyncio.to_thread(inv.drift, controller.db, sample, True)
-            obs = advisor.evidence(sample)
-            history = [v for v in history if 0 < stamp - v["observed"] <= 60] + [obs]
-            trigger = inv.anomaly(history)
-            if not trigger:
-                if healthy(sample) and episode:
-                    episode["verified_healthy_at"] = stamp
-                    inv.cases(controller.db, episode)
-                    episode = None
-                    controller.signal = None
-                continue
-            if episode:
-                continue
-            episode = inv.record(
-                controller.db,
-                "monitor",
-                trigger,
-                {"history": history, "routing": sample["routers"], "probes": sample["flows"]},
-            )
-            controller.signal = episode
-            try:
-                d = await asyncio.to_thread(
-                    advisor.assess,
+            if snapshot and app.state.flows:
+                await asyncio.to_thread(
+                    observer.step,
                     {
-                        **obs,
-                        "recent_observations": history[-4:],
-                        "kernel_routes": {r["name"]: r["routes"] for r in sample["routers"]},
+                        "observed": datetime.fromisoformat(snapshot.timestamp).timestamp(),
+                        "routers": snapshot.model_dump()["routers"],
+                        "flows": app.state.flows,
                     },
                 )
-                episode.update(
-                    decision=d.model_dump(),
-                    model=advisor.model_name(),
-                    version=advisor.VERSION,
-                    text=f"{trigger}. Model assessment: {d.diagnosis} on {d.component}. {d.next_check}",
-                )
-            except (ValueError, OSError, KeyError, http.client.HTTPException):
-                episode["text"] = trigger + ". Model unavailable. Review the saved evidence."
-            episode["triaged_at"] = time.time()
-            inv.cases(controller.db, episode)
         except Exception:
             logging.exception("Background observation failed")
+        await asyncio.sleep(1)

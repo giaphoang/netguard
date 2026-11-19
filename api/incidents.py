@@ -341,6 +341,13 @@ class Controller:
         sample = observe()
         review = None
         if request_review:
+            # Allow a bounded routing-convergence window before asking the model.
+            # Failed probes during reconvergence are not stable root-cause evidence.
+            with self.lock:
+                elapsed = sample["observed"] - (self.run.get("t0") or sample["observed"])
+            if not reachable(sample) and elapsed < 20:
+                request_review = False
+        if request_review:
             observation = advisor.evidence(sample)
             review = {
                 "version": advisor.VERSION,
