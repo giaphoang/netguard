@@ -38,7 +38,9 @@ def test_matched_time_savings_do_not_mix_fault_targets(tmp_path):
             "phase": "resolved",
             "attempts": 1,
             "auto": False,
-            "events": [],
+            "events": [
+                {"phase": "applying", "time": 1, "reason": "approved: RESTORE_INJECTED_LINK"}
+            ],
             "metrics": {"closure_s": seconds},
         }
         c.save()

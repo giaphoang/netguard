@@ -115,6 +115,28 @@ def export(db, snapshot, flows):
     return generate_latest(registry)
 
 
+def outcome(run):
+    if run["phase"] != "resolved":
+        return run["phase"]
+    applied = [e for e in run.get("events", []) if e["phase"] == "applying"]
+    if not applied:
+        return "observed_recovery"
+    action = applied[-1]["reason"].split(":", 1)[0]
+    if action in {"approved", "automatic"}:
+        return (
+            "ai_repair"
+            if run.get("ai")
+            else "manual_repair"
+            if run.get("manual")
+            else "rule_repair"
+        )
+    if run.get("duration") and any(
+        "simulation duration elapsed" in e["reason"] for e in run.get("events", [])
+    ):
+        return "timer_restoration"
+    return "human_reset"
+
+
 def impact(db):
     """Matched medians require the same fabric, fault, timing and approval policy."""
     groups = {}
@@ -157,7 +179,7 @@ def impact(db):
                 "at": r["events"][-1]["time"] if r["events"] else 0,
                 "task": r["scenario"],
                 "mode": kind,
-                "outcome": r["phase"],
+                "outcome": outcome(r),
                 "seconds": r["metrics"].get("closure_s"),
             }
         )
@@ -170,6 +192,7 @@ def impact(db):
             tuple(r["baseline_routers"]),
             r["auto"],
             r.get("duration"),
+            "repair" if outcome(r) in {"ai_repair", "manual_repair", "rule_repair"} else outcome(r),
         )
         group = groups.setdefault(key, {"manual": {}, "assisted": {}})[kind]
         if r.get("first_signal_at") and r.get("diagnosed_at"):
@@ -177,19 +200,20 @@ def impact(db):
                 max(0, r["diagnosed_at"] - r["first_signal_at"])
             )
         if "traffic_recovery_s" in r["metrics"]:
-            group.setdefault("Recovery", []).append(r["metrics"]["traffic_recovery_s"])
+            group.setdefault("Routing failover", []).append(r["metrics"]["traffic_recovery_s"])
         if r["phase"] == "resolved" and "closure_s" in r["metrics"]:
             group.setdefault("Verified closure", []).append(r["metrics"]["closure_s"])
     rows = []
     for key, modes in groups.items():
-        for metric in ("Diagnosis", "Recovery", "Verified closure"):
+        for metric in ("Diagnosis", "Routing failover", "Verified closure"):
             a, b = (modes[k].get(metric, []) for k in ("manual", "assisted"))
             if a or b:
                 rows.append(
                     {
                         "metric": metric,
                         "scenario": f"{key[0]} · L{key[1]} / S{key[2]} · {len(key[3])} routers · {'automatic' if key[4] else 'approval'}"
-                        + (f" · {key[5]}s" if key[5] else ""),
+                        + (f" · {key[5]}s" if key[5] else "")
+                        + f" · {key[6]}",
                         "manual": median(a) if a else None,
                         "assisted": median(b) if b else None,
                         "n": [len(a), len(b)],
@@ -212,12 +236,14 @@ def impact(db):
                     }
                 )
                 if end:
-                    provisions.setdefault(len(p["leaves"]), []).append(end - p["started"])
+                    provisions.setdefault(
+                        ", ".join(p.get("added", [f"leaf-{n}" for n in p["leaves"]])), []
+                    ).append(end - p["started"])
     for size, times in provisions.items():
         rows.append(
             {
                 "metric": "Provisioning",
-                "scenario": f"{size} new leaves",
+                "scenario": size,
                 "manual": None,
                 "assisted": median(times),
                 "n": [0, len(times)],
@@ -226,11 +252,12 @@ def impact(db):
     matched = [
         r["manual"] - r["assisted"]
         for r in rows
-        if r["metric"] == "Verified closure" and all(r["n"])
+        if r["metric"] == "Verified closure" and all(r["n"]) and r["scenario"].endswith(" · repair")
     ]
     from .investigations import cases
 
-    investigations = cases(db)
+    investigations = [r for r in cases(db) if r["kind"] != "intent"]
+    evaluations = cases(db, kind="reliability evaluation")
 
     def metric(label, value, runs):
         return {
@@ -246,7 +273,9 @@ def impact(db):
         r for r in records if r.get("ai") and r.get("first_signal_at") and r.get("diagnosed_at")
     ]
     autonomous = [
-        r for r in records if any(e["reason"].startswith("automatic:") for e in r.get("events", []))
+        r
+        for r in records
+        if r.get("ai") and any(e["reason"].startswith("automatic:") for e in r.get("events", []))
     ]
     escalations = [
         r
@@ -263,7 +292,7 @@ def impact(db):
         ),
         metric(
             "Verified autonomous recovery",
-            f"{sum(r['phase']=='resolved' and r['attempts']==1 for r in autonomous)}/{len(autonomous)}",
+            f"{sum(outcome(r)=='ai_repair' and r['attempts']==1 for r in autonomous)}/{len(autonomous)}",
             autonomous,
         ),
         metric(
@@ -275,12 +304,10 @@ def impact(db):
             [r for r in records if r.get("baseline_routers") and (r.get("manual") or r.get("ai"))],
         ),
     ]
-    risk_checks = [
-        r for r in investigations if r["kind"] == "change risk" and "policy_check" in r["facts"]
-    ]
+    risk_checks = [r for r in cases(db, kind="change risk") if "policy_check" in r["facts"]]
     kpis.append(
         {
-            "label": "Change-risk detection · spine-removal previews",
+            "label": "Changes blocked by redundancy/availability policy (not prediction accuracy)",
             "value": f"{sum(r['facts']['policy_check']['observed']=='block' for r in risk_checks)}/{len(risk_checks)}",
             "evidence": [
                 {
@@ -292,6 +319,33 @@ def impact(db):
         }
     )
     return {
+        "evaluations": [
+            {
+                "id": r["id"],
+                "observed": r["observed"],
+                "summary": r["facts"].get("summary", {}),
+                "results": [
+                    {
+                        key: case[key]
+                        for key in (
+                            "id",
+                            "kind",
+                            "version",
+                            "passed",
+                            "diagnosis_correct",
+                            "error",
+                            "latency_s",
+                        )
+                        if key in case
+                    }
+                    for case in r["facts"].get("results", [])
+                ],
+                "limits": r["facts"].get("limits", "Historical evaluation"),
+                "url": "/api/investigations/" + r["id"],
+            }
+            for r in evaluations
+        ],
+        "outcomes": dict(Counter(outcome(r) for r in records)),
         "kpis": kpis,
         "investigations": [
             {"kind": r["kind"], "text": r["text"], "url": "/api/investigations/" + r["id"]}

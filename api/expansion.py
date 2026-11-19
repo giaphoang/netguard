@@ -282,6 +282,18 @@ def verify(topology):
     raise ValueError("Topology BGP, routes or bidirectional host checks did not converge")
 
 
+def approved_origins(db, plan):
+    origins = {str(p.BASE)}
+    seen = set()
+    while plan:
+        if plan["id"] in seen:
+            raise ValueError("Invalid topology approval history")
+        seen.add(plan["id"])
+        origins.add(str(p.BASE) + "," + str(p.material(db, plan)[0] / "compose.json"))
+        plan = get(db, plan["previous_id"]) if plan.get("previous_id") else None
+    return origins
+
+
 def ownership(topology, origins):
     # Reuse the local-socket and isolated-network boundary, including exact owners.
     if not p.presets.docker(
@@ -344,11 +356,7 @@ def execute(c, identity, rollback=False):
                 raise ValueError(
                     "Previous verified configuration changed; inspect before deployment or rollback"
                 )
-        origins = {str(p.BASE), str(p.BASE) + "," + str(overlay)}
-        ancestor = prior
-        while ancestor:
-            origins.add(str(p.BASE) + "," + str(p.material(c.db, ancestor)[0] / "compose.json"))
-            ancestor = get(c.db, ancestor["previous_id"]) if ancestor.get("previous_id") else None
+        origins = approved_origins(c.db, prior) | {str(p.BASE) + "," + str(overlay)}
         if not rollback:
             ownership(previous, origins - {str(p.BASE) + "," + str(overlay)})
             existing = set(p.presets.docker("ps", "-a", "--format", "{{.Names}}").splitlines())

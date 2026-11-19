@@ -92,3 +92,25 @@ def test_model_cannot_contradict_down_interface(monkeypatch):
     monkeypatch.setattr(advisor, "infer", dishonest)
     with pytest.raises(ValueError, match="contradicts"):
         advisor.assess(advisor.evidence(sample(True)))
+
+
+def test_drift_recovery_requires_consecutive_clean_scans(tmp_path, monkeypatch):
+    from api import investigations as inv
+
+    c = Controller(tmp_path / "db")
+    observer = Observer(c)
+    observer.episode = inv.record(
+        c.db, "monitor", "drift", {"findings": [["configuration_drift", "fabric", "test"]]}
+    )
+    observer.episode.update(status="escalated", affected=["fabric"])
+    clean = {"facts": {"leaf-1": {"missing": [], "unexpected": []}}}
+    dirty = {"facts": {"leaf-1": {"missing": ["neighbor missing"], "unexpected": []}}}
+    checks = iter([clean, dirty, clean, clean])
+    monkeypatch.setattr(inv, "drift", lambda *_: next(checks))
+    for expected in [1, 0, 1]:
+        observer.next_drift = 0
+        observer.follow(sample())
+        assert observer.episode and observer.recovered == expected
+    observer.next_drift = 0
+    observer.follow(sample())
+    assert observer.episode is None

@@ -31,6 +31,8 @@ type Row = {
   n: number[];
 };
 type Impact = {
+  evaluations?: {id:string;observed:number;summary:Record<string,{n:number;diagnosis_correct:number;escalation_correct:number;unsafe_proposals:number;mean_latency_s:number;model_calls:number}>;results:{id:string;kind:string;version:string;passed?:boolean;diagnosis_correct?:boolean;error?:string;latency_s?:number}[];limits:string;url:string}[];
+  outcomes?: Record<string,number>;
   kpis?: {label:string;value:string;evidence:{url:string;label:string}[]}[];
   investigations?:{kind:string;text:string;url:string}[];
   saved: number | null;
@@ -196,7 +198,7 @@ export function Operator({
         preview(undefined);
         setAnswer({
           text:
-            "Provisioning result · " +
+            (path.endsWith("/rollback") ? "Rollback completed. Current plan · " : "Provisioning result · ") +
             p.phase.replace(/_/g, " ") +
             (p.failure ? " · " + p.failure : ""),
         });
@@ -320,7 +322,7 @@ export function Operator({
           <p>
             {(plan.added || plan.leaves.map(n=>"leaf-"+n)).join(", ")} · Validated lab capacity
           </p>
-          {plan.before && plan.topology && <TopologyPreview before={plan.before} after={plan.topology}/>}
+          {plan.before && plan.topology && <TopologyPreview before={plan.before} after={plan.topology} applied={plan.phase==="verified"}/>}
           <p>{plan.risk?.reason}</p>
           <details>
             <summary>Configuration diff and rollback</summary>
@@ -374,7 +376,7 @@ export function Operator({
                   impact.verified + "/" + impact.attempted,
                   "Verified executions",
                 ],
-                [impact.rejected, "Unsafe proposals withheld"],
+                [impact.rejected, "Repair proposals withheld"],
                 [impact.escalated, "AI cases escalated"],
                 [duration(impact.saved), "Time saved · matched closure"],
                 [
@@ -432,6 +434,19 @@ export function Operator({
                 a prompt or policy change.
               </p>
             )}
+            <h3>Versioned reliability evaluations</h3>
+            <button disabled={busy || !live} onClick={()=>ask("Evaluate the AI operator against our incident test suite.")}>{busy ? "Evaluating recorded cases…" : "Run read-only evaluation"}</button>
+            {question.includes("test suite") && <p role="status">{busy ? "Running the same labeled observations through each workflow; no actuator is invoked." : answer?.text}</p>}
+            {!impact.evaluations?.length && <p>No versioned evaluation recorded yet.</p>}
+            {impact.evaluations?.map(e=><section className="evaluation-result" key={e.id}>
+              <p><a href={e.url} target="_blank" rel="noreferrer">Experiment · {new Date(e.observed*1000).toLocaleString()}</a></p>
+              {Object.keys(e.summary).length>0&&<div className="table-scroll"><table><thead><tr><th>Workflow</th><th>Correct diagnosis</th><th>Correct disposition</th><th>Unsafe proposals</th><th>Mean inference workflow</th><th>Model calls</th></tr></thead><tbody>{Object.entries(e.summary).map(([version,m])=><tr key={version}><td>{version}</td><td>{m.diagnosis_correct}/{m.n}</td><td>{m.escalation_correct}/{m.n}</td><td>{m.unsafe_proposals}</td><td>{m.mean_latency_s.toFixed(2)} s</td><td>{m.model_calls}</td></tr>)}</tbody></table></div>}
+              <p>Intent context {e.results.find(r=>r.kind==="intent")?.version || "historical"} · {e.results.filter(r=>r.kind==="intent"&&r.passed).length}/{e.results.filter(r=>r.kind==="intent").length} passed. Policy and detector checks · {e.results.filter(r=>["policy","detector"].includes(r.kind)&&r.passed).length}/{e.results.filter(r=>["policy","detector"].includes(r.kind)).length} passed.</p>
+              <p>{e.limits}</p>
+              <details><summary>Cases, failures and supporting evidence</summary>{e.results.map((r,i)=><p key={i}>{r.version} · {r.id} · {(r.passed ?? r.diagnosis_correct)?"Passed":"Review failure"}{r.error?" · "+r.error:""}</p>)}<a href={e.url} target="_blank" rel="noreferrer">Inspect observations, expected answers and tool results</a></details>
+            </section>)}
+            <h3>Distinct recorded outcomes</h3>
+            <div className="chips">{Object.entries(impact.outcomes || {}).map(([name,count])=><span className="tag" key={name}>{name.replace(/_/g," ")} · {count}</span>)}</div>
             <h3>Experiment evidence</h3>
             {impact.kpis?.map(k=><details key={k.label}><summary>{k.label} · {k.value}</summary>{k.evidence.length?k.evidence.map(e=><p key={e.url}><a href={e.url} target="_blank" rel="noreferrer">{e.label}</a></p>):<p>No qualifying experiments yet.</p>}</details>)}
             {impact.investigations?.map(i=><p key={i.url}><a href={i.url} target="_blank" rel="noreferrer">{i.kind}</a> · {i.text}</p>)}

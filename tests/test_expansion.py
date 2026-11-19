@@ -90,3 +90,17 @@ def test_single_failed_new_leaf_link_is_diagnosable():
     facts = advisor.evidence(s)["facts"]
     assert facts["leaf-3/spine-1"]["interface"] == "DOWN"
     assert not incidents.healthy(s)
+
+
+def test_unchanged_containers_keep_authorized_ancestor_origins(tmp_path):
+    c = Controller(tmp_path / "db")
+    leaf = provision.propose(c, 1, time.time())
+    provision.save(c.db, leaf, "verified")
+    host = provision.propose(c, 1, time.time(), "host", ["leaf-2"])
+    origins = expansion.approved_origins(c.db, host)
+    assert str(provision.BASE) in origins
+    assert (
+        str(provision.BASE) + "," + str(provision.material(c.db, leaf)[0] / "compose.json")
+        in origins
+    )
+    assert len(origins) == 3

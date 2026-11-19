@@ -37,7 +37,7 @@ def identify(scenario: Scenario, leaf=1, spine=1) -> Target:
     ).startswith("unix://"):
         raise ValueError("A local Docker socket is required")
     from .fabric import DB
-    from . import expansion, provision
+    from . import expansion
 
     plan = expansion.current(DB)
     topology = expansion.spec(plan)
@@ -54,11 +54,7 @@ def identify(scenario: Scenario, leaf=1, spine=1) -> Target:
             *([f"netguard_access{leaf}"] if leaf <= 2 or plan and plan.get("version") == 3 else []),
         }
     )
-    origins = {str(ROOT / "fabric.yml")}
-    if plan:
-        origins.add(
-            str(ROOT / "fabric.yml") + "," + str(provision.material(DB, plan)[0] / "compose.json")
-        )
+    origins = expansion.approved_origins(DB, plan)
     if (
         labels.get("com.docker.compose.project") != "netguard"
         or labels.get("com.docker.compose.service") != node

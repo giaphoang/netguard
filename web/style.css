@@ -885,3 +885,8 @@ main[data-page="Incidents"] .incident-drawer { display:block; }
 @media(max-width:760px) { main[data-page="Command Center"] .workspace,.case-workspace,.topology-compare { grid-template-columns:1fr; } .monitor-notice { flex-wrap:wrap; } main[data-page="Command Center"] .canvas { height:320px; } main[data-page="Command Center"] .operator { position:static; } }
 .case-list { max-height:72vh;overflow:auto; }
 .case-detail { align-self:start; }
+.evaluation-result { border:1px solid #dbe4f5;border-radius:10px;padding:14px;margin:16px 0;background:#fff; }
+.table-scroll { overflow-x:auto; }
+.evaluation-result table { width:100%;border-collapse:collapse;font-size:12px; }
+.evaluation-result th,.evaluation-result td { text-align:left;padding:12px 8px;border-bottom:1px solid #e4eaf4; }
+.evaluation-result th { color:#52658c; }

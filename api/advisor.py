@@ -3,9 +3,13 @@
 import http.client
 import json
 import os
+import time
+from contextvars import ContextVar
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+TRACE = ContextVar("inference_trace", default=None)
 
 VERSION = "fabric-triage-v6"
 MODEL = "qwen2.5:1.5b"
@@ -141,13 +145,19 @@ def infer(instruction, context, schema):
         ],
     }
     client = http.client.HTTPConnection("127.0.0.1", 11434, timeout=45)
+    trace = TRACE.get()
+    call = {"tool": "ollama.chat", "model": model_name(), "started": time.time()}
+    if trace is not None:
+        trace.append(call)
     try:
         client.request(
             "POST", "/api/chat", json.dumps(request), {"Content-Type": "application/json"}
         )
         response = client.getresponse()
+        call["http_status"] = response.status
         if response.status != 200:
             raise ValueError(f"Ollama returned HTTP {response.status}")
         return json.loads(response.read(32768))["message"]["content"]
     finally:
+        call["completed"] = time.time()
         client.close()

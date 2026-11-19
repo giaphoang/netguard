@@ -409,6 +409,7 @@ class Controller:
             elapsed = now - (r["t0"] or now)
             if phase == "injected" and not healthy(sample):
                 r.setdefault("first_signal_at", now)
+                r["metrics"].setdefault("detection_s", now - (r["t0"] or now))
             ok = reachable(sample)
             if any("failed" in f["probes"].values() for f in sample["flows"]):
                 r["loss"] = True
@@ -467,7 +468,7 @@ class Controller:
                         self.event("handoff", "Human review required. " + decision.next_check)
                         return
                 if reason and phase == "injected":
-                    metrics["detection_s"] = elapsed
+                    metrics.setdefault("detection_s", elapsed)
                     self.event("detected", reason)
                     self.event("diagnosed", reason)
                     if r["scenario"] != "link":

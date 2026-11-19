@@ -202,21 +202,35 @@ class Observer:
             row["text"] = run["events"][-1]["reason"]
             if run["phase"] == "resolved":
                 row["verified_healthy_at"] = sample["observed"]
-                row["outcome"] = (
-                    "ai_repair"
-                    if any(
-                        e["phase"] == "applying"
-                        and e["reason"].startswith(("approved:", "automatic:"))
-                        for e in run["events"]
-                    )
-                    else "controller_reset"
-                )
+                from .measurements import outcome
+
+                row["outcome"] = outcome(run)
         else:
+            row["latest_observation"] = advisor.evidence(sample)
+            additional = [
+                f for f in detect(self.history, self.rules) if f[1] not in row.get("affected", [])
+            ]
+            if additional:
+                row["affected"] = sorted(set(row.get("affected", [])) | {f[1] for f in additional})
+                event(
+                    row,
+                    "Detected",
+                    "monitor.rules",
+                    {"additional_findings": additional, "observed": sample["observed"]},
+                )
+                row["status"] = "escalated"
+                row["text"] = (
+                    "Additional affected components: "
+                    + ", ".join(row["affected"])
+                    + ". Review the updated evidence; the original diagnosis may be incomplete."
+                )
             # Drift needs a fresh clean configuration scan, not only healthy forwarding.
             drifting = any(f[0] == "configuration_drift" for f in row["facts"]["findings"])
             drift_clean = not drifting
+            scanned = False
             if drifting and time.monotonic() >= self.next_drift:
                 self.next_drift = time.monotonic() + self.rules.drift_interval_s
+                scanned = True
                 check = inv.drift(self.c.db, sample, True)
                 drift_clean = bool(check) and all(
                     not (v.get("missing") or v.get("unexpected") or v.get("status"))
@@ -226,7 +240,7 @@ class Observer:
             self.recovered = (
                 self.recovered + 1
                 if healthy(sample) and drift_clean
-                else (self.recovered if drifting else 0)
+                else (self.recovered if drifting and not scanned and healthy(sample) else 0)
             )
             if self.recovered >= self.rules.recovery_samples:
                 row.update(

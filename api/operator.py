@@ -42,27 +42,14 @@ def operator(req: Request, c=Depends(authorized)):
             },
         )
         if tool == "benchmark":
-            from scripts.evaluate_ai import evaluate
+            from .evaluation import assess_suite
 
-            results = {}
-
-            def baseline(obs):
-                return advisor.Decision.model_validate_json(
-                    advisor.infer(advisor.PROMPT, obs, advisor.Decision.model_json_schema())
-                )
-
-            for name, workflow in [
-                ("schema-only baseline", baseline),
-                (advisor.VERSION, advisor.assess),
-            ]:
-                results[name] = evaluate(workflow, name)
-            row = inv.record(
-                c.db,
-                "reliability evaluation",
-                "Compared two diagnostic workflows on identical recorded observations. No actuator was invoked.",
-                results,
-            )
-            return inv.response(row)
+            report = assess_suite(c.db)
+            return {
+                "text": "Evaluation complete. Inspect versioned results, sample counts and failed cases in AI Impact.",
+                "impact": True,
+                "evidence": {"observed": report["observed"], "facts": report},
+            }
         if tool == "monitor":
             rows = inv.cases(c.db, kind="monitor")
             return {
@@ -121,6 +108,15 @@ def operator(req: Request, c=Depends(authorized)):
                         "text": "No verified repair is awaiting approval. Inspect the current observations or review the incident handoff."
                     }
                 r = c.run
+                leaf_name, spine_name = f"leaf-{r.get('leaf', 1)}", f"spine-{r.get('spine', 1)}"
+                if targets and not set(targets) <= {
+                    leaf_name,
+                    spine_name,
+                    f"{leaf_name}/{spine_name}",
+                }:
+                    raise ValueError(
+                        "The pending repair targets a different component. Review that incident or clarify the requested target."
+                    )
                 iface = r["target"]["interface"]
                 return {
                     "text": f"Restore redundancy on Leaf {r.get('leaf',1)}. Command: ip link set dev {iface} up. The controller rechecks the target and surviving route, then verifies both paths and bidirectional probes. Risk: transient route reconvergence.",
@@ -145,7 +141,18 @@ def operator(req: Request, c=Depends(authorized)):
                         "evidence": obs,
                     }
                 targets = [max(counts, key=counts.get)]
-                obs["transition_counts"] = counts
+                obs["facts"]["recorded_peer_history"] = {
+                    "selected_peer": targets[0],
+                    "transitions": counts[targets[0]],
+                    "counts": counts,
+                    "first_observed": history[0]["observed"],
+                    "last_observed": history[-1]["observed"],
+                }
+                if healthy(sample):
+                    return {
+                        "text": f"{targets[0]} has the most recorded BGP transitions ({counts[targets[0]]}). Current routing and bidirectional probes are healthy; the saved history supports investigation, not an active repair.",
+                        "evidence": obs,
+                    }
             obs["requested_targets"] = targets
             if healthy(sample):
                 return {

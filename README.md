@@ -4,7 +4,9 @@ A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-
 
 In **Command Center**, select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
 
-P2 adds local AI incident diagnosis, evidence citations and human handoff. [Run or replay P2](docs/P2_AI.md) · [Roadmap](docs/AI_PLAN.md)
+P3 adds proactive investigations, topology-aware structured intent, approved spine/leaf/host provisioning with verification and rollback, and reproducible AI evaluation. The existing P0–P2 fabric, controls and benchmark history remain intact. [P3 stages and evidence](docs/P3_OPERATIONS.md) · [Earlier P2 diagnosis](docs/P2_AI.md)
+
+Three recruiter demonstrations: inject a fault and watch an unprompted investigation; ask to add a router or host and approve its preview; ask what could break if Spine 2 were removed, then inspect the policy block and versioned evaluation in **AI Impact**. The current guarded workflow identified 5/8 labeled diagnoses versus 4/8 for the frozen P2 reference. These are small lab regression results; failures remain visible and no time saved is reported without a matched manual baseline.
 
 ## Incident walkthrough
 
@@ -19,7 +21,7 @@ Install Docker Engine with Compose v2 (or Docker Desktop with Linux containers),
 
 Open http://localhost:3000. Click a leaf to inspect its neighbor table and kernel routes. Select a host pair and click **Trace traffic**. Blue interconnects represent possible routes. ICMP and HTTP report the results of probes sent from the selected host. A green session by itself says nothing about end-to-end reachability.
 
-Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab containers and networks. `make demo-reset` recreates the six nodes. To review the recorded incident walkthrough without Docker, run `make demo-replay` after setup. It shares the same port as the live service.
+Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab containers and networks. `make demo-reset` recreates the currently approved topology. To review the recorded incident walkthrough without Docker, run `make demo-replay` after setup. It shares the same port as the live service.
 
 ## Verification
 

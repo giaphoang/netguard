@@ -1,7 +1,7 @@
 import React from "react";
 import { Background, ReactFlow } from "@xyflow/react";
 export type FabricSpec = {spines:number[];leaves:number[];hosts:{id:number;leaf:number}[]};
-export function TopologyPreview({before,after}:{before:FabricSpec;after:FabricSpec}) {
+export function TopologyPreview({before,after,applied=false}:{before:FabricSpec;after:FabricSpec;applied?:boolean}) {
   function graph(spec:FabricSpec) {
     const nodes = [
       ...spec.spines.map((n,i)=>({id:`spine-${n}`,position:{x:i*150,y:0},data:{label:`Spine ${n}`}})),
@@ -14,5 +14,5 @@ export function TopologyPreview({before,after}:{before:FabricSpec;after:FabricSp
       ...spec.hosts.map(h=>({id:`h${h.id}`,source:`leaf-${h.leaf}`,target:`host-${h.id}`}))
     ]};
   }
-  return <div className="topology-compare">{[["Current",before],["Proposed",after]].map(([label,spec])=><div key={label as string}><h3>{label as string}</h3><div style={{height:250}}><ReactFlow {...graph(spec as FabricSpec)} fitView nodesDraggable={false} nodesConnectable={false} proOptions={{hideAttribution:false}}><Background/></ReactFlow></div></div>)}</div>;
+  return <div className="topology-compare">{[[applied?"Before":"Current",before],[applied?"Deployed":"Proposed",after]].map(([label,spec])=><div key={label as string}><h3>{label as string}</h3><div style={{height:250}}><ReactFlow {...graph(spec as FabricSpec)} fitView nodesDraggable={false} nodesConnectable={false} proOptions={{hideAttribution:false}}><Background/></ReactFlow></div></div>)}</div>;
 }

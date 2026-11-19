@@ -102,7 +102,14 @@ def drift(db, sample, automatic=False):
     changes = sum(bool(v.get("missing") or v.get("unexpected")) for v in facts.values())
     unknown = sum("status" in v for v in facts.values())
     if automatic:
-        previous = next((r for r in cases(db) if r["kind"] == "configuration drift"), None)
+        previous = next(
+            (
+                r
+                for r in cases(db, kind="configuration drift")
+                if r["kind"] == "configuration drift"
+            ),
+            None,
+        )
         if (not previous and not changes and not unknown) or (
             previous and previous["facts"] == facts
         ):
