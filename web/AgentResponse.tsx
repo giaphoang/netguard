@@ -121,17 +121,16 @@ export function AgentRecord({ record, live }: { record: RecordRef; live: boolean
         if (controller.signal.aborted) return;
         setView(next);
         setProblem("");
-        setSubmitting(false);
-        if (next.refreshSeconds) timer = window.setTimeout(poll, next.refreshSeconds * 1000);
+        const seconds = next.refreshSeconds || (submitting ? 1 : 0);
+        if (seconds) timer = window.setTimeout(poll, seconds * 1000);
       } catch (error) {
         if (controller.signal.aborted) return;
         setProblem(error instanceof Error ? error.message : "The record could not be loaded.");
-        setSubmitting(false);
       }
     }
     void poll();
     return () => { controller.abort(); window.clearTimeout(timer); };
-  }, [path, live, refresh]);
+  }, [path, live, refresh, submitting]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -148,10 +147,11 @@ export function AgentRecord({ record, live }: { record: RecordRef; live: boolean
     setActionError("");
     try {
       await post(path + "/actions/" + encodeURIComponent(action.key), { revision: action.revision });
-      setRefresh(n => n + 1);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "The controller rejected the action.");
+    } finally {
       setSubmitting(false);
+      setRefresh(n => n + 1);
     }
   }
 

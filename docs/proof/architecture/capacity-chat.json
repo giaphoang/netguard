@@ -1,0 +1,651 @@
+{
+  "preview": {
+    "id": "315a1ade864547deae340eb26485d12a",
+    "version": 3,
+    "topology": {
+      "spines": [
+        1,
+        2
+      ],
+      "leaves": [
+        1,
+        2
+      ],
+      "hosts": [
+        {
+          "id": 1,
+          "leaf": 1
+        },
+        {
+          "id": 2,
+          "leaf": 2
+        },
+        {
+          "id": 3,
+          "leaf": 1
+        },
+        {
+          "id": 4,
+          "leaf": 1
+        }
+      ]
+    },
+    "before": {
+      "spines": [
+        1,
+        2
+      ],
+      "leaves": [
+        1,
+        2
+      ],
+      "hosts": [
+        {
+          "id": 1,
+          "leaf": 1
+        },
+        {
+          "id": 2,
+          "leaf": 2
+        }
+      ]
+    },
+    "previous_id": null,
+    "leaves": [],
+    "added": [
+      "host-3",
+      "host-4"
+    ],
+    "events": [
+      {
+        "phase": "preview",
+        "time": 1795124214.4155927
+      }
+    ],
+    "started": 1795124209.7196443,
+    "risk": {
+      "status": "approval_required",
+      "affected": [
+        "spine-1",
+        "spine-2",
+        "leaf-1",
+        "leaf-2",
+        "host-1",
+        "host-2"
+      ],
+      "reason": "Router and host containers may be recreated; traffic can pause during reconvergence.",
+      "rollback": "Restore the previously verified topology and remove only this change’s owned resources."
+    },
+    "capacity": {
+      "before_hosts": 2,
+      "target_hosts": 4,
+      "host_limit": 4,
+      "requirements": {
+        "spines": 0,
+        "leaves": 0,
+        "hosts": 2,
+        "additional_memory_mib": 64,
+        "total_cpu_limits": 3
+      },
+      "baseline_resources": {
+        "cpus": 4,
+        "memory_available_mib": 4672,
+        "usage": [
+          {
+            "BlockIO": "0B / 377kB",
+            "CPUPerc": "0.67%",
+            "Container": "netguard-spine-1-1",
+            "ID": "82195c3e243e",
+            "MemPerc": "0.35%",
+            "MemUsage": "20.85MiB / 5.772GiB",
+            "Name": "netguard-spine-1-1",
+            "NetIO": "506GB / 506GB",
+            "PIDs": "17"
+          },
+          {
+            "BlockIO": "0B / 332kB",
+            "CPUPerc": "0.15%",
+            "Container": "netguard-spine-2-1",
+            "ID": "4b771c6c7713",
+            "MemPerc": "0.35%",
+            "MemUsage": "20.88MiB / 5.772GiB",
+            "Name": "netguard-spine-2-1",
+            "NetIO": "1.15MB / 1.16MB",
+            "PIDs": "17"
+          },
+          {
+            "BlockIO": "0B / 311kB",
+            "CPUPerc": "0.66%",
+            "Container": "netguard-leaf-1-1",
+            "ID": "93e5f11690ac",
+            "MemPerc": "0.37%",
+            "MemUsage": "22.11MiB / 5.772GiB",
+            "Name": "netguard-leaf-1-1",
+            "NetIO": "71.4MB / 506GB",
+            "PIDs": "17"
+          },
+          {
+            "BlockIO": "0B / 311kB",
+            "CPUPerc": "0.01%",
+            "Container": "netguard-leaf-2-1",
+            "ID": "3e80ab43012d",
+            "MemPerc": "0.37%",
+            "MemUsage": "22.09MiB / 5.772GiB",
+            "Name": "netguard-leaf-2-1",
+            "NetIO": "506GB / 71.4MB",
+            "PIDs": "17"
+          },
+          {
+            "BlockIO": "0B / 0B",
+            "CPUPerc": "0.00%",
+            "Container": "netguard-host-1-1",
+            "ID": "d129af9a1c06",
+            "MemPerc": "0.01%",
+            "MemUsage": "520KiB / 5.772GiB",
+            "Name": "netguard-host-1-1",
+            "NetIO": "571kB / 571kB",
+            "PIDs": "1"
+          },
+          {
+            "BlockIO": "0B / 0B",
+            "CPUPerc": "0.00%",
+            "Container": "netguard-host-2-1",
+            "ID": "b2482ed3b6ba",
+            "MemPerc": "0.01%",
+            "MemUsage": "516KiB / 5.772GiB",
+            "Name": "netguard-host-2-1",
+            "NetIO": "571kB / 571kB",
+            "PIDs": "1"
+          }
+        ]
+      },
+      "attachment": "leaf-1"
+    },
+    "digest": "40809555c35c56a3d04140f7407daf1ff4b44858e40bd68eb76fdde1cce5eddd",
+    "diff": "--- compose.json\n+++ compose.json\n@@ -0,0 +1,264 @@\n+{\n+  \"services\": {\n+    \"spine-1\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l1\": {\n+          \"ipv4_address\": \"10.211.11.1\"\n+        },\n+        \"s1l2\": {\n+          \"ipv4_address\": \"10.211.12.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/tmp/netguard-agent-chat.FMRmbu/expansions/315a1ade864547deae340eb26485d12a/spine-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"spine-2\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s2l1\": {\n+          \"ipv4_address\": \"10.211.21.1\"\n+        },\n+        \"s2l2\": {\n+          \"ipv4_address\": \"10.211.22.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/tmp/netguard-agent-chat.FMRmbu/expansions/315a1ade864547deae340eb26485d12a/spine-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"leaf-1\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l1\": {\n+          \"ipv4_address\": \"10.211.11.2\"\n+        },\n+        \"s2l1\": {\n+          \"ipv4_address\": \"10.211.21.2\"\n+        },\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/tmp/netguard-agent-chat.FMRmbu/expansions/315a1ade864547deae340eb26485d12a/leaf-1.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"leaf-2\": {\n+      \"image\": \"quay.io/frrouting/frr:10.1.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\",\n+        \"SYS_ADMIN\"\n+      ],\n+      \"mem_limit\": \"192m\",\n+      \"cpus\": 0.5,\n+      \"sysctls\": {\n+        \"net.ipv4.ip_forward\": \"1\"\n+      },\n+      \"networks\": {\n+        \"s1l2\": {\n+          \"ipv4_address\": \"10.211.12.2\"\n+        },\n+        \"s2l2\": {\n+          \"ipv4_address\": \"10.211.22.2\"\n+        },\n+        \"access2\": {\n+          \"ipv4_address\": \"10.212.2.1\"\n+        }\n+      },\n+      \"volumes\": [\n+        \"/var/tmp/netguard-agent-chat.FMRmbu/expansions/315a1ade864547deae340eb26485d12a/leaf-2.conf:/etc/frr/frr.conf:ro\",\n+        \"/mnt/netguard/lab/daemons:/etc/frr/daemons:ro\"\n+      ]\n+    },\n+    \"host-1\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.2\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.1.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    },\n+    \"host-2\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access2\": {\n+          \"ipv4_address\": \"10.212.2.2\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.2.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    },\n+    \"host-3\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.3\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.1.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    },\n+    \"host-4\": {\n+      \"image\": \"busybox:1.36.1\",\n+      \"cap_add\": [\n+        \"NET_ADMIN\"\n+      ],\n+      \"mem_limit\": \"32m\",\n+      \"cpus\": 0.25,\n+      \"networks\": {\n+        \"access1\": {\n+          \"ipv4_address\": \"10.212.1.4\"\n+        }\n+      },\n+      \"command\": [\n+        \"sh\",\n+        \"-ec\",\n+        \"ip route replace default via 10.212.1.1; exec busybox httpd -f -p 8080 -h /srv\"\n+      ],\n+      \"volumes\": [\n+        \"/mnt/netguard/demo-sites/malmo:/srv:ro\"\n+      ]\n+    }\n+  },\n+  \"networks\": {\n+    \"s1l1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.11.0/28\",\n+            \"gateway\": \"10.211.11.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s1l2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.12.0/28\",\n+            \"gateway\": \"10.211.12.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s2l1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.21.0/28\",\n+            \"gateway\": \"10.211.21.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"s2l2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.211.22.0/28\",\n+            \"gateway\": \"10.211.22.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"access1\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.212.1.0/28\",\n+            \"gateway\": \"10.212.1.14\"\n+          }\n+        ]\n+      }\n+    },\n+    \"access2\": {\n+      \"internal\": true,\n+      \"driver\": \"macvlan\",\n+      \"ipam\": {\n+        \"config\": [\n+          {\n+            \"subnet\": \"10.212.2.0/28\",\n+            \"gateway\": \"10.212.2.14\"\n+          }\n+        ]\n+      }\n+    }\n+  }\n+}",
+    "phase": "preview"
+  },
+  "verification": {
+    "observed": 1795124233.5304375,
+    "routers": [
+      {
+        "name": "spine-1",
+        "peers": {
+          "10.211.11.2": "Established",
+          "10.211.12.2": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 6 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if370       UP             10.211.11.1/28 \neth1@if369       UP             10.211.12.1/28",
+        "error": null
+      },
+      {
+        "name": "spine-2",
+        "peers": {
+          "10.211.21.2": "Established",
+          "10.211.22.2": "Established"
+        },
+        "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 6 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth1 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if371       UP             10.211.21.1/28 \neth1@if367       UP             10.211.22.1/28",
+        "error": null
+      },
+      {
+        "name": "leaf-1",
+        "peers": {
+          "10.211.11.1": "Established",
+          "10.211.21.1": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth2 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth1 weight 1 \n\tnexthop via 10.211.11.1 dev eth0 weight 1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if370       UP             10.211.11.2/28 \neth1@if371       UP             10.211.21.2/28 \neth2@if366       UP             10.212.1.1/28",
+        "error": null
+      },
+      {
+        "name": "leaf-2",
+        "peers": {
+          "10.211.12.1": "Established",
+          "10.211.22.1": "Established"
+        },
+        "routes": "10.211.12.0/28 dev eth2 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth0 weight 1 \n\tnexthop via 10.211.12.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth1 proto kernel scope link src 10.212.2.1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if367       UP             10.211.22.2/28 \neth1@if368       UP             10.212.2.1/28 \neth2@if369       UP             10.211.12.2/28",
+        "error": null
+      }
+    ],
+    "flows": [
+      {
+        "timestamp": "2026-11-19T21:37:13.663020+00:00",
+        "source": 1,
+        "destination": "10.212.2.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "icmp": {
+          "sent": 1,
+          "received": 1,
+          "rtt_ms": 0.106
+        }
+      },
+      {
+        "timestamp": "2026-11-19T21:37:13.753849+00:00",
+        "source": 2,
+        "destination": "10.212.1.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "icmp": {
+          "sent": 1,
+          "received": 1,
+          "rtt_ms": 0.083
+        }
+      }
+    ],
+    "host_checks": [
+      {
+        "source": 1,
+        "destination": 2,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      },
+      {
+        "source": 2,
+        "destination": 1,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      },
+      {
+        "source": 3,
+        "destination": 2,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      },
+      {
+        "source": 4,
+        "destination": 2,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      }
+    ],
+    "resources": {
+      "cpus": 4,
+      "memory_available_mib": 4683,
+      "usage": [
+        {
+          "BlockIO": "0B / 28.7kB",
+          "CPUPerc": "1.02%",
+          "Container": "netguard-spine-1-1",
+          "ID": "176e9071325b",
+          "MemPerc": "11.48%",
+          "MemUsage": "22.04MiB / 192MiB",
+          "Name": "netguard-spine-1-1",
+          "NetIO": "27.3kB / 27.1kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "0B / 28.7kB",
+          "CPUPerc": "0.11%",
+          "Container": "netguard-spine-2-1",
+          "ID": "b510fa9d61df",
+          "MemPerc": "10.83%",
+          "MemUsage": "20.8MiB / 192MiB",
+          "Name": "netguard-spine-2-1",
+          "NetIO": "3.36kB / 3.22kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "0B / 28.7kB",
+          "CPUPerc": "7.84%",
+          "Container": "netguard-leaf-1-1",
+          "ID": "05e373c8b0e7",
+          "MemPerc": "11.18%",
+          "MemUsage": "21.46MiB / 192MiB",
+          "Name": "netguard-leaf-1-1",
+          "NetIO": "28.4kB / 27.9kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "0B / 28.7kB",
+          "CPUPerc": "5.62%",
+          "Container": "netguard-leaf-2-1",
+          "ID": "c2121c4797dd",
+          "MemPerc": "11.18%",
+          "MemUsage": "21.46MiB / 192MiB",
+          "Name": "netguard-leaf-2-1",
+          "NetIO": "27.9kB / 27.9kB",
+          "PIDs": "17"
+        },
+        {
+          "BlockIO": "0B / 0B",
+          "CPUPerc": "3.22%",
+          "Container": "netguard-host-1-1",
+          "ID": "82b9e5ac42d1",
+          "MemPerc": "1.56%",
+          "MemUsage": "512KiB / 32MiB",
+          "Name": "netguard-host-1-1",
+          "NetIO": "9.11kB / 8.71kB",
+          "PIDs": "1"
+        },
+        {
+          "BlockIO": "0B / 0B",
+          "CPUPerc": "5.23%",
+          "Container": "netguard-host-2-1",
+          "ID": "788ac7aed72a",
+          "MemPerc": "1.57%",
+          "MemUsage": "516KiB / 32MiB",
+          "Name": "netguard-host-2-1",
+          "NetIO": "13.1kB / 12.4kB",
+          "PIDs": "1"
+        },
+        {
+          "BlockIO": "0B / 0B",
+          "CPUPerc": "4.27%",
+          "Container": "netguard-host-3-1",
+          "ID": "e4826a67decf",
+          "MemPerc": "1.60%",
+          "MemUsage": "524KiB / 32MiB",
+          "Name": "netguard-host-3-1",
+          "NetIO": "3.61kB / 3.68kB",
+          "PIDs": "1"
+        },
+        {
+          "BlockIO": "0B / 0B",
+          "CPUPerc": "0.00%",
+          "Container": "netguard-host-4-1",
+          "ID": "a2ca0c651874",
+          "MemPerc": "1.60%",
+          "MemUsage": "524KiB / 32MiB",
+          "Name": "netguard-host-4-1",
+          "NetIO": "2.71kB / 2.21kB",
+          "PIDs": "1"
+        }
+      ]
+    }
+  },
+  "blocked": {
+    "text": "The target needs 8 hosts. The approved lab limit is 4.",
+    "blocks": [
+      {
+        "type": "table",
+        "title": "Capacity and VM budget",
+        "columns": [
+          "Item",
+          "Observed or estimated"
+        ],
+        "rows": [
+          [
+            "Current hosts",
+            4
+          ],
+          [
+            "Target hosts",
+            8
+          ],
+          [
+            "Approved host limit",
+            4
+          ],
+          [
+            "New spines / leaves / hosts",
+            "0 / 0 / 4"
+          ],
+          [
+            "Additional host memory limits",
+            "128 MiB"
+          ],
+          [
+            "Guest memory available",
+            "4698 MiB"
+          ],
+          [
+            "Proposed container CPU limits",
+            "4.00 vCPU"
+          ],
+          [
+            "Guest CPUs",
+            4
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "The estimate uses the existing leaves and the container limits in the provisioning configuration."
+      }
+    ],
+    "trace": [
+      {
+        "label": "ollama.chat",
+        "stage": null,
+        "target": "",
+        "status": "complete",
+        "started": 1795124237.361384,
+        "completed": 1795124238.1590433,
+        "arguments": null,
+        "result": null,
+        "error": null
+      },
+      {
+        "label": "Read guest resources and Docker container usage",
+        "stage": "Validate",
+        "started": 1795124238.1850135,
+        "completed": 1795124240.3151355,
+        "status": "complete",
+        "result": {
+          "before_hosts": 4,
+          "target_hosts": 8,
+          "host_limit": 4,
+          "requirements": {
+            "spines": 0,
+            "leaves": 0,
+            "hosts": 4,
+            "additional_memory_mib": 128,
+            "total_cpu_limits": 4
+          },
+          "baseline_resources": {
+            "cpus": 4,
+            "memory_available_mib": 4698,
+            "usage": [
+              {
+                "BlockIO": "0B / 28.7kB",
+                "CPUPerc": "0.01%",
+                "Container": "netguard-spine-1-1",
+                "ID": "176e9071325b",
+                "MemPerc": "11.47%",
+                "MemUsage": "22.02MiB / 192MiB",
+                "Name": "netguard-spine-1-1",
+                "NetIO": "39.6kB / 39.6kB",
+                "PIDs": "17"
+              },
+              {
+                "BlockIO": "0B / 32.8kB",
+                "CPUPerc": "0.01%",
+                "Container": "netguard-spine-2-1",
+                "ID": "b510fa9d61df",
+                "MemPerc": "10.83%",
+                "MemUsage": "20.8MiB / 192MiB",
+                "Name": "netguard-spine-2-1",
+                "NetIO": "3.59kB / 3.52kB",
+                "PIDs": "17"
+              },
+              {
+                "BlockIO": "0B / 32.8kB",
+                "CPUPerc": "2.20%",
+                "Container": "netguard-leaf-1-1",
+                "ID": "05e373c8b0e7",
+                "MemPerc": "11.18%",
+                "MemUsage": "21.46MiB / 192MiB",
+                "Name": "netguard-leaf-1-1",
+                "NetIO": "40.8kB / 40.3kB",
+                "PIDs": "17"
+              },
+              {
+                "BlockIO": "0B / 32.8kB",
+                "CPUPerc": "0.00%",
+                "Container": "netguard-leaf-2-1",
+                "ID": "c2121c4797dd",
+                "MemPerc": "11.17%",
+                "MemUsage": "21.45MiB / 192MiB",
+                "Name": "netguard-leaf-2-1",
+                "NetIO": "40.3kB / 40.3kB",
+                "PIDs": "17"
+              },
+              {
+                "BlockIO": "0B / 0B",
+                "CPUPerc": "0.00%",
+                "Container": "netguard-host-1-1",
+                "ID": "82b9e5ac42d1",
+                "MemPerc": "1.56%",
+                "MemUsage": "512KiB / 32MiB",
+                "Name": "netguard-host-1-1",
+                "NetIO": "12.5kB / 12.1kB",
+                "PIDs": "1"
+              },
+              {
+                "BlockIO": "0B / 0B",
+                "CPUPerc": "8.85%",
+                "Container": "netguard-host-2-1",
+                "ID": "788ac7aed72a",
+                "MemPerc": "1.57%",
+                "MemUsage": "516KiB / 32MiB",
+                "Name": "netguard-host-2-1",
+                "NetIO": "19.6kB / 17.8kB",
+                "PIDs": "1"
+              },
+              {
+                "BlockIO": "0B / 0B",
+                "CPUPerc": "0.71%",
+                "Container": "netguard-host-3-1",
+                "ID": "e4826a67decf",
+                "MemPerc": "1.60%",
+                "MemUsage": "524KiB / 32MiB",
+                "Name": "netguard-host-3-1",
+                "NetIO": "5.35kB / 6.02kB",
+                "PIDs": "1"
+              },
+              {
+                "BlockIO": "0B / 0B",
+                "CPUPerc": "2.55%",
+                "Container": "netguard-host-4-1",
+                "ID": "a2ca0c651874",
+                "MemPerc": "1.60%",
+                "MemUsage": "524KiB / 32MiB",
+                "Name": "netguard-host-4-1",
+                "NetIO": "5.51kB / 5.93kB",
+                "PIDs": "1"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "restored": {
+    "observed": 1795124268.7881393,
+    "routers": [
+      {
+        "name": "spine-1",
+        "peers": {
+          "10.211.11.2": "Established",
+          "10.211.12.2": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 6 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth1 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if370       UP             10.211.11.1/28 \neth1@if369       UP             10.211.12.1/28",
+        "error": null
+      },
+      {
+        "name": "spine-2",
+        "peers": {
+          "10.211.21.2": "Established",
+          "10.211.22.2": "Established"
+        },
+        "routes": "10.211.21.0/28 dev eth0 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 6 via 10.211.21.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth1 proto bgp metric 20",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if371       UP             10.211.21.1/28 \neth1@if367       UP             10.211.22.1/28",
+        "error": null
+      },
+      {
+        "name": "leaf-1",
+        "peers": {
+          "10.211.11.1": "Established",
+          "10.211.21.1": "Established"
+        },
+        "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth2 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth0 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.21.1 dev eth2 weight 1 \n\tnexthop via 10.211.11.1 dev eth1 weight 1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if366       UP             10.212.1.1/28 \neth1@if370       UP             10.211.11.2/28 \neth2@if371       UP             10.211.21.2/28",
+        "error": null
+      },
+      {
+        "name": "leaf-2",
+        "peers": {
+          "10.211.12.1": "Established",
+          "10.211.22.1": "Established"
+        },
+        "routes": "10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth1 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 12 proto bgp metric 20 \n\tnexthop via 10.211.22.1 dev eth1 weight 1 \n\tnexthop via 10.211.12.1 dev eth0 weight 1 \n10.212.2.0/28 dev eth2 proto kernel scope link src 10.212.2.1",
+        "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if369       UP             10.211.12.2/28 \neth1@if367       UP             10.211.22.2/28 \neth2@if368       UP             10.212.2.1/28",
+        "error": null
+      }
+    ],
+    "flows": [
+      {
+        "timestamp": "2026-11-19T21:37:48.867297+00:00",
+        "source": 1,
+        "destination": "10.212.2.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "icmp": {
+          "sent": 1,
+          "received": 1,
+          "rtt_ms": 0.139
+        }
+      },
+      {
+        "timestamp": "2026-11-19T21:37:48.946682+00:00",
+        "source": 2,
+        "destination": "10.212.1.2",
+        "candidates": [
+          1,
+          2
+        ],
+        "probes": {
+          "ICMP": "success",
+          "HTTP": "success"
+        },
+        "icmp": {
+          "sent": 1,
+          "received": 1,
+          "rtt_ms": 0.126
+        }
+      }
+    ],
+    "host_checks": [
+      {
+        "source": 1,
+        "destination": 2,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      },
+      {
+        "source": 2,
+        "destination": 1,
+        "ICMP": "success",
+        "HTTP": "success",
+        "bidirectional": true
+      }
+    ]
+  }
+}

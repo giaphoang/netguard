@@ -307,3 +307,72 @@ def experiment(run):
         "refresh_seconds": 1 if phase in {"investigating", "applying", "rolling_back"} else 0,
         "href": "/agent/#experiment=" + identity,
     }
+
+
+def provisioning(plan, *, current, latest):
+    from . import capacity
+
+    phase = plan["phase"]
+    verification = plan.get("verification", {})
+    blocks = []
+    if plan.get("capacity"):
+        blocks.extend(capacity.blocks(plan["capacity"], verification.get("resources")))
+    blocks.append(
+        design(
+            {
+                "before": plan.get("before"),
+                "after": plan.get("topology"),
+                "diff": plan["diff"],
+                "risk": plan.get("risk", {}),
+            },
+            phase,
+        )
+    )
+    if plan.get("failure"):
+        blocks.append(text(plan["failure"]))
+    stages = {
+        "preview": ("Render Compose and FRR configuration", "Plan"),
+        "applying": ("Deploy validated Compose configuration", "Implement"),
+        "verified": ("Verify BGP, host probes and any requested resources", "Verify"),
+        "rolling_back": ("Restore earlier Compose configuration", "Rollback"),
+        "rolled_back": ("Verify restored topology", "Verify"),
+    }
+    trace = []
+    for event in plan["events"]:
+        name, stage = stages.get(event["phase"], (event["phase"].replace("_", " "), "Controller"))
+        trace.append(
+            {
+                "label": name,
+                "stage": stage,
+                "started": event["time"],
+                "status": "running"
+                if event["phase"] == phase and phase in {"applying", "rolling_back"}
+                else "recorded",
+                "result": verification
+                if event["phase"] == "verified"
+                else plan.get("rollback_verification")
+                if event["phase"] == "rolled_back"
+                else None,
+            }
+        )
+    blocks.append(link("Full provisioning evidence", "/api/provision/" + plan["id"]))
+    actions = []
+    if phase == "preview" and latest:
+        actions.append(
+            {
+                "key": "approve",
+                "label": "Approve deployment",
+                "primary": True,
+                "revision": plan["digest"],
+            }
+        )
+    if phase in {"verified", "needs_review"} and current:
+        actions.append({"key": "rollback", "label": "Restore original configuration"})
+    return {
+        "title": PHASES.get(phase, phase),
+        "text": f"Fabric change adding {', '.join(plan['added'])}.",
+        "blocks": blocks,
+        "trace": trace,
+        "actions": actions,
+        "refresh_seconds": 1 if phase in {"applying", "rolling_back"} else 0,
+    }

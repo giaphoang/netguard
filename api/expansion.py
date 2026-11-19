@@ -11,6 +11,10 @@ from copy import deepcopy
 from . import provision as p
 
 BASE = {"spines": [1, 2], "leaves": [1, 2], "hosts": [{"id": 1, "leaf": 1}, {"id": 2, "leaf": 2}]}
+MAX_HOSTS = 4
+HOST_MEMORY_MIB = 32
+HOST_CPUS = 0.25
+ROUTER_CPUS = 0.5
 
 
 def get(db, identity):
@@ -62,12 +66,16 @@ def validate(topology):
                 f"Lab capacity/preservation policy: at most {maximum} {key}, including the base fabric"
             )
     hosts = topology["hosts"]
-    if not 2 <= len(hosts) <= 4 or len({h["id"] for h in hosts}) != len(hosts):
+    if not 2 <= len(hosts) <= MAX_HOSTS or len({h["id"] for h in hosts}) != len(hosts):
         raise ValueError("Lab capacity is four hosts")
     if any(h not in hosts for h in BASE["hosts"]):
         raise ValueError("Preserve the base hosts")
     for h in hosts:
-        if type(h["id"]) is not int or not 1 <= h["id"] <= 4 or h["leaf"] not in topology["leaves"]:
+        if (
+            type(h["id"]) is not int
+            or not 1 <= h["id"] <= MAX_HOSTS
+            or h["leaf"] not in topology["leaves"]
+        ):
             raise ValueError("Invalid host identity or attachment")
 
 
@@ -121,7 +129,7 @@ def render(topology, folder):
                 "image": "quay.io/frrouting/frr:10.1.1",
                 "cap_add": ["NET_ADMIN", "SYS_ADMIN"],
                 "mem_limit": "192m",
-                "cpus": 0.5,
+                "cpus": ROUTER_CPUS,
                 "sysctls": {"net.ipv4.ip_forward": "1"},
                 "networks": attachments,
                 "volumes": [
@@ -134,8 +142,8 @@ def render(topology, folder):
         services[name] = {
             "image": "busybox:1.36.1",
             "cap_add": ["NET_ADMIN"],
-            "mem_limit": "32m",
-            "cpus": 0.25,
+            "mem_limit": f"{HOST_MEMORY_MIB}m",
+            "cpus": HOST_CPUS,
             "networks": {f"access{leaf}": {"ipv4_address": host_ip(h, topology)}},
             "command": [
                 "sh",
@@ -147,7 +155,7 @@ def render(topology, folder):
     return {"services": services, "networks": networks}, configs
 
 
-def propose(c, kind, count, targets, started):
+def propose(c, kind, count, targets, started, *, capacity=None):
     with c.lock:
         prior = current(c.db)
         if c.active or c.stopped or prior and prior["phase"] != "verified":
@@ -189,6 +197,8 @@ def propose(c, kind, count, targets, started):
                 "rollback": "Restore the previously verified topology and remove only this change’s owned resources.",
             },
         }
+        if capacity:
+            plan["capacity"] = capacity
         _, files, plan["digest"] = p.material(c.db, plan)
         before_files = p.material(c.db, prior)[1] if prior else {}
         plan["diff"] = "\n".join(
@@ -333,6 +343,7 @@ def ownership(topology, origins):
 
 def execute(c, identity, rollback=False):
     from .architecture import require_idle
+    from .capacity import budget_failure, resources
 
     with c.lock:
         require_idle(c.db)
@@ -365,6 +376,10 @@ def execute(c, identity, rollback=False):
         origins = approved_origins(c.db, prior) | {str(p.BASE) + "," + str(overlay)}
         if not rollback:
             ownership(previous, origins - {str(p.BASE) + "," + str(overlay)})
+            if plan.get("capacity"):
+                reason = budget_failure(plan["capacity"]["requirements"], resources(previous))
+                if reason:
+                    raise ValueError(reason)
             existing = set(p.presets.docker("ps", "-a", "--format", "{{.Names}}").splitlines())
             if any(f"netguard-{n}-1" in existing for n in plan["added"]):
                 raise ValueError("A requested resource already exists")
@@ -386,6 +401,8 @@ def execute(c, identity, rollback=False):
         try:
             p.compose(overlay, "up", "-d", "--no-deps", *names(plan["topology"]))
             plan["verification"] = verify(plan["topology"])
+            if plan.get("capacity"):
+                plan["verification"]["resources"] = resources(plan["topology"], include_usage=True)
             if c.stopped:
                 raise ValueError("Emergency stop during deployment")
             p.save(c.db, plan, "verified")

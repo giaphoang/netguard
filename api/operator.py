@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, ValidationError
 from . import (
     advisor,
     architecture,
+    capacity,
     chat_views,
     expansion,
     intents,
@@ -43,6 +44,10 @@ WORKFLOW_STEPS = {
     "provision": (
         "Build a topology preview",
         "Check capacity and attachments, then calculate the configuration diff.",
+    ),
+    "capacity": (
+        "Check capacity and VM resources",
+        "Measure headroom and calculate the minimum host additions.",
     ),
     "remove": (
         "Check removal risk",
@@ -275,6 +280,28 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
             "text": "Preview ready. Review the topology, configuration diff and risk. Deployment requires approval and verified routing; failed checks restore the prior topology.",
             "plan": plan,
         }
+    if tool == "capacity":
+        began = time.time()
+        details, plan, message = capacity.plan(c, req.prompt, sample, started)
+        ref = (
+            {"record": {"source": "provision", "id": plan["id"]}}
+            if plan
+            else {"blocks": capacity.blocks(details)}
+        )
+        return {
+            "text": message,
+            **ref,
+            "trace": [
+                {
+                    "label": "Read guest resources and Docker container usage",
+                    "stage": "Validate",
+                    "started": began,
+                    "completed": time.time(),
+                    "status": "complete",
+                    "result": details,
+                }
+            ],
+        }
     if tool == "repair":
         with c.lock:
             if not c.active or c.run["phase"] != "proposed":
@@ -343,11 +370,20 @@ def monitoring(c=Depends(local)):
 
 
 @router.get("/api/operator/records/{source}/{identity}")
-def record_view(source: Literal["experiment", "monitor"], identity: str, c=Depends(local)):
+def record_view(
+    source: Literal["experiment", "monitor", "provision"], identity: str, c=Depends(local)
+):
     if source == "monitor":
         if identity != "fabric":
             raise HTTPException(404, "Unknown monitoring record.")
         return monitor_chat.view(c)
+    if source == "provision":
+        plan = plan_state(identity, c)
+        return chat_views.provisioning(
+            plan,
+            current=(expansion.current(c.db) or {}).get("id") == identity,
+            latest=(provision.latest(c.db) or {}).get("id") == identity,
+        )
     return chat_views.experiment(architecture.get_run(c, identity))
 
 
@@ -357,13 +393,18 @@ class RecordApproval(BaseModel):
 
 @router.post("/api/operator/records/{source}/{identity}/actions/{action}", status_code=202)
 def record_action(
-    source: Literal["experiment"],
+    source: Literal["experiment", "provision"],
     identity: str,
     action: Literal["approve", "rollback"],
     req: RecordApproval,
     background: BackgroundTasks,
     c=Depends(authorized),
 ):
+    if source == "provision":
+        plan = plan_state(identity, c)
+        if action == "approve" and req.revision != plan["digest"]:
+            raise HTTPException(409, "Approval is stale. Review the current configuration preview.")
+        return perform(provision.execute, c, identity, action == "rollback")
     if action == "rollback":
         return architecture.rollback(identity, background, c)
     if not req.revision:
