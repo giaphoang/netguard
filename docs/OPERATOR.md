@@ -25,6 +25,10 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Review this incident and generate a verified postmortem.” | Generate a proposed read-only runbook check linked to a real event; adoption requires review. |
 | “Evaluate the AI operator against our incident test suite.” | Compare diagnostic workflows on identical labeled observations. No live actuator runs. |
 
+Scroll the chat to revisit earlier requests, answers, approval outcomes, and evidence. **Latest message** returns to the end of the conversation. **How to use NetGuard Agent** opens the guide while keeping your draft and the composer in place.
+
+Open **Activity** for the steps reported while the agent checks the request. Incident and provisioning actions show the controller’s recorded steps as the operation advances. **Evidence** lists the observations cited in a response.
+
 Each request is independent. Include the target and any requested quantity or fault duration. For ordinary questions, the agent explains the latest probe paths, BGP state, and routing evidence. Specialized workflows retrieve additional evidence or prepare an approval. The controller validates devices, scope, capacity, approval, and rollback. The lab supports up to three spines, four leaves, and four hosts. Provisioning can recreate containers and interrupt traffic.
 
 Choose **Probe route** above the topology to run a live check and watch that direction. The picker includes both directions between provisioned hosts and probes to available leaf loopbacks. **Auto cycle** moves to the next successful path after the marker reaches the destination. A failed or stale probe pauses the selected path. Link counters, ICMP, and HTTP come from the lab. Marker speed is illustrative.

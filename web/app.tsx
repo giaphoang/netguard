@@ -394,13 +394,8 @@ function App() {
   async function trace() {
     if (frames.length) {
       const d = frames[frame].probes[source - 1];
-      setProbe(
-        d.timestamp +
-          " · recorded ICMP " +
-          d.probes.ICMP +
-          " · HTTP " +
-          d.probes.HTTP,
-      );
+      const result = d.timestamp + " · recorded ICMP " + d.probes.ICMP + " · HTTP " + d.probes.HTTP;
+      setProbe(result);
       const routes =
         frames[frame].snapshot.routers.find((r) => r.name === "leaf-" + source)
           ?.routes || "";
@@ -409,14 +404,15 @@ function App() {
           routes.includes("via 10.211." + (10 * i + source) + ".1 "),
         ),
       );
-      return;
+      return result;
     }
     if (!shownRoute) {
-      setProbe("Choose an available probe route.");
-      return;
+      const result = "Choose an available probe route.";
+      setProbe(result);
+      return result;
     }
     setRouteChoice(routeId(shownRoute));
-    await runProbe(shownRoute);
+    return runProbe(shownRoute);
   }
 
   async function runProbe(route: ProbePath) {
@@ -433,12 +429,16 @@ function App() {
       });
       if (!response.ok) throw Error("Probe request unavailable");
       const observation: ProbePath = await response.json();
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) return "The probe was cancelled.";
       if (routeId(observation) !== routeId(route)) throw Error("Unexpected probe route");
       setManualProbe(observation);
-      setProbe(`${routeLabel(observation)} · ${probeStatus(observation)}`);
+      const result = `${routeLabel(observation)} · ${probeStatus(observation)}`;
+      setProbe(result);
+      return result;
     } catch {
-      if (!controller.signal.aborted) setProbe("Probe request unavailable");
+      if (controller.signal.aborted) return "The probe was cancelled.";
+      setProbe("Probe request unavailable");
+      return "Probe request unavailable";
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
@@ -780,11 +780,17 @@ function App() {
               live={liveMode}
               target={faultTarget}
               run={incident}
-              observed={sample?.timestamp || ""}
               preview={setPreview}
-              replayText={frames.length ? frames[frame].reason : undefined}
+              replay={frames.length ? {
+                text: frames[frame].reason,
+                review: frames[frame].review,
+                events: frames.slice(0, frame + 1).map((recorded) => ({
+                  phase: recorded.label.toLowerCase(),
+                  reason: recorded.reason || "",
+                  time: recorded.eventTime || 0,
+                })),
+              } : undefined}
               trace={trace}
-              probe={probe}
             />
           </div>
           <section className="timeline">

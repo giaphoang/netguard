@@ -14,5 +14,25 @@ export function TopologyPreview({before,after,applied=false}:{before:FabricSpec;
       ...spec.hosts.map(h=>({id:`h${h.id}`,source:`leaf-${h.leaf}`,target:`host-${h.id}`}))
     ]};
   }
-  return <div className="topology-compare">{[[applied?"Before":"Current",before],[applied?"Deployed":"Proposed",after]].map(([label,spec])=><div key={label as string}><h3>{label as string}</h3><div style={{height:250}}><ReactFlow {...graph(spec as FabricSpec)} fitView nodesDraggable={false} nodesConnectable={false} proOptions={{hideAttribution:false}}><Background/></ReactFlow></div></div>)}</div>;
+  return (
+    <div className="topology-compare">
+      {([[applied ? "Before" : "Current", before], [applied ? "Deployed" : "Proposed", after]] as const).map(([label, spec]) => (
+        <div key={label}>
+          <h3>{label}</h3>
+          <div style={{ height: 250 }}>
+            <ReactFlow
+              {...graph(spec)}
+              fitView
+              nodesDraggable={false}
+              nodesConnectable={false}
+              zoomOnScroll={false}
+              preventScrolling={false}
+            >
+              <Background />
+            </ReactFlow>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

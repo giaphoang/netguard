@@ -17,12 +17,25 @@ const {chromium}=require('playwright-core');
    await page.screenshot({path:'docs/proof/p3/'+name.toLowerCase().replace(' ','-')+'.png',fullPage:true});
   }
   const field=page.getByRole('textbox',{name:'Ask NetGuard'});
+  const chat=page.getByRole('log',{name:'Chat history'});
+  const guide=page.getByRole('button',{name:'How to use NetGuard Agent'});
+  await guide.scrollIntoViewIfNeeded();
+  const composer=page.locator('.chat-composer');
+  const before=await composer.boundingBox();
+  await guide.click();
+  await page.getByRole('dialog',{name:'How to use NetGuard Agent'}).waitFor();
+  const during=await composer.boundingBox();
+  if(before.y!==during.y||before.height!==during.height)throw Error('Opening the guide moved the composer');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Show impact',exact:true}).click();
+  await chat.getByText('Measured workflow outcomes from the lab.',{exact:true}).waitFor();
   await field.fill('Add a host under Leaf 2.');
-  const response=page.waitForResponse(r=>r.url().endsWith('/api/operator'),{timeout:60000});
   await field.press('Enter');
-  const data=await(await response).json();
-  if(!data.plan)throw Error(JSON.stringify(data));
-  await page.getByRole('heading',{name:'Proposed',exact:true}).waitFor();
+  await chat.getByRole('button',{name:'Approve deployment'}).waitFor({timeout:60000});
+  await chat.getByText('Build a topology preview',{exact:true}).waitFor();
+  await chat.getByText('Measured workflow outcomes from the lab.',{exact:true}).waitFor();
+  await chat.getByText('Topology comparison',{exact:true}).click();
+  await chat.getByRole('heading',{name:'Proposed',exact:true}).waitFor();
   await page.screenshot({path:'docs/proof/p3/provision-preview.png',fullPage:true});
   try {
    const deploy=page.waitForResponse(r=>r.url().endsWith('/approve'),{timeout:180000});
@@ -41,6 +54,6 @@ const {chromium}=require('playwright-core');
   await page.getByRole('button',{name:'Command Center',exact:true}).click();
   await page.screenshot({path:'docs/proof/p3/mobile.png',fullPage:true});
   if(errors.length)throw Error(errors.join('\n'));
-  console.log('Four workspaces, topology preview, approval, verification, rollback and mobile rendering passed.');
+  console.log('Four workspaces, fixed chat composer, history, topology preview, approval, verification, rollback and mobile rendering passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});
