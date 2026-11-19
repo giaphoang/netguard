@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import advisor, topology
 
-VERSION = "topology-intent-v5"
+VERSION = "topology-intent-v4"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -21,7 +21,6 @@ WORKFLOWS = {
     "compare_operational_metrics": "evaluate",
     "detect_configuration_drift": "drift",
     "review_completed_incident": "postmortem",
-    "read_incident_history": "incident_history",
     "evaluate_ai_quality": "benchmark",
     "clarify_request": "clarify",
 }
@@ -37,8 +36,6 @@ Hypothetical failures, disappearing devices, outages and what-if removals use as
 For example, an imagined loss of a router asks for change risk. Actual removal requests use remove_nodes.
 Configuration drift concerns differences between running and expected configuration statements.
 Continuous observation uses monitor_anomalies; diagnosing the most unstable BGP peer uses diagnose_connectivity.
-Use read_incident_history to find, list, or inspect saved incident records, such as what happened
-in the latest link failure or which incidents on a device were resolved.
 Adding nodes uses provision_nodes; recovering connectivity uses repair_connectivity;
 timed faults use simulate_failure; postmortems use review_completed_incident.
 Do not execute or authorize changes. Copy explicit_references into targets without substitutions.
@@ -64,7 +61,6 @@ class Intent(BaseModel):
         "evaluate",
         "drift",
         "postmortem",
-        "incident_history",
         "benchmark",
         "clarify",
     ]
@@ -136,8 +132,6 @@ def interpret(prompt, selection, sample):
     spec = Intent.model_validate(payload)
     if spec.quantity != quantity or spec.duration_s != seconds:
         raise ValueError("The model changed your requested quantity or duration. Please clarify.")
-    if spec.intent == "incident_history":
-        return spec, [], graph
     targets = [topology.resolve(t, graph) for t in spec.targets]
     explicit = {topology.resolve(r, graph) for r in references}
     if explicit and set(targets) != explicit:

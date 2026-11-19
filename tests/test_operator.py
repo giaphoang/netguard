@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api import incident_history, intents, investigations, measurements, operator, provision
+from api import evaluation, incident_history, intents, investigations, measurements, operator, provision
 from api.incidents import Controller
 from test_incidents import sample
 
@@ -101,10 +101,10 @@ def test_incident_chat_reads_saved_runs_and_investigations(tmp_path, monkeypatch
 
     monkeypatch.setattr(operator, "observe", unexpected)
     monkeypatch.setattr(incident_history, "interpret", lambda _: incident_history.Search(
-        operation="search", keywords=["resolved", "link failures"],
+        operation="search", keywords=["resolved", "link"],
     ))
     response = client.post("/api/operator", headers={"Accept": "application/x-ndjson"}, json={
-        "prompt": "Find resolved link failures on Leaf Four", "incident_history": True,
+        "prompt": "Find resolved link incidents on Leaf Four",
     })
     step, result = [json.loads(line) for line in response.iter_lines()]
     assert step["step"]["label"] == "Read the incident journal"
@@ -133,17 +133,11 @@ def test_incident_chat_reads_saved_runs_and_investigations(tmp_path, monkeypatch
     assert c.db.read_bytes() == saved
 
 
-def test_history_intent_accepts_a_device_absent_from_the_live_fabric(monkeypatch):
-    monkeypatch.setattr(intents.advisor, "infer", lambda *_: json.dumps({
-        "intent": "read_incident_history",
-        "targets": ["leaf four"],
-        "node_type": "unspecified",
-        "quantity": None,
-        "duration_s": None,
-        "scope": "network",
-    }))
-    spec, _, _ = intents.interpret("Find past incidents on Leaf Four", "", sample())
-    assert spec.intent == "incident_history"
+def test_incident_history_routing_preserves_operational_requests():
+    for prompt, *_ in evaluation.intent_cases():
+        assert not incident_history.wants_journal(prompt)
+    assert not incident_history.wants_journal("Review this incident and generate a verified postmortem.")
+    assert incident_history.wants_journal("What happened in the most recent link failure?")
 
 
 def test_provision_scope_and_superseded_previews(tmp_path):

@@ -100,7 +100,7 @@ def incident_events(req, db):
 def operator_events(req, c):
     started = time.time()
     try:
-        if req.incident_history or req.incident_record:
+        if req.incident_history or req.incident_record or history.wants_journal(req.prompt):
             yield from incident_events(req, c.db)
             return
         yield step(
@@ -112,9 +112,6 @@ def operator_events(req, c):
         )
         spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
         tool = spec.intent
-        if tool == "incident_history":
-            yield from incident_events(req, c.db)
-            return
         inv.record(
             c.db,
             "intent",

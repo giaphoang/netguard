@@ -20,6 +20,14 @@ FINDINGS = {"bgp_flapping": "bgp", "configuration_drift": "configuration_drift"}
 FINDING_TITLES = {"bgp_flapping": "BGP flapping"}
 RESULT_LIMIT = 6
 RECORD_ID = re.compile(r"\b[0-9a-f]{8,32}\b", re.IGNORECASE)
+READ_REQUEST = re.compile(
+    r"\b(?:search|find|inspect|review|list|show|look up|what happened|why did|when did|which|how many)\b"
+)
+JOURNAL_RECORD = re.compile(r"\b(?:incidents?|investigations?|journal|case history)\b")
+PAST_EVENT = re.compile(
+    r"\b(?:latest|recent|previous|past|recorded|saved)\b.*\b(?:failures?|outages?|handoffs?)\b"
+)
+OTHER_WORKFLOW = re.compile(r"\b(?:postmortem|test suite|prompt versions?|diagnosis accuracy)\b")
 DEVICE = re.compile(rf"\b(leaf|spine|host) (\d+|{'|'.join(topology.WORDS)}|a|b)\b")
 DEVICE_NUMBERS = {**{word: str(n) for n, word in enumerate(topology.WORDS)}, "a": "1", "b": "2"}
 FILTER_PATTERNS = {
@@ -71,6 +79,15 @@ class Search(BaseModel):
     model_config = ConfigDict(extra="forbid")
     operation: Literal["search", "inspect", "unsupported"]
     keywords: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=4)
+
+
+def wants_journal(prompt):
+    text = topology.normalize(prompt)
+    return bool(
+        READ_REQUEST.search(text)
+        and (JOURNAL_RECORD.search(text) or PAST_EVENT.search(text) or RECORD_ID.search(text))
+        and not OTHER_WORKFLOW.search(text)
+    )
 
 
 def devices(text):
