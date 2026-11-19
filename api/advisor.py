@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 TRACE = ContextVar("inference_trace", default=None)
 
-VERSION = "fabric-triage-v6"
+VERSION = "fabric-triage-v6.1"
 MODEL = "qwen2.5:1.5b"
 PROMPT = """Diagnose one observation from a two-spine lab. Each link record reports
 the leaf interface state and both BGP peer observations. Each host record reports
@@ -108,8 +108,8 @@ def assess(observation):
         schema["properties"]["citations"]["items"]["enum"] = [abnormal[0]]
         schema["properties"]["citations"]["maxItems"] = 1
     decision = Decision.model_validate_json(infer(PROMPT, observation, schema))
-    allowed_diagnoses = schema["properties"]["diagnosis"].get("enum", [])
-    if decision.diagnosis not in allowed_diagnoses:
+    allowed_diagnoses = schema["properties"]["diagnosis"].get("enum")
+    if allowed_diagnoses is not None and decision.diagnosis not in allowed_diagnoses:
         raise ValueError("Diagnosis contradicts observed interface state")
     if decision.component not in candidates or (
         decision.action == "restore_link" and not repairable

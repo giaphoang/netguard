@@ -1,10 +1,31 @@
 import json
 from copy import deepcopy
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api import advisor, evaluation, fabric, measurements, provision
 from api.incidents import Controller
+
+
+@pytest.mark.parametrize("scenario", ["bgp", "endpoint"])
+def test_complete_observations_accept_grounded_diagnoses(monkeypatch, scenario):
+    fixture = next(
+        case for case in evaluation.diagnostics() if case["id"] == "recorded-" + scenario
+    )
+    expected = fixture["expected"]
+    citation = "host-1" if scenario == "endpoint" else expected["component"]
+    monkeypatch.setattr(
+        advisor,
+        "infer",
+        lambda *_: json.dumps(
+            {**expected, "citations": [citation], "next_check": "Inspect the affected service."}
+        ),
+    )
+    decision = advisor.assess(fixture["observation"])
+    assert decision.diagnosis == scenario
+    assert decision.component == expected["component"]
+    assert decision.action == "handoff"
 
 
 def test_evaluation_pairs_identical_evidence_and_counts_failures(monkeypatch):
@@ -62,7 +83,9 @@ def test_reset_after_failed_automatic_action_is_not_ai_repair():
     assert measurements.outcome(repaired) == "ai_repair"
 
 
-def test_impact_evidence_matches_timing_samples_and_keeps_the_default_contract(tmp_path, monkeypatch):
+def test_impact_evidence_matches_timing_samples_and_keeps_the_default_contract(
+    tmp_path, monkeypatch
+):
     controller = Controller(tmp_path / "journal")
     baseline = ["leaf-1", "leaf-2", "spine-1", "spine-2"]
     for identity, ai, routers, seconds in [
@@ -115,7 +138,9 @@ def test_impact_evidence_matches_timing_samples_and_keeps_the_default_contract(t
         {key: value for key, value in row.items() if key != "evidence"} for row in extended["rows"]
     ]
 
-    matched = next(row for row in extended["rows"] if row["metric"] == "Verified closure" and row["manual"])
+    matched = next(
+        row for row in extended["rows"] if row["metric"] == "Verified closure" and row["manual"]
+    )
     assert matched["evidence"]["topologies"] == [{"routers": baseline}]
     assert [(run["url"], run["seconds"]) for run in matched["evidence"]["runs"]] == [
         ("/api/incidents/manual", 9),
