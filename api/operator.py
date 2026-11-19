@@ -14,6 +14,7 @@ from .controls import authorized, local, perform
 from .incidents import healthy, observe
 
 router = APIRouter()
+SPINE_TARGET = r"\bspines?[\s_\-‐‑‒–—]+(\d+|one|two)\b"
 
 
 class Request(BaseModel):
@@ -30,11 +31,10 @@ class Intent(BaseModel):
 
 
 def spine_risk(prompt):
-    target_pattern = r"\bspines?[\s_\-‐‑‒–—]+(\d+|one|two)\b"
     targets = {
-        {"one": "1", "two": "2"}.get(name, name) for name in re.findall(target_pattern, prompt)
+        {"one": "1", "two": "2"}.get(name, name) for name in re.findall(SPINE_TARGET, prompt)
     }
-    multiple = re.search(target_pattern + r"(?:\s+(?:and|or)\s+|,\s*)(?:\d+|one|two)\b", prompt)
+    multiple = re.search(SPINE_TARGET + r"(?:\s+(?:and|or)\s+|,\s*)(?:\d+|one|two)\b", prompt)
     if targets in ({"1"}, {"2"}) and not multiple:
         return "risk", {"spine": int(targets.pop())}
     return "risk_clarify", {}
@@ -52,6 +52,10 @@ def interpret(req):
         return "postmortem", {}
     if re.search(r"\bspines?\b", q) and re.search(
         r"\b(?:remov(?:e|ing|al)|decommission(?:ing)?|without|blast radius|take .+ offline)\b", q
+    ):
+        return spine_risk(q)
+    if re.search(r"\b(?:if|suppose|imagine|assuming)\b", q) and re.search(
+        SPINE_TARGET + r"\s+(?:fails|disappears|goes (?:down|offline)|is (?:down|offline))\b", q
     ):
         return spine_risk(q)
     if q in {"explain root cause", "why is this connection failing?"} or q.startswith("why "):

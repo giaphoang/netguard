@@ -47,7 +47,7 @@ def test_model_risk_intent_uses_spine_named_by_operator(monkeypatch):
         "infer",
         lambda *_: '{"tool":"risk","leaf":0,"spine":2,"count":0,"seconds":0}',
     )
-    assert operator.interpret(operator.Request(prompt="Suppose Spine One disappears")) == (
+    assert operator.interpret(operator.Request(prompt="Suppose Spine One is retired")) == (
         "risk",
         {"spine": 1},
     )
@@ -55,6 +55,11 @@ def test_model_risk_intent_uses_spine_named_by_operator(monkeypatch):
         "risk_clarify",
         {},
     )
+
+
+def test_spine_outage_what_if_routes_to_risk():
+    request = operator.Request(prompt="Suppose Spine One disappears. What is the impact?")
+    assert operator.interpret(request) == ("risk", {"spine": 1})
 
 
 def test_exact_targets_and_duration():
