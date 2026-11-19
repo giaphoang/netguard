@@ -127,15 +127,7 @@ def operator(req: Request, c=Depends(authorized)):
             last = next((r for r in c.status()["incidents"] if r["phase"] == "resolved"), None)
             if not last:
                 return {"text": "No verified incident closure is available for review."}
-            return {
-                "text": f"Verified closure of {last['scenario']} incident {last['id']}. Candidate runbook: repeat its evidence checks and require the same post-repair probes. Human review required before adoption.",
-                "evidence": {
-                    "observed": time.time(),
-                    "facts": {
-                        k: last.get(k) for k in ("events", "review", "metrics", "before", "latest")
-                    },
-                },
-            }
+            return inv.response(inv.postmortem(c.db, last))
         if tool == "size":
             return {
                 "text": "Choose one or two new BGP leaves. Each will connect to both spines.",

@@ -134,3 +134,35 @@ def anomaly(history):
     if all(degraded(entry) for entry in history[-2:]):
         return "Repeated degraded routing or probe observations"
     return None
+
+
+def postmortem(db, run):
+    from . import advisor
+    from pydantic import BaseModel, Field
+
+    class Proposal(BaseModel):
+        next_check: str = Field(min_length=1, max_length=300)
+        event_index: int = Field(ge=0, lt=len(run["events"]))
+
+    evidence = {
+        key: run.get(key) for key in ("id", "events", "metrics", "before", "latest", "review")
+    }
+    proposal = Proposal.model_validate_json(
+        advisor.infer(
+            "Review this completed network incident. Propose one read-only diagnostic check for a future recurrence. Cite the zero-based index of one relevant event. Recommendations require operator review.",
+            evidence,
+            Proposal.model_json_schema(),
+        )
+    )
+    evidence.update(
+        proposal=proposal.model_dump(),
+        cited_event=run["events"][proposal.event_index],
+        model=advisor.model_name(),
+        approval="pending human review",
+    )
+    return record(
+        db,
+        "postmortem",
+        f"Verified {run['scenario']} closure. Proposed runbook check for human review: {proposal.next_check}",
+        evidence,
+    )
