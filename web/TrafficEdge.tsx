@@ -44,7 +44,7 @@ function usePorts(id: string) {
   return { top: `${center},${y}`, bottom: `${center},${y + height}` };
 }
 
-function MovingPacket({ path, route }: { path: string; route: string }) {
+function MovingPacket({ guidePath, hops }: { guidePath: string; hops: string[] }) {
   const line = useRef<SVGPathElement>(null);
   const dot = useRef<SVGCircleElement>(null);
   useLayoutEffect(() => {
@@ -52,17 +52,18 @@ function MovingPacket({ path, route }: { path: string; route: string }) {
       marker = dot.current;
     if (!guide || !marker) return;
     const length = guide.getTotalLength();
+    const start = performance.now();
     let frame = 0;
     function move(now: number) {
-      const fraction = Math.max(0, Math.min(1, ((now % 3400) - 200) / 3000));
+      const fraction = Math.min(1, ((now - start) % 3400) / 3000);
       const p = guide!.getPointAtLength(fraction * length);
       marker!.setAttribute("cx", String(p.x));
       marker!.setAttribute("cy", String(p.y));
       frame = requestAnimationFrame(move);
     }
-    move(performance.now());
+    move(start);
     return () => cancelAnimationFrame(frame);
-  }, [path]);
+  }, [guidePath]);
   return (
     <svg
       className="route-overlay"
@@ -70,41 +71,37 @@ function MovingPacket({ path, route }: { path: string; route: string }) {
       height="100%"
       aria-hidden="true"
     >
-      <path ref={line} d={path} fill="none" stroke="none" />
-      <circle ref={dot} className="packet" r={5} data-route={route} />
+      <path ref={line} d={guidePath} fill="none" stroke="none" />
+      <circle
+        ref={dot}
+        className="packet"
+        r={5}
+        data-path={hops.join(" ")}
+        data-route={[hops[0], hops[2], hops[hops.length - 1]].map(id => id.split("-")[1]).join("-")}
+      />
     </svg>
   );
 }
 
-export function ProbePacket({
-  source,
-  spine,
-}: {
-  source: number;
-  spine: number;
-}) {
-  const from = usePorts("host-" + source);
-  const first = usePorts("leaf-" + source);
-  const via = usePorts("spine-" + spine);
-  const last = usePorts("leaf-" + (3 - source));
-  const to = usePorts("host-" + (3 - source));
+export function ProbePacket({ hops }: { hops: string[] }) {
+  const [source, sourceLeaf, spine, targetLeaf, target] = hops;
+  const from = usePorts(source);
+  const first = usePorts(sourceLeaf);
+  const via = usePorts(spine);
+  const last = usePorts(targetLeaf);
+  const to = usePorts(target || targetLeaf);
   const points = [
     from?.top,
     first?.bottom,
     first?.top,
     via?.bottom,
     last?.top,
-    last?.bottom,
-    to?.top,
+    ...(target ? [last?.bottom, to?.top] : []),
   ];
   if (points.some((p) => !p)) return null;
-  const path = "M" + points.join(" L");
   return (
     <ViewportPortal>
-      <MovingPacket
-        path={path}
-        route={source + "-" + spine + "-" + (3 - source)}
-      />
+      <MovingPacket guidePath={"M" + points.join(" L")} hops={hops} />
     </ViewportPortal>
   );
 }

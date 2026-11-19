@@ -18,8 +18,16 @@ type Router = {
 };
 type Probe = {
   source?: number;
-  spine?: number | null;
   probes: Record<string, string>;
+};
+type ProbePath = {
+  source: string;
+  target: string;
+  source_leaf: string;
+  target_leaf: string;
+  address: string;
+  probes: Record<string, string>;
+  path: string[] | null;
 };
 type Sample = {
   timestamp: string;
@@ -27,14 +35,20 @@ type Sample = {
   hosts?: {name:string;leaf:number;error:string|null}[];
   traffic?: Record<string, LinkActivity>;
   flows?: Probe[];
+  probe_paths?: ProbePath[];
 };
 function displayName(id: string) {
-  const edge = /^([12])-([1-4])$/.exec(id);
+  const edge = /^([1-3])-([1-4])$/.exec(id);
   if (edge) return "Leaf " + edge[2] + " ↔ Spine " + edge[1];
   if (id === "host-1") return "Host A";
   if (id === "host-2") return "Host B";
   return id.replace("-", " ").replace(/^./, (c) => c.toUpperCase());
 }
+const routeId = (route: ProbePath) => `${route.source}/${route.target}`;
+const routeLabel = (route: ProbePath) =>
+  `${displayName(route.source)} → ${displayName(route.target)}`;
+const baseProbe = (route: ProbePath) => ["host-1", "host-2"].includes(route.target);
+
 function App() {
   const [preview, setPreview] = useState<FabricSpec>();
   const [signal, setSignal] = useState("");
@@ -64,6 +78,8 @@ function App() {
     [mode, setMode] = useState("CONNECTING"),
     [selected, select] = useState("leaf-1");
   const [source, setSource] = useState(1),
+    [routeChoice, setRouteChoice] = useState("auto"),
+    [routeIndex, setRouteIndex] = useState(0),
     [probe, setProbe] = useState(""),
     [busy, setBusy] = useState(false),
     [offline, setOffline] = useState(false);
@@ -112,7 +128,12 @@ function App() {
       setMode(d.mode);
       setSample(
         d.snapshot
-          ? { ...d.snapshot, flows: d.flows, traffic: d.traffic }
+          ? {
+              ...d.snapshot,
+              flows: d.flows,
+              traffic: d.traffic,
+              probe_paths: d.probe_paths,
+            }
           : undefined,
       );
       events = new EventSource("/api/events");
@@ -158,7 +179,10 @@ function App() {
     return () => clearTimeout(timer);
   }, [playing, frame, frames]);
   const observed = frames.length ? frames[frame].probes : sample?.flows || [];
-  const results = observed.flatMap((f) => Object.values(f.probes));
+  const liveRoutes = sample?.probe_paths || [];
+  const results = (liveRoutes.length ? liveRoutes : observed).flatMap((f) =>
+    Object.values(f.probes),
+  );
   const answered = results.filter((v) => v === "success" || v === "failed");
   const percent = answered.length
     ? Math.round(
@@ -231,13 +255,46 @@ function App() {
     sample &&
     clock - Date.parse(sample.timestamp) < 18000;
   const activity = fresh ? sample.traffic || {} : {};
-  const flow = fresh
-    ? sample.flows?.find((f) => f.source === source)
-    : undefined;
-  const spine =
-    flow?.probes.ICMP === "success" && spines.includes(flow.spine || 0)
-      ? flow.spine
-      : undefined;
+  const drawable = fresh
+    ? liveRoutes.filter((r) => r.path?.every((id) => names.includes(id)))
+    : [];
+  const cycle = [
+    ...drawable.filter((r) => !baseProbe(r)).reverse(),
+    ...drawable.filter(baseProbe),
+  ];
+  const cycleKeys = cycle.map(routeId).join("|");
+  const pinnedRoute = liveRoutes.find((r) => routeId(r) === routeChoice);
+  const shownRoute = pinnedRoute || cycle[routeIndex % cycle.length];
+  const packetPath = shownRoute && drawable.includes(shownRoute) ? shownRoute.path : null;
+  useEffect(() => {
+    setRouteIndex(0);
+    if (pinnedRoute || !cycleKeys.includes("|")) return;
+    const timer = setInterval(() => setRouteIndex((i) => i + 1), 3400);
+    return () => clearInterval(timer);
+  }, [cycleKeys, pinnedRoute?.target]);
+  useEffect(() => {
+    if (liveRoutes.length && !pinnedRoute) setRouteChoice("auto");
+  }, [liveRoutes, pinnedRoute]);
+
+  const routeSource = Number(shownRoute?.source.split("-")[1]) || source;
+  function chooseRoute(value: string) {
+    setRouteChoice(value);
+    setPaths([]);
+    setProbe("");
+  }
+
+  const routePicker = (
+    <select
+      aria-label="Animated probe direction"
+      value={pinnedRoute ? routeChoice : "auto"}
+      onChange={(e) => chooseRoute(e.target.value)}
+    >
+      <option value="auto">Auto cycle</option>
+      {liveRoutes.map((r) => (
+        <option key={routeId(r)} value={routeId(r)}>{routeLabel(r)}</option>
+      ))}
+    </select>
+  );
   const edges = [];
   let warnings = 0, unknownLinks = 0;
   for (const l of leaves)
@@ -251,9 +308,10 @@ function App() {
       const chosen =
         incident && incident.phase !== "resolved"
           ? incident.latest
-              .find((f) => f.source === source)
+              .find((f) => f.source === routeSource)
               ?.candidates?.includes(s)
           : paths.includes(s);
+      const onProbePath = packetPath?.includes("spine-" + s) && packetPath.includes("leaf-" + l);
       if (failed) warnings++;
       edges.push({
         id: s + "-" + l,
@@ -267,7 +325,7 @@ function App() {
         labelBgPadding: [6, 4] as [number, number],
         style: {
           stroke: failed ? "#c25137" : live ? "#309276" : "#a4acb7",
-          strokeWidth: ((spine === s && l <= 2) || chosen) && live ? 4.5 : 3,
+          strokeWidth: (onProbePath || chosen) && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
@@ -310,9 +368,18 @@ function App() {
       );
       return;
     }
+    if (shownRoute && !baseProbe(shownRoute)) {
+      setPaths([]);
+      setProbe(
+        routeLabel(shownRoute) + " · " + (fresh
+          ? Object.entries(shownRoute.probes).map(([protocol, result]) => protocol + " " + result).join(" · ")
+          : "Awaiting fresh probe results"),
+      );
+      return;
+    }
     setBusy(true);
     try {
-      const r = await fetch("/api/trace?source=" + source);
+      const r = await fetch("/api/trace?source=" + routeSource);
       if (!r.ok) throw Error();
       const d = await r.json();
       setPaths(d.candidates || []);
@@ -338,7 +405,8 @@ function App() {
           ] === "Established",
       ),
     );
-  const selectedTraffic = activity[faultTarget];
+  const selectedHost = hosts.find((h) => "access" + h.id === faultTarget);
+  const selectedTraffic = activity[selectedHost ? "access" + selectedHost.leaf : faultTarget];
   const active = incident && incident.phase !== "resolved";
   const activeCount = frames.length
     ? Number(!["Resolved", "Injecting"].includes(frames[frame].label))
@@ -568,7 +636,7 @@ function App() {
                   fitView
                   nodesConnectable={false}
                 >
-                  {spine && <ProbePacket source={source} spine={spine} />}
+                  {packetPath && <ProbePacket key={packetPath.join("/")} hops={packetPath} />}
                   <Background gap={18} size={1.4} color="#cedaff" />
                 </ReactFlow>
               </div>
@@ -610,7 +678,7 @@ function App() {
                 </div>
                 <p>
                   {selectedTraffic
-                    ? displayName(faultTarget) +
+                    ? (selectedHost ? "Leaf " + selectedHost.leaf + " access segment" : displayName(faultTarget)) +
                       " · RX " +
                       selectedTraffic.rx +
                       " / TX " +
@@ -625,32 +693,20 @@ function App() {
                   <div className="route-readout">
                     <label>
                       Probe route{" "}
-                      <select
-                        aria-label="Animated probe direction"
-                        value={source}
-                        onChange={(e) => {
-                          setSource(+e.target.value);
-                          setPaths([]);
-                          setProbe("");
-                        }}
-                      >
-                        <option value={1}>Host A → Host B</option>
-                        <option value={2}>Host B → Host A</option>
-                      </select>
+                      {routePicker}
                     </label>
                     <small>
-                      {spine
-                        ? "Leaf " +
-                          source +
-                          " → Spine " +
-                          spine +
-                          " → Leaf " +
-                          (3 - source)
+                      {packetPath ? packetPath.map(displayName).join(" → ")
                         : "Awaiting a successful probe and route lookup"}
                     </small>
                   </div>
                 )}
-                {observed.map((f, i) => (
+                {liveRoutes.map((r) => (
+                  <small key={routeId(r)}>
+                    {routeLabel(r)} · {Object.entries(r.probes).map(([protocol, result]) => protocol + " " + result).join(" · ")}
+                  </small>
+                ))}
+                {!liveRoutes.length && observed.map((f, i) => (
                   <small key={i}>
                     Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
                     {f.probes.HTTP}
@@ -695,26 +751,28 @@ function App() {
               {faultTarget && "· " + displayName(faultTarget)}
             </summary>
             <h2>Trace traffic</h2>
-            <label>
-              Flow{" "}
-              <select
-                disabled={busy}
-                value={source}
-                onChange={(e) => {
-                  setSource(+e.target.value);
-                  setPaths([]);
-                  setProbe("");
-                }}
-              >
-                <option value="1">Host 1 → Host 2</option>
-                <option value="2">Host 2 → Host 1</option>
-              </select>
-            </label>
+            {frames.length ? (
+              <label>
+                Flow{" "}
+                <select
+                  disabled={busy}
+                  value={source}
+                  onChange={(e) => {
+                    setSource(+e.target.value);
+                    setPaths([]);
+                    setProbe("");
+                  }}
+                >
+                  <option value="1">Host 1 → Host 2</option>
+                  <option value="2">Host 2 → Host 1</option>
+                </select>
+              </label>
+            ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
             <button disabled={busy || mode === "CONNECTING"} onClick={trace}>
-              {busy ? "Probing…" : "Trace traffic"}
+              {busy ? "Probing…" : shownRoute && !baseProbe(shownRoute) ? "Read latest probe" : "Trace traffic"}
             </button>
             <p role="status">
-              {probe || "Run ICMP and HTTP probes from the source host."}
+              {probe || "Select a probe route to inspect its reachability."}
             </p>
             <hr />
             <small>OBSERVED ROUTER STATE</small>

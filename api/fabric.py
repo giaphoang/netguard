@@ -105,20 +105,8 @@ def host_state(pair):
             "error": None,
         }
         if host["id"] > 2:
-            source = 2 if host["leaf"] == 1 else 1
-            probes = {}
-            for protocol, args in {
-                "ICMP": ["ping", "-c", "1", "-W", "2", result["address"]],
-                "HTTP": ["wget", "-T", "2", "-qO-", f"http://{result['address']}:8080/"],
-            }.items():
-                try:
-                    command(f"host-{source}", *args)
-                    probes[protocol] = "success"
-                except subprocess.CalledProcessError:
-                    probes[protocol] = "failed"
-                except (OSError, subprocess.SubprocessError):
-                    probes[protocol] = "unavailable"
-            result.update(probes=probes, probe_from=f"host-{source}")
+            source = "host-2" if host["leaf"] == 1 else "host-1"
+            result.update(probes=probe_results(source, result["address"]), probe_from=source)
         return result
     except (OSError, subprocess.SubprocessError):
         return {"name": name, "leaf": host["leaf"], "error": "Host telemetry unavailable"}
@@ -142,9 +130,10 @@ def record(sample: Snapshot) -> None:
                 )
 
 
-def probe_spine(leaf: Router, source: int) -> int | None:
-    """Resolve a forwarded ICMP flow, including its source and incoming interface."""
-    access_ip = f"10.212.{source}.1/28"
+def probe_spine(leaf: Router, source: str, destination: str) -> int | None:
+    """Ask Linux which next hop it selects for a forwarded ICMP probe."""
+    leaf_id = int(leaf.name.removeprefix("leaf-"))
+    access_ip = f"10.212.{leaf_id}.1/28"
     for line in leaf.interfaces.splitlines():
         fields = line.split()
         if access_ip not in fields:
@@ -158,21 +147,81 @@ def probe_spine(leaf: Router, source: int) -> int | None:
                     "-j",
                     "route",
                     "get",
-                    f"10.212.{3-source}.2",
+                    destination,
                     "from",
-                    f"10.212.{source}.2",
+                    source,
                     "iif",
                     ingress,
                     "ipproto",
                     "icmp",
                 )
             )
-        except (OSError, ValueError, subprocess.SubprocessError):
+        except (OSError, ValueError, TypeError, subprocess.SubprocessError):
             return None
-        match = re.fullmatch(r"10\.211\.(\d+)\.1", route.get("gateway", ""))
-        if match and int(match[1]) % 10 == source:
+        gateway = route.get("gateway") if isinstance(route, dict) else None
+        match = re.fullmatch(r"10\.211\.(\d+)\.1", gateway) if isinstance(gateway, str) else None
+        if match and int(match[1]) % 10 == leaf_id:
             return int(match[1]) // 10
     return None
+
+
+def probe_paths(snapshot: Snapshot, flows: list[dict]) -> list[dict]:
+    """Attach a live graph path to each sampled ICMP flow when its next hop is known."""
+    routers = {r.name: r for r in snapshot.routers}
+    hosts = {h["name"]: h for h in snapshot.hosts}
+    active_leaves = {h["leaf"] for h in hosts.values()}
+    directions = []
+    for flow in flows:
+        source = f"host-{flow['source']}"
+        target = hosts.get(f"host-{3 - flow['source']}")
+        if target:
+            directions.append((source, target, flow["probes"]))
+    for host in hosts.values():
+        if host.get("probe_from"):
+            directions.append((host["probe_from"], host, host["probes"]))
+    for router in routers.values():
+        if not router.name.startswith("leaf-"):
+            continue
+        leaf = int(router.name.removeprefix("leaf-"))
+        address = f"10.214.0.{leaf}"
+        if leaf not in active_leaves and f"{address}/32" in router.interfaces.split():
+            target = {"name": router.name, "leaf": leaf, "address": address}
+            directions.append(("host-1", target, None))
+
+    def observe_path(direction):
+        source, target, results = direction
+        host = hosts.get(source)
+        if not host or "address" not in host or "address" not in target:
+            return None
+        address = target["address"]
+        if results is None:
+            results = probe_results(source, address, http=False)
+        source_leaf = f"leaf-{host['leaf']}"
+        target_leaf = f"leaf-{target['leaf']}"
+        path = None
+        if (
+            results["ICMP"] == "success"
+            and source_leaf != target_leaf
+            and source_leaf in routers
+            and target_leaf in routers
+        ):
+            spine = probe_spine(routers[source_leaf], host["address"], address)
+            if f"spine-{spine}" in routers:
+                path = [source, source_leaf, f"spine-{spine}", target_leaf]
+                if target["name"] != target_leaf:
+                    path.append(target["name"])
+        return {
+            "source": source,
+            "target": target["name"],
+            "source_leaf": source_leaf,
+            "target_leaf": target_leaf,
+            "address": address,
+            "probes": results,
+            "path": path,
+        }
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return [result for result in pool.map(observe_path, directions) if result]
 
 
 async def poll(app: FastAPI) -> None:
@@ -182,25 +231,23 @@ async def poll(app: FastAPI) -> None:
             asyncio.to_thread(collect), *(asyncio.to_thread(trace, i) for i in (1, 2))
         )
         leaves = [int(r.name.split("-")[1]) for r in snapshot.routers if r.name.startswith("leaf-")]
-        routers = {r.name: r for r in snapshot.routers}
-        successful = [
-            f
-            for f in flows
-            if f["probes"]["ICMP"] == "success" and f"leaf-{f['source']}" in routers
-        ]
-        current, *hops = await asyncio.gather(
+        current, routes = await asyncio.gather(
             asyncio.to_thread(traffic.collect, leaves),
-            *(
-                asyncio.to_thread(probe_spine, routers[f"leaf-{f['source']}"], f["source"])
-                for f in successful
-            ),
+            asyncio.to_thread(probe_paths, snapshot, flows),
         )
-        for flow, hop in zip(successful, hops):
-            flow["spine"] = hop
+        for flow in flows:
+            source = f"host-{flow['source']}"
+            target = f"host-{3 - flow['source']}"
+            path = next(
+                (r["path"] for r in routes if r["source"] == source and r["target"] == target), None
+            )
+            if path:
+                flow["spine"] = int(path[2].removeprefix("spine-"))
         app.state.traffic = traffic.rates(previous, current)
         previous = current
         app.state.snapshot = snapshot
         app.state.flows = flows
+        app.state.probe_paths = routes
         await asyncio.to_thread(record, app.state.snapshot)
         await asyncio.sleep(3)
 
@@ -209,6 +256,7 @@ async def poll(app: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     app.state.snapshot = None
     app.state.flows = []
+    app.state.probe_paths = []
     app.state.traffic = {}
     if REPLAY:
         app.state.snapshot = Snapshot.model_validate_json(FIXTURE.read_text())
@@ -240,6 +288,7 @@ def state():
         else platform.system() + " " + platform.machine(),
         "traffic": app.state.traffic,
         "flows": app.state.flows,
+        "probe_paths": app.state.probe_paths,
     }
 
 
@@ -336,6 +385,7 @@ async def events():
                 payload = {
                     **sample.model_dump(),
                     "flows": app.state.flows,
+                    "probe_paths": app.state.probe_paths,
                     "traffic": app.state.traffic,
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
@@ -344,18 +394,15 @@ async def events():
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-@app.get("/api/trace")
-def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
-    if REPLAY:
-        return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
-    dest = f"10.212.{3-source}.2"
+def probe_results(source: str, destination: str, *, http: bool = True) -> dict[str, str]:
+    """Send bounded reachability checks to an address from the lab inventory."""
+    checks = {"ICMP": ["ping", "-c", "1", "-W", "2", destination]}
+    if http:
+        checks["HTTP"] = ["wget", "-T", "2", "-qO-", f"http://{destination}:8080/"]
     results = {}
-    for protocol, args in {
-        "ICMP": ["ping", "-c", "1", "-W", "2", dest],
-        "HTTP": ["wget", "-T", "2", "-qO-", f"http://{dest}:8080/"],
-    }.items():
+    for protocol, args in checks.items():
         try:
-            command(f"host-{source}", *args)
+            command(source, *args)
             results[protocol] = "success"
         except subprocess.CalledProcessError as exc:
             results[protocol] = (
@@ -365,6 +412,15 @@ def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
             )
         except (OSError, subprocess.SubprocessError):
             results[protocol] = "unavailable"
+    return results
+
+
+@app.get("/api/trace")
+def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
+    if REPLAY:
+        return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
+    dest = f"10.212.{3-source}.2"
+    results = probe_results(f"host-{source}", dest)
     candidates = None
     try:
         routes = command(f"leaf-{source}", "ip", "-4", "route")

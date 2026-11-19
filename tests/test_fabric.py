@@ -53,9 +53,9 @@ def test_probe_spine_uses_forwarded_flow_tuple(monkeypatch):
         return '[{"gateway":"10.211.22.1"}]'
 
     monkeypatch.setattr(fabric, "command", lookup)
-    assert fabric.probe_spine(leaf, 2) == 2
+    assert fabric.probe_spine(leaf, "10.212.2.2", "10.212.1.2") == 2
     monkeypatch.setattr(fabric, "command", lambda *_: '[{"dev":"lo"}]')
-    assert fabric.probe_spine(leaf, 2) is None
+    assert fabric.probe_spine(leaf, "10.212.2.2", "10.212.1.2") is None
 
 
 def test_host_inventory_uses_busybox_compatible_ip_command(monkeypatch):
