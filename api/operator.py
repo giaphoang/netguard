@@ -3,8 +3,9 @@
 import http.client
 import json
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,7 @@ from .controls import authorized, local, perform
 from .incidents import observe
 
 router = APIRouter()
+PROGRESS_MEDIA_TYPE = "application/x-ndjson"
 
 WORKFLOW_STEPS = {
     "answer": (
@@ -58,7 +60,9 @@ class Request(BaseModel):
 
 
 @router.post("/api/operator")
-def operator(req: Request, c=Depends(authorized)):
+def operator(req: Request, c=Depends(authorized), accept: Annotated[str, Header()] = ""):
+    if accept == PROGRESS_MEDIA_TYPE:
+        return stream_operator(req, c)
     for event in operator_events(req, c):
         if "answer" in event:
             return event["answer"]
@@ -73,7 +77,7 @@ def stream_operator(req: Request, c=Depends(authorized)):
         except HTTPException as exc:
             yield json.dumps({"error": exc.detail}) + "\n"
 
-    return StreamingResponse(stream(), media_type="application/x-ndjson")
+    return StreamingResponse(stream(), media_type=PROGRESS_MEDIA_TYPE)
 
 
 def step(label, detail):
@@ -110,7 +114,7 @@ def operator_events(req, c):
         )
         label, detail = WORKFLOW_STEPS[tool]
         if targets:
-            detail += f" Scope: {', '.join(targets)}."
+            detail += f" The workflow targets {', '.join(targets)}."
         yield step(label, detail)
         yield {"answer": answer_request(req, c, started, sample, spec, targets, graph)}
     except (OSError, http.client.HTTPException, KeyError) as exc:

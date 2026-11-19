@@ -87,7 +87,7 @@ async function post(path: string, body: object = {}, accept = "application/json"
 
 async function readAnswer(prompt: string, selection: string, onStep: (step: Step) => void): Promise<Answer> {
   const response = await post("operator", { prompt, selection }, progressMediaType);
-  const mediaType = response.headers.get("content-type")?.split(";", 1)[0];
+  const mediaType = response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
   if (mediaType === "application/json") {
     const answer: Answer = await response.json();
     // JSON-only controllers identify repairs by their approval path.
@@ -319,9 +319,15 @@ export function Operator({
     patchTurn(id, { followPlan });
     startStep(id, "Submit topology request to the controller", (plan.added || []).join(", "));
     const path = "provision/" + encodeURIComponent(plan.id);
+    async function readPlan() {
+      const saved = await get<Plan>(path).catch(() => undefined);
+      if (saved) return saved;
+      const latest = await get<Plan | null>("provision").catch(() => undefined);
+      return latest?.id === plan.id ? latest : undefined;
+    }
     let polling = true;
     const timer = setInterval(async () => {
-      const next = await get<Plan>(path).catch(() => undefined);
+      const next = await readPlan();
       if (polling && next) rememberPlan(next);
     }, 1000);
     let error: string | undefined;
@@ -334,7 +340,7 @@ export function Operator({
       clearInterval(timer);
     }
 
-    const result = await get<Plan>(path).catch(() => undefined);
+    const result = await readPlan();
     if (result) rememberPlan(result);
     await refreshPlan().catch(() => {});
     patchTurn(id, {

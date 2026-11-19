@@ -12,7 +12,16 @@ from test_incidents import sample
 
 
 @pytest.mark.parametrize("valid", [True, False])
-def test_chat_stream_reports_workflow_and_preserves_json_api(tmp_path, monkeypatch, valid):
+@pytest.mark.parametrize(
+    ("path", "headers"),
+    [
+        ("/api/operator", {"Accept": "application/x-ndjson"}),
+        ("/api/operator/stream", {}),
+    ],
+)
+def test_chat_stream_reports_workflow_and_preserves_json_api(
+    tmp_path, monkeypatch, valid, path, headers
+):
     c = Controller(tmp_path / "journal")
     app = FastAPI()
     app.include_router(operator.router)
@@ -36,7 +45,7 @@ def test_chat_stream_reports_workflow_and_preserves_json_api(tmp_path, monkeypat
     monkeypatch.setattr(operator.questions, "answer", lambda *_: {"text": "Observed Leaf 1."})
     client = TestClient(app)
     request = {"prompt": "Check Leaf 1", "selection": ""}
-    response = client.post("/api/operator/stream", json=request)
+    response = client.post(path, json=request, headers=headers)
     assert response.headers["content-type"] == "application/x-ndjson"
     *steps, result = [json.loads(line) for line in response.iter_lines()]
     assert [event["step"]["label"] for event in steps[:2]] == [
