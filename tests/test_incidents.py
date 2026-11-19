@@ -117,8 +117,8 @@ def test_recorded_walkthrough_and_comparison():
 @pytest.mark.parametrize(
     "override", [{"Internal": False}, {"Options": {"parent": "eth0"}}, {"Driver": "bridge"}]
 )
-def test_network_boundary_rejects_misconfigured_target(monkeypatch, override):
-    from api import presets
+def test_network_boundary_rejects_misconfigured_target(tmp_path, monkeypatch, override):
+    from api import fabric, presets
 
     name = "netguard_access2"
     info = {
@@ -150,6 +150,7 @@ def test_network_boundary_rejects_misconfigured_target(monkeypatch, override):
         assert args == ("network", "inspect", "net-id")
         return json.dumps([net])
 
+    monkeypatch.setattr(fabric, "DB", tmp_path / "timeline.sqlite")
     monkeypatch.setattr(presets, "docker", read)
     with pytest.raises(ValueError, match="isolated"):
         presets.identify("endpoint")
