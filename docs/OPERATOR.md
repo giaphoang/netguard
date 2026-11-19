@@ -27,3 +27,17 @@ The time-saved KPI compares median **verified closure** across matched manual an
 ## Validation
 
 Chrome exercised graph preview, deployment, six live routers, rollback, timed simulation and measured results on the Ubuntu VM. The initial model proposed the wrong spine during a live fault. The controller withheld the repair and the approved timer restored the correct link. Subsequent model constraints limited eligible targets to observed abnormal adjacencies. [Dashboard capture](proof/operator/dashboard.png) · [Ubuntu simulation and expansion](proof/operator/ubuntu-run.json) · [Converged and missing-evidence evaluations](proof/operator/converged.json) · [Final Ubuntu repair run](proof/operator/approved-repair.json)
+
+## Proactive investigations
+
+Monitoring starts with the live API. Two distinct degraded samples open an investigation. Three peer-state transitions on one adjacency within 60 seconds flag instability. The journal retains the sample window, kernel routes, probes, Qwen decision and subsequent observed recovery. Missing telemetry can also trigger investigation. Detection depends on sampling frequency.
+
+| Demo | How to inspect it |
+|---|---|
+| Catch instability | In the isolated lab, interrupt and reset the same BGP peer twice within one minute. Open **AI Impact → Experiment evidence**, or ask “Monitor my network proactively.” |
+| Preview risk | Ask “What could break if I remove Spine 2?” Inspect each leaf’s surviving adjacency and routing table. The two-path policy blocks this request. This preview models single-spine redundancy only. |
+| Detect drift | Ask “Find configuration drift.” The agent compares supported running BGP statements with the mounted FRR configuration. Background scans run approximately once per minute outside controlled incidents. Review missing and unexpected statements before any correction. |
+| Learn from closure | Ask “Review this incident and generate a verified postmortem.” Inspect the journal event supporting the proposed runbook check. Adoption requires human review. |
+| Compare workflows | Ask “Evaluate the AI operator against our incident test suite.” The same local model processes the same two recorded variations using schema-only and telemetry-constrained workflows. Inspect the expected labels, decisions, latency, model call counts and disposition. |
+
+The risk KPI measures blocked two-spine removal previews. It cannot establish general outage prediction accuracy. Drift comparison covers supported BGP statements, and assumes the mounted startup configuration is trusted. Unlabeled background anomalies require operator adjudication before measuring false positives. [Ubuntu experiment records](proof/investigations/ubuntu.json)
