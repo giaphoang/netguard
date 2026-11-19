@@ -23,6 +23,7 @@ from . import (
     gre,
     intents,
     investigations,
+    mpls,
     protocol_study,
     provision,
     quality,
@@ -51,15 +52,17 @@ class Request(BaseModel):
 
 
 class Objective(BaseModel):
-    objective: Literal["throughput", "gre", "ipip", "evaluation", "unsupported"]
+    objective: Literal["throughput", "gre", "ipip", "mpls", "evaluation", "unsupported"]
 
 
 def objective_schema(prompt):
     schema = Objective.model_json_schema()
     # Narrow the tools when the request names a tunnel protocol and contains no AI evaluation target.
     requested = gre.requested(prompt)
+    if re.search(r"\bmpls\b", prompt, re.I):
+        requested.append("mpls")
     workflow = re.search(r"\b(?:prompt|retrieval|diagnosis workflow|model)\b", prompt, re.I)
-    if (requested or re.search(r"\bmpls\b", prompt, re.I)) and not workflow:
+    if requested and not workflow:
         schema["properties"]["objective"]["enum"] = [*requested, "unsupported"]
     return schema
 
@@ -215,10 +218,12 @@ def inspect_fabric(trace, spec):
     return sample
 
 
-def open_scope(controller, lab, active, spec, pair, *, benchmark=True):
+def open_scope(controller, lab, active, spec, pair, *, benchmark=True, kind=None):
     nodes = list(
         dict.fromkeys(node for endpoint in pair for node in (endpoint.node, endpoint.router))
     )
+    if kind == "mpls":
+        nodes.append(mpls.transit(spec))
     lab.inspect(spec, expansion.approved_origins(controller.db, active), nodes, benchmark=benchmark)
     return {
         "topology": spec,
@@ -270,7 +275,7 @@ def prepare(controller, run):
         if objective == "unsupported":
             trace.mark(
                 "blocked",
-                "Choose a throughput, GRE, IPv4-in-IPv4 or workflow evaluation objective.",
+                "Choose a throughput, GRE, IPv4-in-IPv4, MPLS or workflow evaluation objective.",
             )
             return
         if objective == "evaluation":
@@ -285,7 +290,7 @@ def prepare(controller, run):
             run["quality"] = {**report, "record_id": record["id"]}
             trace.mark("evaluated", "Paired diagnosis workflow evaluation complete.")
             return
-        encapsulated = objective in gre.TUNNELS
+        encapsulated = objective in gre.TUNNELS or objective == "mpls"
         multiplier = None if encapsulated else plans.requested_multiplier(run["prompt"])
         run["requested_multiplier"] = multiplier
         trace.stage = "Investigate"
@@ -298,7 +303,7 @@ def prepare(controller, run):
         )
         run["endpoints"] = [asdict(endpoint) for endpoint in pair]
         with Lab(trace) as lab:
-            run["scope"] = open_scope(controller, lab, active, spec, pair)
+            run["scope"] = open_scope(controller, lab, active, spec, pair, kind=objective)
             underlay = (
                 gre.underlay(lab, pair, spec["spines"], mode=objective) if encapsulated else {}
             )
@@ -307,7 +312,9 @@ def prepare(controller, run):
                 **measure(controller, lab, pair, spec, single=not encapsulated),
             }
             trace.stage = "Plan"
-            if encapsulated:
+            if objective == "mpls":
+                run["plan"] = mpls.plan(lab, pair, spec, run["baseline"])
+            elif encapsulated:
                 run["plan"] = gre.plan(lab, pair, spec, run["baseline"], run["id"], mode=objective)
             else:
                 run["plan"] = plans.throughput(lab, pair, spec, run["baseline"], multiplier)
@@ -486,7 +493,11 @@ def verdict(run):
         )
     if min(actual["guest_cpu_pct"], baseline["guest_cpu_pct"]) >= 90:
         interpretation.append("Median guest CPU utilization was at least 90% in both arms.")
-    if tunnel := gre.TUNNELS.get(run["kind"]):
+    if run["kind"] == "mpls":
+        interpretation.append(
+            "The wire capture confirmed both static MPLS labels and bidirectional forwarding."
+        )
+    elif tunnel := gre.TUNNELS.get(run["kind"]):
         interpretation.append(
             f"DF pings measured an inner MTU of {actual['mtu_bytes']} bytes. "
             f"The wire capture confirmed bidirectional {tunnel.label}."
@@ -513,10 +524,10 @@ def apply(controller, run):
         active, spec = current_fabric(controller)
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
         kind = run["kind"]
-        adapter = gre if kind in gre.TUNNELS else None
+        adapter = mpls if kind == "mpls" else gre if kind in gre.TUNNELS else None
         trace.stage = "Approve and implement"
         with Lab(trace) as lab:
-            scope = open_scope(controller, lab, active, spec, pair)
+            scope = open_scope(controller, lab, active, spec, pair, kind=kind)
             if scope != run["scope"]:
                 raise ValueError(
                     "The topology or endpoint namespaces changed. Review the saved plan."
@@ -578,13 +589,19 @@ def restore(controller, run, trace):
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
         kind = run["kind"]
         with Lab(trace) as lab:
-            scope = open_scope(controller, lab, active, spec, pair, benchmark=False)
+            scope = open_scope(controller, lab, active, spec, pair, benchmark=False, kind=kind)
             if (
                 scope["topology"] != run["scope"]["topology"]
                 or scope["provision_id"] != run["scope"]["provision_id"]
             ):
                 raise ValueError("The approved topology changed. Review rollback manually.")
-            restore_change = gre.restore if kind in gre.TUNNELS else plans.restore_policies
+            restore_change = (
+                mpls.restore
+                if kind == "mpls"
+                else gre.restore
+                if kind in gre.TUNNELS
+                else plans.restore_policies
+            )
             restore_change(lab, run["plan"], run["touched"], run["scope"]["identities"])
             run["rollback_verification"] = inspect_fabric(trace, spec)
         trace.mark("rolled_back", "Original configuration restored and connectivity verified.")

@@ -126,7 +126,8 @@ def readings(run):
         if detail:
             blocks.append(text(detail))
     if run.get("encapsulation"):
-        blocks.append(evidence("GRE packet capture", run["encapsulation"]["capture"]))
+        label = {"gre": "GRE", "ipip": "IPv4-in-IPv4", "mpls": "MPLS"}[run["kind"]]
+        blocks.append(evidence(f"{label} packet capture", run["encapsulation"]["capture"]))
     before_links, after_links = baseline.get("link_bytes", {}), actual.get("link_bytes", {})
     if before_links:
         before_total, after_total = sum(before_links.values()), sum(after_links.values())

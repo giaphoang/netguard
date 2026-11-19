@@ -36,7 +36,7 @@ def requested(prompt):
 
 
 def endpoints(prompt, selection, spec, sample, mode="gre"):
-    label = TUNNELS[mode].label
+    label = "MPLS" if mode == "mpls" else TUNNELS[mode].label
     interfaces = {row["name"]: row["interfaces"].split() for row in sample["routers"]}
     eligible = {
         f"leaf-{n}": Endpoint(f"leaf-{n}", f"10.212.{n}.1", n)
@@ -87,7 +87,15 @@ def underlay(lab, pair, spines, mode="gre"):
     support = {
         name: module(lab.trace, name) for name in ("ip_gre", "ipip", "mpls_router", "mpls_iptunnel")
     }
-    if support[TUNNELS[mode].module] == "unavailable":
+    if mode == "mpls":
+        if not all(
+            support[name] in {"loaded", "built into the kernel"}
+            for name in ("mpls_router", "mpls_iptunnel")
+        ):
+            raise ValueError(
+                "The Linux guest needs MPLS forwarding and encapsulation enabled before preview."
+            )
+    elif support[TUNNELS[mode].module] == "unavailable":
         raise ValueError(f"This Linux kernel does not provide {TUNNELS[mode].label} support.")
     route_mtu = {}
     for source, target in (pair, pair[::-1]):
@@ -358,7 +366,8 @@ def capture_ping(lab, node, args, sockets):
                     break
                 time.sleep(0.05)
             else:
-                raise ValueError("The wire capture did not start.")
+                event["result"] = os.pread(output.fileno(), 8192, 0).decode(errors="replace")
+                raise ValueError("The wire capture did not start. " + event["result"][:180])
             lab.run(source, "ping", "-n", "-I", left_ip, "-c", "1", "-W", "2", right_ip)
             listener.wait(timeout=4)
             report = os.pread(output.fileno(), 8192, 0).decode()
