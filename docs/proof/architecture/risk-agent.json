@@ -1,0 +1,548 @@
+[
+  {
+    "prompt": "What could break if I remove Spine 1? Resolve the device from the current live topology, analyze affected BGP sessions, remaining ECMP paths, connectivity, and redundancy policies. Compare a safe alternative and show a before/after topology preview. Reject any change that violates availability requirements. Repeat the assessment for any other spine I select.",
+    "answer": {
+      "text": "Blocked removal of spine-1. Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+      "evidence": {
+        "observed": 1795123645.095328,
+        "facts": {
+          "leaf-1": {
+            "surviving_peers": {
+              "spine-2": {
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              }
+            },
+            "remaining_spines": 1,
+            "routes_before": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth2 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 10 proto bgp metric 20 \n\tnexthop via 10.211.11.1 dev eth0 weight 1 \n\tnexthop via 10.211.21.1 dev eth1 weight 1"
+          },
+          "leaf-2": {
+            "surviving_peers": {
+              "spine-2": {
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              }
+            },
+            "remaining_spines": 1,
+            "routes_before": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 10 proto bgp metric 20 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1"
+          },
+          "policy_check": {
+            "required_paths": 2,
+            "observed": "block",
+            "scenario": "remove spine-1",
+            "affected": [
+              "spine-1"
+            ],
+            "reason": "Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+            "limits": "Adjacency and redundancy assessment; not a full forwarding simulation."
+          },
+          "affected_bgp_sessions": [
+            {
+              "link": "leaf-1/spine-1",
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            {
+              "link": "leaf-2/spine-1",
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            }
+          ],
+          "forwarding_projection": [
+            {
+              "source": "leaf-1",
+              "prefix": "10.212.2.0/28",
+              "current": [
+                1,
+                2
+              ],
+              "remaining": [
+                2
+              ]
+            },
+            {
+              "source": "leaf-2",
+              "prefix": "10.212.1.0/28",
+              "current": [
+                1,
+                2
+              ],
+              "remaining": [
+                2
+              ]
+            }
+          ],
+          "baseline_reachable": true,
+          "before": {
+            "spines": [
+              1,
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after": {
+            "spines": [
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          }
+        }
+      },
+      "blocks": [
+        {
+          "type": "topology",
+          "title": "Topology comparison",
+          "before": {
+            "spines": [
+              1,
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after": {
+            "spines": [
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after_label": "Projected after change",
+          "excluded_links": [
+            "spine-1"
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Affected BGP adjacencies",
+          "columns": [
+            "Link",
+            "Interface",
+            "Leaf session",
+            "Spine session"
+          ],
+          "rows": [
+            [
+              "leaf-1/spine-1",
+              "UP",
+              "Established",
+              "Established"
+            ],
+            [
+              "leaf-2/spine-1",
+              "UP",
+              "Established",
+              "Established"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Observed and projected ECMP paths",
+          "columns": [
+            "Source",
+            "Destination",
+            "Installed now",
+            "Projected survivors"
+          ],
+          "rows": [
+            [
+              "leaf-1",
+              "10.212.2.0/28",
+              "Spine 1, Spine 2",
+              "Spine 2"
+            ],
+            [
+              "leaf-2",
+              "10.212.1.0/28",
+              "Spine 1, Spine 2",
+              "Spine 2"
+            ]
+          ]
+        },
+        {
+          "type": "section",
+          "title": "Safer alternative",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Keep the current spine paths in service. If more redundancy is needed, preview a capacity change and verify its paths before taking a router out of service."
+            }
+          ],
+          "collapsed": false
+        },
+        {
+          "type": "text",
+          "text": "The preview projects forwarding from current routing and probe evidence."
+        }
+      ],
+      "trace": [
+        {
+          "label": "ollama.chat",
+          "stage": null,
+          "target": "",
+          "status": "complete",
+          "started": 1795123644.0097022,
+          "completed": 1795123644.852576,
+          "arguments": null,
+          "result": null,
+          "error": null
+        },
+        {
+          "label": "ollama.chat",
+          "stage": null,
+          "target": "",
+          "status": "complete",
+          "started": 1795123644.8580148,
+          "completed": 1795123645.047775,
+          "arguments": null,
+          "result": null,
+          "error": null
+        },
+        {
+          "label": "Project BGP and forwarding after removal",
+          "stage": "Validate",
+          "status": "complete",
+          "started": 1795123645.0947015,
+          "completed": 1795123645.1275501,
+          "target": "spine-1",
+          "result": {
+            "required_paths": 2,
+            "observed": "block",
+            "scenario": "remove spine-1",
+            "affected": [
+              "spine-1"
+            ],
+            "reason": "Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+            "limits": "Adjacency and redundancy assessment; not a full forwarding simulation."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "prompt": "Assess the impact of removing this selected spine.",
+    "answer": {
+      "text": "Blocked removal of spine-2. Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+      "evidence": {
+        "observed": 1795123646.6733043,
+        "facts": {
+          "leaf-1": {
+            "surviving_peers": {
+              "spine-1": {
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              }
+            },
+            "remaining_spines": 1,
+            "routes_before": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.2 \n10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth2 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 10 proto bgp metric 20 \n\tnexthop via 10.211.11.1 dev eth0 weight 1 \n\tnexthop via 10.211.21.1 dev eth1 weight 1"
+          },
+          "leaf-2": {
+            "surviving_peers": {
+              "spine-1": {
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              }
+            },
+            "remaining_spines": 1,
+            "routes_before": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 10 proto bgp metric 20 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1"
+          },
+          "policy_check": {
+            "required_paths": 2,
+            "observed": "block",
+            "scenario": "remove spine-2",
+            "affected": [
+              "spine-2"
+            ],
+            "reason": "Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+            "limits": "Adjacency and redundancy assessment; not a full forwarding simulation."
+          },
+          "affected_bgp_sessions": [
+            {
+              "link": "leaf-1/spine-2",
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            {
+              "link": "leaf-2/spine-2",
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            }
+          ],
+          "forwarding_projection": [
+            {
+              "source": "leaf-1",
+              "prefix": "10.212.2.0/28",
+              "current": [
+                1,
+                2
+              ],
+              "remaining": [
+                1
+              ]
+            },
+            {
+              "source": "leaf-2",
+              "prefix": "10.212.1.0/28",
+              "current": [
+                1,
+                2
+              ],
+              "remaining": [
+                1
+              ]
+            }
+          ],
+          "baseline_reachable": true,
+          "before": {
+            "spines": [
+              1,
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after": {
+            "spines": [
+              1
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          }
+        }
+      },
+      "blocks": [
+        {
+          "type": "topology",
+          "title": "Topology comparison",
+          "before": {
+            "spines": [
+              1,
+              2
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after": {
+            "spines": [
+              1
+            ],
+            "leaves": [
+              1,
+              2
+            ],
+            "hosts": [
+              {
+                "id": 1,
+                "leaf": 1
+              },
+              {
+                "id": 2,
+                "leaf": 2
+              }
+            ]
+          },
+          "after_label": "Projected after change",
+          "excluded_links": [
+            "spine-2"
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Affected BGP adjacencies",
+          "columns": [
+            "Link",
+            "Interface",
+            "Leaf session",
+            "Spine session"
+          ],
+          "rows": [
+            [
+              "leaf-1/spine-2",
+              "UP",
+              "Established",
+              "Established"
+            ],
+            [
+              "leaf-2/spine-2",
+              "UP",
+              "Established",
+              "Established"
+            ]
+          ]
+        },
+        {
+          "type": "table",
+          "title": "Observed and projected ECMP paths",
+          "columns": [
+            "Source",
+            "Destination",
+            "Installed now",
+            "Projected survivors"
+          ],
+          "rows": [
+            [
+              "leaf-1",
+              "10.212.2.0/28",
+              "Spine 1, Spine 2",
+              "Spine 1"
+            ],
+            [
+              "leaf-2",
+              "10.212.1.0/28",
+              "Spine 1, Spine 2",
+              "Spine 1"
+            ]
+          ]
+        },
+        {
+          "type": "section",
+          "title": "Safer alternative",
+          "blocks": [
+            {
+              "type": "text",
+              "text": "Keep the current spine paths in service. If more redundancy is needed, preview a capacity change and verify its paths before taking a router out of service."
+            }
+          ],
+          "collapsed": false
+        },
+        {
+          "type": "text",
+          "text": "The preview projects forwarding from current routing and probe evidence."
+        }
+      ],
+      "trace": [
+        {
+          "label": "ollama.chat",
+          "stage": null,
+          "target": "",
+          "status": "complete",
+          "started": 1795123645.674406,
+          "completed": 1795123646.4588597,
+          "arguments": null,
+          "result": null,
+          "error": null
+        },
+        {
+          "label": "ollama.chat",
+          "stage": null,
+          "target": "",
+          "status": "complete",
+          "started": 1795123646.4605806,
+          "completed": 1795123646.6487257,
+          "arguments": null,
+          "result": null,
+          "error": null
+        },
+        {
+          "label": "Project BGP and forwarding after removal",
+          "stage": "Validate",
+          "status": "complete",
+          "started": 1795123646.6724129,
+          "completed": 1795123646.689034,
+          "target": "spine-2",
+          "result": {
+            "required_paths": 2,
+            "observed": "block",
+            "scenario": "remove spine-2",
+            "affected": [
+              "spine-2"
+            ],
+            "reason": "Availability policy requires healthy baseline probes and at least two observed surviving spine paths to every remote access segment.",
+            "limits": "Adjacency and redundancy assessment; not a full forwarding simulation."
+          }
+        }
+      ]
+    }
+  }
+]

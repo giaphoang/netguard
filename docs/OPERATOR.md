@@ -16,7 +16,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Why isn’t Leaf 1 reaching Leaf 3?” | Check observed routes and probes for the pair. Device names like `leaf1` and `Leaf 1` both resolve. A missing measurement leaves reachability unverified. |
 | “How is ECMP different from BGP here?” | Get an explanation based on the current lab topology and evidence. |
 | Inject a selected link fault with Local AI diagnosis | Monitoring detects it without a chat prompt. The local model investigates; the controller validates a repair or escalates. Automatic restoration requires explicitly enabled lab auto-repair. |
-| “What could break if I remove Spine 1?” | Current surviving adjacencies and the two-path policy determine the risk. Works with current nodes, including added components. Unknown targets require clarification. |
+| “What could break if I remove Spine 1?” | Compares before and projected after topologies, affected BGP sessions, and installed and surviving ECMP paths. Select another spine in Overview and ask about the selected spine to repeat the review. [Browser evidence](proof/architecture/risk-agent.json) |
 | “Add two leaves connected to every spine.” | Preview a validated, approval-required expansion. |
 | “Provision another spine with appropriate BGP neighbors.” | Preview a spine connected to every current leaf. |
 | “Add a host under Leaf 2.” | Allocate an unused host address and preview its attachment. |

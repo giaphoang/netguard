@@ -10,7 +10,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 
-from . import advisor, architecture, chat_views, expansion, intents, provision, questions, topology
+from . import (
+    advisor,
+    architecture,
+    chat_views,
+    expansion,
+    intents,
+    provision,
+    questions,
+    risk_preview,
+)
 from . import incident_history as history
 from . import investigations as inv
 from .controls import authorized, local, perform
@@ -159,7 +168,7 @@ def operator_events(req, c, background=None):
                     {**call, "status": "complete" if call.get("http_status") == 200 else "failed"}
                     for call in calls
                 ]
-            )
+            ) + answer.get("trace", [])
         yield {"answer": answer}
     except (OSError, http.client.HTTPException, KeyError) as exc:
         raise HTTPException(
@@ -203,7 +212,8 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
             },
         }
     if tool in {"risk", "remove"}:
-        facts = topology.risk(sample, targets)
+        began = time.time()
+        facts = risk_preview.preview(sample, targets, expansion.spec(expansion.current(c.db)))
         outcome = facts["policy_check"]["observed"]
         text = (
             ("Blocked removal" if outcome == "block" else "Human review required for removal")
@@ -212,7 +222,21 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
             + ". "
             + facts["policy_check"]["reason"]
         )
-        return inv.response(inv.record(c.db, "change risk", text, facts))
+        return {
+            **inv.response(inv.record(c.db, "change risk", text, facts)),
+            "blocks": risk_preview.blocks(facts),
+            "trace": [
+                {
+                    "label": "Project BGP and forwarding after removal",
+                    "stage": "Validate",
+                    "status": "complete",
+                    "started": began,
+                    "completed": time.time(),
+                    "target": ", ".join(targets),
+                    "result": facts["policy_check"],
+                }
+            ],
+        }
     if tool == "drift":
         comparison = inv.drift(c.db, sample)
         return questions.answer(
