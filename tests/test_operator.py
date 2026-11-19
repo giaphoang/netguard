@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api import intents, operator, provision, measurements
+from api import incident_history, intents, investigations, measurements, operator, provision
 from api.incidents import Controller
 from test_incidents import sample
 
@@ -71,6 +71,79 @@ def test_chat_can_read_a_discarded_plan_by_identity(tmp_path):
     assert operator.state(c)["id"] == previous["id"]
     discarded = operator.plan_state(preview["id"], c)
     assert [e["phase"] for e in discarded["events"]] == ["preview", "cancelled"]
+
+
+def test_incident_chat_reads_saved_runs_and_investigations(tmp_path, monkeypatch):
+    c = Controller(tmp_path / "journal")
+    incident = "a10b2000" + "1" * 24
+    for index, identity in enumerate([incident, *[f"newer-{n}" for n in range(13)]]):
+        c.run = {
+            "id": identity,
+            "scenario": "link" if index == 0 else "endpoint",
+            "leaf": 4,
+            "spine": 3,
+            "phase": "resolved",
+            "events": [{"time": 100 + index, "phase": "resolved", "reason": "Verified health checks"}],
+        }
+        c.save()
+    investigation = investigations.record(
+        c.db, "monitor", "Repeated BGP transitions",
+        {"findings": [["bgp_flapping", "leaf-4/spine-3", 3]]},
+    )
+    saved = c.db.read_bytes()
+    app = FastAPI()
+    app.include_router(operator.router)
+    app.dependency_overrides[operator.authorized] = lambda: c
+    client = TestClient(app)
+
+    def unexpected(*_):
+        pytest.fail("Scoped journal lookups must not collect live telemetry.")
+
+    monkeypatch.setattr(operator, "observe", unexpected)
+    monkeypatch.setattr(incident_history, "interpret", lambda _: incident_history.Search(
+        operation="search", keywords=["resolved", "link failures"],
+    ))
+    response = client.post("/api/operator", headers={"Accept": "application/x-ndjson"}, json={
+        "prompt": "Find resolved link failures on Leaf Four", "incident_history": True,
+    })
+    step, result = [json.loads(line) for line in response.iter_lines()]
+    assert step["step"]["label"] == "Read the incident journal"
+    search = result["answer"]["incident_history"]
+    assert search["total"] == 1
+    assert search["records"][0]["id"] == incident
+    assert search["records"][0]["devices"] == ["leaf-4", "spine-3"]
+    assert not search["inspection"]
+    no_match = client.post("/api/operator", json={
+        "prompt": "Find resolved link failures on Leaf 40", "incident_history": True,
+    }).json()
+    assert no_match["incident_history"]["records"] == []
+
+    monkeypatch.setattr(incident_history, "interpret", unexpected)
+    opened = client.post("/api/operator", json={
+        "prompt": f"Inspect incident {incident[:8]}", "incident_history": True,
+    }).json()
+    assert opened["incident_history"]["inspection"]
+    assert opened["incident_history"]["records"][0]["id"] == incident
+    case = client.post("/api/operator", json={
+        "prompt": "Inspect the investigation",
+        "incident_record": {"source": "investigation", "id": investigation["id"]},
+    }).json()
+    assert case["incident_history"]["records"][0]["title"] == "BGP flapping"
+    assert "action" not in case
+    assert c.db.read_bytes() == saved
+
+
+def test_history_intent_accepts_a_device_absent_from_the_live_fabric(monkeypatch):
+    monkeypatch.setattr(intents.advisor, "infer", lambda *_: json.dumps({
+        "intent": "read_incident_history",
+        "targets": ["leaf four"],
+        "node_type": "unspecified",
+        "quantity": None,
+        "duration_s": None,
+        "scope": "network",
+    }))
+    spec, _, _ = intents.interpret("Find past incidents on Leaf Four", "", sample())
+    assert spec.intent == "incident_history"
 
 
 def test_provision_scope_and_superseded_previews(tmp_path):

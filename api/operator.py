@@ -2,6 +2,7 @@
 
 import http.client
 import json
+import sqlite3
 import time
 from typing import Annotated
 
@@ -9,7 +10,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import advisor, provision, expansion, intents, questions, topology, investigations as inv
+from . import advisor, expansion, intents, provision, questions, topology
+from . import incident_history as history
+from . import investigations as inv
 from .controls import authorized, local, perform
 from .incidents import observe
 
@@ -57,6 +60,8 @@ WORKFLOW_STEPS = {
 class Request(BaseModel):
     prompt: str = Field(min_length=1, max_length=500)
     selection: str = Field(default="", max_length=60)
+    incident_history: bool = False
+    incident_record: history.RecordReference | None = None
 
 
 @router.post("/api/operator")
@@ -84,9 +89,20 @@ def step(label, detail):
     return {"step": {"label": label, "detail": detail, "time": time.time()}}
 
 
+def incident_events(req, db):
+    yield step("Read the incident journal", "Match the request against saved incidents and investigations.")
+    try:
+        yield {"answer": history.answer(db, req.prompt, req.incident_record)}
+    except sqlite3.Error as exc:
+        raise HTTPException(503, "The saved incident journal is unavailable.") from exc
+
+
 def operator_events(req, c):
     started = time.time()
     try:
+        if req.incident_history or req.incident_record:
+            yield from incident_events(req, c.db)
+            return
         yield step(
             "Collect live observations", "Read router state and bidirectional ICMP and HTTP probes."
         )
@@ -96,12 +112,15 @@ def operator_events(req, c):
         )
         spec, targets, graph = intents.interpret(req.prompt, req.selection, sample)
         tool = spec.intent
+        if tool == "incident_history":
+            yield from incident_events(req, c.db)
+            return
         inv.record(
             c.db,
             "intent",
             f"{tool}: {', '.join(targets) or spec.scope}",
             {
-                "request": req.model_dump(),
+                "request": req.model_dump(include={"prompt", "selection"}),
                 "intent": spec.model_dump(),
                 "targets": targets,
                 "version": intents.VERSION,
