@@ -179,6 +179,9 @@ def test_incident_history_routing_preserves_operational_requests():
         assert not incident_history.wants_journal(prompt)
     assert not incident_history.wants_journal("Review this incident and generate a verified postmortem.")
     assert incident_history.wants_journal("What happened in the most recent link failure?")
+    assert not incident_history.wants_journal(
+        "Monitor my network and open an incident when a peer flaps. Show every tool execution."
+    )
 
 
 def test_provision_scope_and_superseded_previews(tmp_path):

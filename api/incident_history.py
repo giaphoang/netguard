@@ -82,11 +82,13 @@ class Search(BaseModel):
 
 
 def wants_journal(prompt):
-    text = topology.normalize(prompt)
-    return bool(
-        READ_REQUEST.search(text)
-        and (JOURNAL_RECORD.search(text) or PAST_EVENT.search(text) or RECORD_ID.search(text))
-        and not OTHER_WORKFLOW.search(text)
+    if OTHER_WORKFLOW.search(topology.normalize(prompt)):
+        return False
+    return any(
+        READ_REQUEST.search(clause)
+        and (JOURNAL_RECORD.search(clause) or PAST_EVENT.search(clause) or RECORD_ID.search(clause))
+        for sentence in re.split(r"[.!?](?:\s|$)|\n", prompt)
+        if (clause := topology.normalize(sentence))
     )
 
 
