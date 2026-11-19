@@ -60,6 +60,26 @@ def interpret(prompt, selection, sample):
     )
     if references:
         schema["properties"]["targets"]["items"]["enum"] = references
+    amounts = {**{word: n for n, word in enumerate(topology.WORDS)}, "a": 1, "an": 1, "another": 1}
+    quantity_match = re.search(
+        r"\b(\d+|one|two|three|four|a|an|another)\s+(?:(?:new|additional)\s+)?(leaves|leaf|spines?|hosts?)\b",
+        text,
+    )
+    quantity = (
+        amounts.get(
+            quantity_match[1], int(quantity_match[1]) if quantity_match[1].isdigit() else None
+        )
+        if quantity_match
+        else None
+    )
+    schema["properties"]["quantity"]["enum"] = [quantity]
+    duration_match = re.search(r"\b(\d+|one|two)\s*(seconds?|minutes?|s)\b", text)
+    seconds = None
+    if duration_match:
+        seconds = amounts.get(
+            duration_match[1], int(duration_match[1]) if duration_match[1].isdigit() else 0
+        ) * (60 if duration_match[2].startswith("minute") else 1)
+    schema["properties"]["duration_s"]["enum"] = [seconds]
     spec = Intent.model_validate_json(
         advisor.infer(
             INSTRUCTION,
@@ -72,6 +92,8 @@ def interpret(prompt, selection, sample):
             schema,
         )
     )
+    if spec.quantity != quantity or spec.duration_s != seconds:
+        raise ValueError("The model changed your requested quantity or duration. Please clarify.")
     targets = [topology.resolve(t, graph) for t in spec.targets]
     explicit = {topology.resolve(r, graph) for r in references}
     if explicit and set(targets) != explicit:

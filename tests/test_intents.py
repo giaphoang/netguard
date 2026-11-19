@@ -67,3 +67,17 @@ def test_risk_requires_both_sides_of_surviving_adjacencies():
     assert topology.risk(expanded, ["spine-2"])["policy_check"]["observed"] == "review"
     expanded["routers"][-1]["peers"] = {}
     assert topology.risk(expanded, ["spine-2"])["policy_check"]["observed"] == "block"
+
+
+def test_model_cannot_expand_quantity_or_duration(monkeypatch):
+    bad = {
+        "intent": "provision",
+        "targets": [],
+        "node_type": "leaf",
+        "quantity": 2,
+        "duration_s": None,
+        "scope": "all_spines",
+    }
+    monkeypatch.setattr(intents.advisor, "infer", lambda *_: json.dumps(bad))
+    with pytest.raises(ValueError, match="quantity"):
+        intents.interpret("Add a leaf connected to every spine.", "", sample())
