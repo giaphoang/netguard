@@ -50,6 +50,7 @@ type Turn = {
   followIncident?: Follow;
   followPlan?: Follow & { result?: Plan };
   measurements?: Impact;
+  purpose?: "benchmark";
 };
 
 type Props = {
@@ -62,7 +63,6 @@ type Props = {
   run?: Run;
   replay?: IncidentRecord & { text?: string };
   preview: (topology?: FabricSpec) => void;
-  trace: () => Promise<string>;
 };
 
 const benchmarkPrompt = "Evaluate the AI operator against our incident test suite.";
@@ -140,7 +140,7 @@ async function readAnswer(
 }
 
 export function Operator({
-  page, request, navigate, signal, live, target, run, replay, preview, trace,
+  page, request, navigate, signal, live, target, run, replay, preview,
 }: Props) {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -297,12 +297,12 @@ export function Operator({
       : turn));
   }
 
-  function begin(prompt: string) {
+  function begin(prompt: string, purpose?: Turn["purpose"]) {
     if (working.current || !prompt) return undefined;
     working.current = true;
     const id = ++nextTurnId.current;
     jumpToLatest();
-    setTurns((previous) => [...previous, { id, prompt, steps: [] }]);
+    setTurns((previous) => [...previous, { id, prompt, purpose, steps: [] }]);
     return id;
   }
 
@@ -314,22 +314,38 @@ export function Operator({
     recordStep(id, { label, detail, time: Date.now() / 1000 });
   }
 
-  async function ask(text: string, diagnosis?: Run, fromInput = false, record?: IncidentReference) {
+  function readImpact(id: number) {
+    startStep(id, "Read recorded workflow measurements");
+    return get<Impact>("impact").catch(() => undefined);
+  }
+
+  async function showImpact() {
+    const id = begin("Show impact");
+    if (id === undefined) return;
+    try {
+      const measurements = live ? await readImpact(id) : undefined;
+      patchTurn(id, {
+        answer: live
+          ? { text: "Measured workflow outcomes from the lab.", impact: true }
+          : { text: "Workflow measurements are available in the live dashboard." },
+        measurements,
+      });
+    } finally {
+      working.current = false;
+    }
+  }
+
+  async function ask(text: string, { diagnosis, fromInput, record, purpose }: {
+    diagnosis?: Run; fromInput?: boolean; record?: IncidentReference; purpose?: Turn["purpose"];
+  } = {}) {
     const prompt = text.trim();
-    const id = begin(prompt);
+    const id = begin(prompt, purpose);
     if (id === undefined) return;
     if (fromInput) setInput("");
 
     try {
       let answer: Answer;
-      if (!historyMode && prompt === "Inspect traffic") {
-        startStep(id, replay ? "Read recorded probe" : "Run selected probe");
-        answer = { text: await trace() };
-      } else if (!historyMode && prompt === "Evaluate impact") {
-        answer = live
-          ? { text: "Measured workflow outcomes from the lab.", impact: true }
-          : { text: "Workflow measurements are available in the live dashboard." };
-      } else if (!live) {
+      if (!live) {
         answer = { text: historyMode
           ? "The saved incident journal is available in the live dashboard."
           : replay?.text || "Live telemetry is required for this operation." };
@@ -338,11 +354,7 @@ export function Operator({
         answer = await readAnswer(prompt, target, (step) => recordStep(id, step), historyRequest);
       }
 
-      let measurements: Impact | undefined;
-      if (answer.impact) {
-        startStep(id, "Read recorded workflow measurements");
-        measurements = await get<Impact>("impact").catch(() => undefined);
-      }
+      const measurements = answer.impact ? await readImpact(id) : undefined;
       if (answer.plan) {
         planRead.current += 1;
         rememberPlan(answer.plan);
@@ -436,8 +448,8 @@ export function Operator({
   const planOutsideChat = page === "Provisioning" && currentPlan && live
     && !["rolled_back", "cancelled"].includes(currentPlan.phase)
     && !turns.some((turn) => turn.answer?.plan?.id === currentPlan.id);
-  const evaluating = latest?.prompt === benchmarkPrompt && busy;
-  const benchmarkStatus = latest?.prompt === benchmarkPrompt
+  const evaluating = latest?.purpose === "benchmark" && busy;
+  const benchmarkStatus = latest?.purpose === "benchmark"
     ? latest.error || latest.answer?.text || latest.steps[latest.steps.length - 1]?.detail
     : undefined;
   const shortcuts = [
@@ -445,7 +457,7 @@ export function Operator({
       label: "Diagnose incident",
       detail: "Review routing, link state, and probes.",
       disabled: busy,
-      action: () => ask("Explain root cause", active ? run : undefined),
+      action: () => ask("Explain root cause", { diagnosis: active ? run : undefined }),
     },
     {
       label: "Add a leaf",
@@ -457,7 +469,7 @@ export function Operator({
       label: "Show impact",
       detail: "Review measured workflow outcomes.",
       disabled: busy,
-      action: () => ask("Evaluate impact"),
+      action: showImpact,
     },
   ].map(({ label, detail, disabled, action }) => (
     <button type="button" key={label} aria-label={showAgentWelcome ? label : undefined} disabled={disabled} onClick={action}>
@@ -550,7 +562,7 @@ export function Operator({
                       {review && <IncidentReview review={review} />}
                       {answer?.evidence && <ChatEvidence evidence={answer.evidence} />}
                       {answer?.incident_history && <ChatIncidents history={answer.incident_history} busy={busy || !live}
-                        inspect={record => ask(`Inspect ${record.source} ${record.id.slice(0, 8)}`, undefined, false, record)} />}
+                        inspect={record => ask(`Inspect ${record.source} ${record.id.slice(0, 8)}`, { record })} />}
                       {observed !== undefined && (
                         <ChatEvidence
                           label="Verification evidence"
@@ -601,7 +613,7 @@ export function Operator({
           <form onSubmit={(e) => {
             e.preventDefault();
             if (busy || !input.trim()) return;
-            void ask(input, undefined, true);
+            void ask(input, { fromInput: true });
             composer.current?.focus({ preventScroll: true });
           }}>
             <textarea
@@ -669,7 +681,7 @@ export function Operator({
           live={live}
           evaluating={evaluating}
           status={benchmarkStatus}
-          evaluate={() => ask(benchmarkPrompt)}
+          evaluate={() => ask(benchmarkPrompt, { purpose: "benchmark" })}
         />
       )}
     </section>

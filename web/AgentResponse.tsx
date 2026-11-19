@@ -21,9 +21,11 @@ export function ToolActivity({ trace, title = "Tool activity" }: { trace: ToolCa
   const stages = Array.from(new Set(trace.map(call => call.stage).filter(Boolean)));
   return (
     <details className="agent-tool-log" onToggle={event => setExpanded(event.currentTarget.open)}>
-      <summary><strong>{title}</strong> <span>{trace.length}</span></summary>
+      <summary>
+        <strong>{title}</strong> <span>{trace.length}</span>
+        {!expanded && last.status === "running" && <small role="status"> · {last.label} in progress</small>}
+      </summary>
       {!!stages.length && <p className="agent-stages">{stages.join(" → ")}</p>}
-      {!expanded && last.status === "running" && <p role="status">{last.label} in progress</p>}
       {expanded && (
         <ol className="agent-tools">
           {trace.map((call, i) => {

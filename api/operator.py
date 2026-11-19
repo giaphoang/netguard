@@ -121,12 +121,44 @@ def step(label, detail):
     return {"step": {"label": label, "detail": detail, "time": time.time()}}
 
 
+def model_trace(calls, stage):
+    return chat_views.experiment_trace(
+        [
+            {
+                **call,
+                "stage": stage,
+                "status": "complete" if call.get("http_status") == 200 else "failed",
+                "result": {
+                    key: call[key]
+                    for key in (
+                        "http_status",
+                        "prompt_eval_count",
+                        "eval_count",
+                        "load_duration",
+                        "total_duration",
+                    )
+                    if key in call
+                },
+            }
+            for call in calls
+        ]
+    )
+
+
 def incident_events(req, db):
     yield step(
         "Read the incident journal", "Match the request against saved incidents and investigations."
     )
     try:
-        yield {"answer": history.answer(db, req.prompt, req.incident_record)}
+        calls = []
+        token = advisor.TRACE.set(calls)
+        try:
+            answer = history.answer(db, req.prompt, req.incident_record)
+        finally:
+            advisor.TRACE.reset(token)
+        if calls:
+            answer["trace"] = model_trace(calls, "Read saved evidence")
+        yield {"answer": answer}
     except sqlite3.Error as exc:
         raise HTTPException(503, "The saved incident journal is unavailable.") from exc
 
@@ -151,6 +183,10 @@ def operator_events(req, c, background=None):
         finally:
             advisor.TRACE.reset(token)
         tool = spec.intent
+        interpretation = model_trace(calls, "Interpret the request")
+        if interpretation:
+            interpretation[-1]["result"]["workflow"] = tool
+            interpretation[-1]["result"]["targets"] = targets
         inv.record(
             c.db,
             "intent",
@@ -161,8 +197,8 @@ def operator_events(req, c, background=None):
                 "targets": targets,
                 "version": intents.VERSION,
                 "model": advisor.model_name(),
-                "authorization": "human approval"
-                if tool in {"simulate", "provision", "remove", "repair"}
+                "authorization": "human approval before changes"
+                if tool in {"simulate", "provision", "capacity", "architecture", "remove", "repair"}
                 else "read only",
                 "observed": sample["observed"],
             },
@@ -171,18 +207,16 @@ def operator_events(req, c, background=None):
         if targets:
             detail += f" The workflow targets {', '.join(targets)}."
         yield step(label, detail)
+        calls = []
         token = advisor.TRACE.set(calls)
         try:
             answer = answer_request(req, c, started, sample, spec, targets, graph, background)
         finally:
             advisor.TRACE.reset(token)
-        if calls:
-            answer["trace"] = chat_views.experiment_trace(
-                [
-                    {**call, "status": "complete" if call.get("http_status") == 200 else "failed"}
-                    for call in calls
-                ]
-            ) + answer.get("trace", [])
+        if interpretation or calls:
+            answer["trace"] = (
+                interpretation + model_trace(calls, "Prepare the answer") + answer.get("trace", [])
+            )
         yield {"answer": answer}
     except (OSError, http.client.HTTPException, KeyError) as exc:
         raise HTTPException(

@@ -73,6 +73,16 @@ def test_chat_can_read_a_discarded_plan_by_identity(tmp_path):
     assert [e["phase"] for e in discarded["events"]] == ["preview", "cancelled"]
 
 
+def test_model_tool_activity_exposes_only_recorded_public_metadata():
+    event, = operator.model_trace([{
+        "tool": "ollama.chat", "model": "test", "started": 1, "completed": 2,
+        "http_status": 200, "prompt_eval_count": 14, "content": "unexpected raw content",
+    }], "Interpret the request")
+    assert event["target"] == "test"
+    assert event["status"] == "complete"
+    assert event["result"] == {"http_status": 200, "prompt_eval_count": 14}
+
+
 def test_chat_starts_and_reopens_the_experiment_without_leaving_the_transcript(tmp_path, monkeypatch):
     c = Controller(tmp_path / "journal")
     app = FastAPI()

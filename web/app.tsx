@@ -740,7 +740,6 @@ function App() {
               time: recorded.eventTime || 0,
             })),
           } : undefined}
-          trace={trace}
         />
         {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
       </div>

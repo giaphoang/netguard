@@ -43,7 +43,7 @@ def experiment_trace(trace):
             "label": event["tool"],
             "stage": event.get("stage"),
             "target": " · ".join(
-                str(event[key]) for key in ("node", "case", "version") if key in event
+                str(event[key]) for key in ("node", "case", "version", "model") if key in event
             ),
             "status": event["status"],
             "started": event["started"],
