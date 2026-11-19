@@ -13,6 +13,8 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 
 | Request or action | Result |
 |---|---|
+| “Why isn’t Leaf 1 reaching Leaf 3?” | Check observed routes and probes for the pair. Device names like `leaf1` and `Leaf 1` both resolve. A missing measurement leaves reachability unverified. |
+| “How is ECMP different from BGP here?” | Get an explanation based on the current lab topology and evidence. |
 | Inject a selected link fault with Local AI diagnosis | Monitoring detects it without a chat prompt. The local model investigates; the controller validates a repair or escalates. Automatic restoration requires explicitly enabled lab auto-repair. |
 | “What could break if I remove Spine 1?” | Current surviving adjacencies and the two-path policy determine the risk. Works with current nodes, including added components. Unknown targets require clarification. |
 | “Add two leaves connected to every spine.” | Preview a validated, approval-required expansion. |
@@ -23,7 +25,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Review this incident and generate a verified postmortem.” | Generate a proposed read-only runbook check linked to a real event; adoption requires review. |
 | “Evaluate the AI operator against our incident test suite.” | Compare diagnostic workflows on identical labeled observations. No live actuator runs. |
 
-Each request is independent: include the target and quantity or fault duration in follow-ups. The model interprets structured intent; backend validation resolves current devices and enforces scope, resource capacity, approvals and rollback. The bounded lab supports up to three spines, four leaves and four hosts. Provisioning can recreate containers and interrupt traffic. Nodes cannot be removed through a model command; removal risk assessments require human review, and approved additions have an explicit rollback.
+Each request is independent. Include the target and any requested quantity or fault duration. For ordinary questions, the agent explains the latest probe paths, BGP state, and routing evidence. Specialized workflows retrieve additional evidence or prepare an approval. The controller validates devices, scope, capacity, approval, and rollback. The lab supports up to three spines, four leaves, and four hosts. Provisioning can recreate containers and interrupt traffic.
 
 The blue marker cycles through successful ICMP probe paths using each source leaf's Linux forwarding lookup. Added hosts and reachable leaf loopbacks enter the cycle as their probes arrive. Use **Probe route** to watch a single direction. The marker stops when its observation is missing or stale. Link counters, ICMP, and HTTP come from the lab. Marker speed is illustrative.
 

@@ -6,9 +6,9 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import advisor, provision, expansion, intents, topology, investigations as inv
+from . import advisor, provision, expansion, intents, questions, topology, investigations as inv
 from .controls import authorized, local, perform
-from .incidents import healthy, observe
+from .incidents import observe
 
 router = APIRouter()
 
@@ -71,7 +71,14 @@ def operator(req: Request, c=Depends(authorized)):
             )
             return inv.response(inv.record(c.db, "change risk", text, facts))
         if tool == "drift":
-            return inv.response(inv.drift(c.db, observe()))
+            comparison = inv.drift(c.db, sample)
+            return questions.answer(
+                req.prompt,
+                sample,
+                targets,
+                graph,
+                {"configuration_comparison": comparison["facts"]},
+            )
         if tool == "postmortem":
             last = next((r for r in c.status()["incidents"] if r["phase"] == "resolved"), None)
             if not last:
@@ -123,55 +130,39 @@ def operator(req: Request, c=Depends(authorized)):
                     "action": f"incidents/{r['id']}/approve",
                     "label": "Approve repair",
                 }
-        if tool == "diagnose":
+        if tool == "diagnose" and spec.scope == "unstable_peer":
             obs = advisor.evidence(sample)
-            if spec.scope == "unstable_peer":
-                rows = [r for r in inv.cases(c.db, kind="monitor") if r["kind"] == "monitor"]
-                history = [h for r in rows[:5] for h in r["facts"].get("history", [])]
-                unique = {h["observed"]: h for h in history}
-                history = [unique[k] for k in sorted(unique)]
-                counts = {}
-                for key in obs["facts"]:
-                    if "/" in key:
-                        states = [h["facts"].get(key, {}).get("leaf_peer") for h in history]
-                        counts[key] = sum(a != b for a, b in zip(states, states[1:]) if a and b)
-                if not counts or max(counts.values()) == 0:
-                    return {
-                        "text": "No recorded BGP transitions establish an unstable peer yet.",
-                        "evidence": obs,
-                    }
-                targets = [max(counts, key=counts.get)]
-                obs["facts"]["recorded_peer_history"] = {
-                    "selected_peer": targets[0],
-                    "transitions": counts[targets[0]],
-                    "counts": counts,
-                    "first_observed": history[0]["observed"],
-                    "last_observed": history[-1]["observed"],
-                }
-                if healthy(sample):
-                    return {
-                        "text": f"{targets[0]} has the most recorded BGP transitions ({counts[targets[0]]}). Current routing and bidirectional probes are healthy; the saved history supports investigation, not an active repair.",
-                        "evidence": obs,
-                    }
-            obs["requested_targets"] = targets
-            if healthy(sample):
+            rows = inv.cases(c.db, kind="monitor")
+            samples = [h for r in rows[:5] for h in r["facts"].get("history", [])]
+            unique = {h["observed"]: h for h in samples}
+            history = [unique[k] for k in sorted(unique)]
+            counts = {}
+            for key in obs["facts"]:
+                if "/" in key:
+                    states = [h["facts"].get(key, {}).get("leaf_peer") for h in history]
+                    counts[key] = sum(a != b for a, b in zip(states, states[1:]) if a and b)
+            if not counts or max(counts.values()) == 0:
                 return {
-                    "text": "The observed routing and bidirectional host probes are healthy. No active connectivity loss appears in this sample.",
+                    "text": "No recorded BGP transitions establish an unstable peer yet.",
                     "evidence": obs,
                 }
-            d = advisor.assess(
-                {**obs, "operator_question": req.prompt, "graph_selection": req.selection}
-            )
-            return {
-                "text": f"Likely cause: {d.diagnosis} ({d.component}). Next check: {d.next_check}",
-                "evidence": {
-                    "observed": obs["observed"],
-                    "facts": {k: obs["facts"][k] for k in d.citations},
+            most_unstable = max(counts, key=counts.get)
+            return questions.answer(
+                req.prompt,
+                sample,
+                targets,
+                graph,
+                {
+                    "recorded_peer_history": {
+                        "selected_peer": most_unstable,
+                        "transitions": counts[most_unstable],
+                        "counts": counts,
+                        "first_observed": history[0]["observed"],
+                        "last_observed": history[-1]["observed"],
+                    }
                 },
-            }
-        return {
-            "text": "Specify a connection to inspect, a timed base link fault, or one or two BGP leaves to add."
-        }
+            )
+        return questions.answer(req.prompt, sample, targets, graph)
     except (OSError, http.client.HTTPException, KeyError) as exc:
         raise HTTPException(
             503,

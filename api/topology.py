@@ -9,6 +9,7 @@ WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
 def normalize(value):
     value = unicodedata.normalize("NFKC", value).casefold()
     value = re.sub(r"[‐‑‒–—_\-]", " ", value)
+    value = re.sub(r"\b(spine|leaf|host)(?=\d+\b)", r"\1 ", value)
     return " ".join(value.split())
 
 

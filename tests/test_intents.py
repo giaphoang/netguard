@@ -48,6 +48,7 @@ def test_model_cannot_silently_replace_unknown_target(monkeypatch):
 def test_alias_and_ambiguous_target():
     graph = topology.inventory(sample())
     assert topology.resolve("spine‑one", graph) == "spine-1"
+    assert topology.resolve("leaf1", graph) == "leaf-1"
     assert topology.resolve("Host B", graph) == "host-2"
     with pytest.raises(ValueError, match="ambiguous"):
         topology.resolve("spine", graph)

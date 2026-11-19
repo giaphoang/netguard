@@ -279,7 +279,7 @@ export function Operator({
         <summary>How to use NetGuard Agent</summary>
         <p>Select a link, then enter one complete request. Include the target in each follow-up.</p>
         <ul>
-          <li>Diagnose: “Why is this connection failing?” Open the evidence to inspect peers and probes.</li>
+          <li>Ask about a route, BGP state, or a networking concept. Try “Can Leaf 1 reach Leaf 3?” Open the evidence to see which routes and probes informed the answer.</li>
           <li>Simulate: “Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.” Review the target before approving.</li>
           <li>Repair: “Fix this network.” Review any eligible repair and check the timeline for verified closure.</li>
           <li>Provision: “Expand this fabric.” Choose the number of leaves and inspect the configuration diff.</li>
@@ -298,7 +298,7 @@ export function Operator({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           maxLength={500}
-          placeholder="Ask NetGuard Agent about a lab task…"
+          placeholder="Ask about the network or request a lab change…"
         />
         <button aria-label="Send request" disabled={busy || !input.trim()}>
           ↑
