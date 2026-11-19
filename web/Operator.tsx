@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Run } from "./Incidents";
 
 type Plan = {
@@ -78,20 +78,17 @@ export function Operator({
     [busy, setBusy] = useState(false),
     [tracking, setTracking] = useState(false),
     [answer, setAnswer] = useState<Answer>(),
-    [token, setToken] = useState(""),
     [plan, setPlan] = useState<Plan | null>(null),
     [impact, setImpact] = useState<Impact>(),
     [showImpact, setShowImpact] = useState(true),
     [question, setQuestion] = useState("");
+  const answerPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (answer) answerPanel.current?.scrollIntoView({ block: "nearest" });
+  }, [answer]);
   useEffect(() => {
     if (!live) return;
     let active = true;
-    fetch("/api/session")
-      .then((r) => r.json())
-      .then((v) => {
-        if (active) setToken(v.token);
-      })
-      .catch(() => {});
     async function poll() {
       try {
         const [a, b] = await Promise.all([
@@ -122,6 +119,9 @@ export function Operator({
     if (page === "AI Impact") setShowImpact(true);
   }, [page]);
   async function post(path: string, body: object = {}) {
+    const session = await fetch("/api/session", { cache: "no-store" });
+    if (!session.ok) throw Error("The live NetGuard session is unavailable.");
+    const { token } = await session.json();
     const response = await fetch("/api/" + path, {
       method: "POST",
       headers: {
@@ -222,7 +222,7 @@ export function Operator({
         </div>
         <b className="tag">ASSIST</b>
       </div>
-      <div className="answer" aria-live="polite">
+      <div className="answer" aria-live="polite" ref={answerPanel}>
         <strong>
           {busy
             ? "Working…"
