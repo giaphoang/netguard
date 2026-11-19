@@ -8,6 +8,7 @@ import { Operator } from "./Operator";
 import { FabricSpec } from "./TopologyPreview";
 import { Cases } from "./Cases";
 import { IncidentPanel, Run } from "./Incidents";
+import { WorkspaceHeader, WorkspaceShell, workspaceAtLocation, workspaceHref, type WorkspaceName } from "./WorkspaceShell";
 
 type Router = {
   name: string;
@@ -58,13 +59,7 @@ function App() {
   const [preview, setPreview] = useState<FabricSpec>();
   const [signal, setSignal] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const pages = [
-    "Command Center",
-    "AI Impact",
-    "Provisioning",
-    "Incidents",
-  ];
-  const [page, setPage] = useState("Command Center"),
+  const [page, setPage] = useState(workspaceAtLocation),
     [environment, setEnvironment] = useState("Local lab");
   const [operatorRequest, requestOperator] = useState<{ text: string }>(),
     [notice, setNotice] = useState("");
@@ -73,10 +68,25 @@ function App() {
     const timer = setInterval(() => setClock(Date.now()), 2000);
     return () => clearInterval(timer);
   }, []);
-  function navigate(name: string) {
-    setPage(name);
-    setNotice("");
+  useEffect(() => {
+    function syncWorkspace() {
+      setPage(workspaceAtLocation());
+      setNotice("");
+    }
+    window.addEventListener("popstate", syncWorkspace);
+    return () => window.removeEventListener("popstate", syncWorkspace);
+  }, []);
+  useEffect(() => {
+    document.title = page === "Command Center" ? "NetGuard • Fabric console" : `${page} • NetGuard`;
+  }, [page]);
 
+  function navigate(name: WorkspaceName) {
+    if (name !== page) {
+      window.history.pushState(null, "", workspaceHref(name));
+      setPage(name);
+      window.scrollTo(0, 0);
+    }
+    setNotice("");
   }
 
   const [sample, setSample] = useState<Sample>(),
@@ -256,7 +266,7 @@ function App() {
             ? spine
               ? "spine up"
               : "leaf up"
-            : "impaired",
+            : status === "BGP warning" ? "impaired" : "unknown",
       data: {
         label: (
           <>
@@ -355,11 +365,8 @@ function App() {
         type: "traffic",
 
         label: failed ? "Link warning" : undefined,
-        labelStyle: { fill: "#87431a", fontSize: 12 },
-        labelBgStyle: { fill: "#ffead4" },
-        labelBgPadding: [6, 4] as [number, number],
         style: {
-          stroke: failed ? "#c25137" : live ? "#309276" : "#a4acb7",
+          stroke: failed ? "var(--danger)" : live ? "var(--topology-link)" : "var(--topology-unknown)",
           strokeWidth: (onProbePath || paths.includes(s)) && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
@@ -372,7 +379,7 @@ function App() {
       target: "host-" + h.id,
       type: "traffic",
 
-      style: { stroke: "#606f89", strokeWidth: 2 },
+      style: { stroke: "var(--topology-unknown)", strokeWidth: 2 },
     });
   const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
   const health = offline
@@ -514,417 +521,359 @@ function App() {
         })),
       ];
   timeline.sort((a, b) => b.time - a.time);
+  const labStatus = frames.length ? "Replay" : offline ? "Telemetry offline" : liveMode ? "Live isolated lab" : "Connecting";
   return (
-    <>
-      <header className="mast">
-        <div className="brand">
-          <b className="brand-mark">∞</b>
-          <div>
-            <strong>netguard</strong>
-            <small>AI NETWORK OPERATIONS</small>
+    <WorkspaceShell page={page} navigate={navigate} status={labStatus} environment={environment}>
+      <WorkspaceHeader page={page} navigate={navigate} />
+      {notice && <p role="status">{notice}</p>}
+      <div className="kpis">
+        {[
+          [
+            "Routers online",
+            up === undefined || offline
+              ? "—"
+              : up + " / " + sample!.routers.length,
+            up === sample?.routers.length && up
+              ? "● All online"
+              : "Router telemetry",
+          ],
+          [
+            "BGP sessions",
+            sessions.length && !offline
+              ? sessions.filter(Boolean).length + " / " + sessions.length
+              : "—",
+            "● Established",
+          ],
+          [
+            "Probe success",
+            percent === undefined || offline ? "—" : percent + "%",
+            "ICMP · HTTP",
+          ],
+          [
+            "Active incidents",
+            activeCount,
+            activeCount === 0 ? "● No incidents" : "Incident monitor",
+          ],
+        ].map(([k, v, n]) => (
+          <div key={k}>
+            <small>{k}</small>
+            <strong>{v}</strong>
+            <small>{n}</small>
           </div>
-        </div>
-        <span className="env">
-          DEMO ENVIRONMENT · {environment.toUpperCase()}
-        </span>
-        <b className="sim">{frames.length ? "● Replay" : "● Live isolated lab"}</b>
-      </header>
-      <div className="shell">
-        <aside className="rail" aria-label="Workspace navigation">
-          <small>Workspace</small>
-          {pages.map((name, i) => (
-            <React.Fragment key={name}>
-              {i === 2 && <small>Operations</small>}
-              <button
-                aria-current={page === name ? "page" : undefined}
-                onClick={() => navigate(name)}
-              >
-                <span aria-hidden="true">{["⊞", "▥", "⚲", "⊕", "△"][i]}</span>
-                {name}
-              </button>
-            </React.Fragment>
-          ))}
-          <div className="replays">
-            <a href="/">Live lab</a>
-            <a href="?replay">Link replay</a>
-            <a href="?replay=handoff">Handoff replay</a>
-          </div>
-        </aside>
-        <main data-page={page}>
-          <div className="page-title">
+        ))}
+      </div>
+      {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
+      <div className="workspace">
+        <section className="fabric">
+          <div className="fabric-head">
             <div>
-              {page !== "AI Impact" && <small>Network intelligence</small>}
-              <h1>{page}</h1>
-              <p>
-                {
-                  {
-                    "Command Center":
-                      "Observe the fabric. Ask AI to investigate. Validate every action.",
-                    "AI Impact":
-                      "Recorded workflow timings, recovery outcomes and AI reliability evaluations.",
-                    Diagnostics:
-                      "Inspect routing state, link counters and host probes.",
-                    Provisioning: "Preview, approve and verify fabric changes.",
-                    Incidents:
-                      "Search the incident journal, inspect evidence and review fault controls.",
-                  }[page]
-                }
-              </p>
+              <h2>Live Network Topology</h2>
+              <small>FRRouting · eBGP · ECMP</small>
             </div>
-            {page !== "Incidents" && (
-              <button onClick={() => navigate("Incidents")}>Review incidents</button>
-            )}
+            <b className="tag" data-health={fresh ? health : undefined}>
+              {frames.length
+                ? "REPLAY"
+                : !fresh
+                  ? "WAITING"
+                  : health.toUpperCase()}
+            </b>
           </div>
-          {notice && <p role="status">{notice}</p>}
-          <div className="kpis">
-            {[
-              [
-                "Routers online",
-                up === undefined || offline
-                  ? "—"
-                  : up + " / " + sample!.routers.length,
-                up === sample?.routers.length && up
-                  ? "● All online"
-                  : "Router telemetry",
-              ],
-              [
-                "BGP sessions",
-                sessions.length && !offline
-                  ? sessions.filter(Boolean).length + " / " + sessions.length
-                  : "—",
-                "● Established",
-              ],
-              [
-                "Probe success",
-                percent === undefined || offline ? "—" : percent + "%",
-                "ICMP · HTTP",
-              ],
-              [
-                "Active incidents",
-                activeCount,
-                activeCount === 0 ? "● No incidents" : "Incident monitor",
-              ],
-            ].map(([k, v, n]) => (
-              <div key={k}>
-                <small>{k}</small>
-                <strong>{v}</strong>
-                <small>{n}</small>
-              </div>
-            ))}
-          </div>
-          {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
-          <div className="workspace">
-            <section className="fabric">
-              <div className="fabric-head">
-                <div>
-                  <h2>Live Network Topology</h2>
-                  <small>FRRouting · eBGP · ECMP</small>
-                </div>
-                <b className="tag">
-                  {frames.length
-                    ? "REPLAY"
-                    : !fresh
-                      ? "WAITING"
-                      : health.toUpperCase()}
-                </b>
-              </div>
-              {frames.length > 0 && (
-                <select
-                  aria-label="Recording stage"
-                  value={frame}
-                  onChange={(e) => {
-                    const i = +e.target.value;
-                    setFrame(i);
-                    setSample(frames[i].snapshot);
-                    setPaths([]);
-                    setProbe("");
-                  }}
-                >
-                  {frames.map((f, i) => (
-                    <option key={i} value={i}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {frames.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (!playing && frame === frames.length - 1) {
-                      setFrame(0);
-                      setSample(frames[0].snapshot);
-                      setProbe("");
-                      setPaths([]);
-                    }
-                    setPlaying(!playing);
-                  }}
-                >
-                  {playing ? "Pause playback" : "Play walkthrough"}
-                </button>
-              )}
-              {liveMode && (
-                <div className="route-readout probe-controls">
-                  <div>
-                    <label>
-                      Probe route {routePicker}
-                    </label>
-                    <button disabled={busy || !shownRoute} onClick={trace}>
-                      {busy ? "Probing…" : "Run probe"}
-                    </button>
-                  </div>
-                  <small aria-live={automatic ? "off" : "polite"}>
-                    {routeDetail}
-                    {shownRoute && " · " + probeStatus(shownRoute)}
-                    {probe === "Probe request unavailable" && " · " + probe}
-                  </small>
-                </div>
-              )}
-              <div className="canvas">
-                <ReactFlow
-                  nodes={nodes}
-                  edges={edges}
-                  edgeTypes={edgeTypes}
-                  nodesDraggable={false}
-                  onNodesChange={keepNodeMeasurements}
-                  key={names.join(",")}
-                  fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
-                  onNodeClick={(_, n) => {
-                    select(n.id);
-                    setFaultTarget(n.id);
-                  }}
-                  onEdgeClick={(_, edge) => {
-                    setFaultTarget(edge.id);
-                    select(
-                      edge.target.startsWith("leaf")
-                        ? edge.target
-                        : edge.source,
-                    );
-                  }}
-                  onPaneClick={() => setFaultTarget("")}
-                  fitView
-                  nodesConnectable={false}
-                >
-                  {packetPath && (
-                    <ProbePacket
-                      key={packetPath.join("/")}
-                      hops={packetPath}
-                      onLap={automatic ? advanceRoute : undefined}
-                    />
-                  )}
-                  <Background gap={18} size={1.4} color="#cedaff" />
-                </ReactFlow>
-              </div>
-              <div className="legend">
-                <span>● Healthy</span>
-                <span>● Degraded</span>
-                <span>● ICMP probe</span>
-              </div>
-              <div className="fabric-actions">
-                <button
-                  className="primary"
-                  disabled={!liveMode || !!active}
-                  onClick={() =>
-                    requestOperator({
-                      text: /^([1-3])-([1-4])$/.test(faultTarget) ? `Simulate a Leaf ${faultTarget.split("-")[1]} to Spine ${faultTarget.split("-")[0]} link failure for 30 seconds.` : "Simulate a Leaf 1 to Spine 2 link failure for 30 seconds.",
-                    })
-                  }
-                >
-                  Simulate selected link
-                </button>
-                <button disabled={!liveMode || !active} onClick={resetIncident}>
-                  {active && incident?.scenario !== "link"
-                    ? "Restore incident"
-                    : "Restore link"}
-                </button>
-              </div>
-              <div className="transmission">
-                <div>
-                  <strong>Link activity</strong>
-                  <small>
-                    {frames.length
-                      ? "Recorded probes"
-                      : Object.keys(activity).length
-                        ? "Latest interval · " +
-                          Object.values(activity)[0].seconds.toFixed(1) +
-                          " s"
-                        : "Awaiting live counters"}
-                  </small>
-                </div>
-                <p>
-                  {selectedTraffic
-                    ? (selectedHost ? "Leaf " + selectedHost.leaf + " access segment" : displayName(faultTarget)) +
-                      " · RX " +
-                      selectedTraffic.rx +
-                      " / TX " +
-                      selectedTraffic.tx +
-                      " packets at leaf"
-                    : Object.keys(activity).length
-                      ? Math.round(totalRate).toLocaleString() +
-                        " B/s across measured links"
-                      : "Select a link to inspect its state."}
-                </p>
-                {!liveRoutes.length && observed.map((f, i) => (
-                  <small key={i}>
-                    Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
-                    {f.probes.HTTP}
-                  </small>
-                ))}
-              </div>
-            </section>
-            <Operator
-              page={page}
-              request={operatorRequest}
-              navigate={navigate}
-              signal={signal}
-              live={liveMode}
-              target={faultTarget}
-              run={incident}
-              preview={setPreview}
-              replay={frames.length ? {
-                text: frames[frame].reason,
-                review: frames[frame].review,
-                events: frames.slice(0, frame + 1).map((recorded) => ({
-                  phase: recorded.label.toLowerCase(),
-                  reason: recorded.reason || "",
-                  time: recorded.eventTime || 0,
-                })),
-              } : undefined}
-              trace={trace}
-            />
-            {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
-          </div>
-          <section className="timeline">
-            <h2>Operations Timeline</h2>
-            {timeline.slice(0, 5).map((e, i) => (
-              <div key={i}>
-                <b>{e.type}</b>
-                <span>{e.text}</span>
-                <time>{new Date(e.time).toLocaleTimeString()}</time>
-              </div>
-            ))}
-            {!frames.length && !history.length && !incident && (
-              <p>Waiting for routing or incident events.</p>
-            )}
-          </section>
-          <details
-            className="drawer inspection"
-            open={page === "Diagnostics" || !!faultTarget || undefined}
-          >
-            <summary>
-              Network inspection{" "}
-              {faultTarget && "· " + displayName(faultTarget)}
-            </summary>
-            <h2>Trace traffic</h2>
-            {frames.length ? (
-              <label>
-                Flow{" "}
-                <select
-                  disabled={busy}
-                  value={source}
-                  onChange={(e) => {
-                    setSource(+e.target.value);
-                    setPaths([]);
-                    setProbe("");
-                  }}
-                >
-                  <option value="1">Host 1 → Host 2</option>
-                  <option value="2">Host 2 → Host 1</option>
-                </select>
-              </label>
-            ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
-            <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
-              {busy ? "Probing…" : "Trace traffic"}
-            </button>
-            <p role="status">
-              {probe || "Select a probe route to inspect its reachability."}
-            </p>
-            <hr />
-            <small>OBSERVED ROUTER STATE</small>
-            <h2>{selected}</h2>
-            <p>{router?.error}</p>
-            <pre>
-              {router
-                ? JSON.stringify(router.peers, null, 2)
-                : "Select a router to inspect peers."}
-            </pre>
-            <pre>
-              {router?.interfaces
-                .split("\n")
-                .filter((l) => /^eth/.test(l))
-                .join("\n")}
-            </pre>
-            <pre>{router?.routes}</pre>
-          </details>
           {frames.length > 0 && (
-            <section className="incidents">
-              <h2>Recorded incident · {frames[frame].label}</h2>
-              <p>{frames[frame].reason}</p>
-              {frames[frame].review?.decision && (
-                <details>
-                  <summary>Model diagnosis and cited evidence</summary>
-                  <p>
-                    {frames[frame].review?.model} ·{" "}
-                    {frames[frame].review?.decision?.diagnosis}
-                  </p>
-                  {frames[frame].review?.decision?.citations.map((key) => (
-                    <p key={key}>
-                      {key} ·{" "}
-                      {JSON.stringify(
-                        frames[frame].review?.observation.facts[key],
-                      )}
-                    </p>
-                  ))}
-                </details>
-              )}
-              <p>
-                {frames[frame].probes
-                  .map(
-                    (f, i) =>
-                      "Host " +
-                      (i + 1) +
-                      " · ICMP " +
-                      f.probes.ICMP +
-                      " · HTTP " +
-                      f.probes.HTTP,
-                  )
-                  .join(" | ")}
-              </p>
-            </section>
-          )}
-          {mode === "LOCAL LAB / LIVE" && (
-            <details
-              className="drawer incident-drawer"
-              open={drawerOpen}
-              onToggle={(e) => setDrawerOpen(e.currentTarget.open)}
-            >
-              <summary>Incident controls and timeline</summary>
-              <IncidentPanel
-                onSignal={setSignal}
-                onRun={(r) => {
-                  setIncident(r);
-                  setLoaded(true);
+            <div className="recording-controls">
+              <select
+                aria-label="Recording stage"
+                value={frame}
+                onChange={(e) => {
+                  const i = +e.target.value;
+                  setFrame(i);
+                  setSample(frames[i].snapshot);
+                  setPaths([]);
+                  setProbe("");
                 }}
-                target={faultTarget}
-              />
+              >
+                {frames.map((f, i) => (
+                  <option key={i} value={i}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (!playing && frame === frames.length - 1) {
+                    setFrame(0);
+                    setSample(frames[0].snapshot);
+                    setProbe("");
+                    setPaths([]);
+                  }
+                  setPlaying(!playing);
+                }}
+              >
+                {playing ? "Pause playback" : "Play walkthrough"}
+              </button>
+            </div>
+          )}
+          {liveMode && (
+            <div className="route-readout probe-controls">
+              <div>
+                <label>
+                  Probe route {routePicker}
+                </label>
+                <button disabled={busy || !shownRoute} onClick={trace}>
+                  {busy ? "Probing…" : "Run probe"}
+                </button>
+              </div>
+              <small aria-live={automatic ? "off" : "polite"}>
+                {routeDetail}
+                {shownRoute && " · " + probeStatus(shownRoute)}
+                {probe === "Probe request unavailable" && " · " + probe}
+              </small>
+            </div>
+          )}
+          <div className="canvas">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              colorMode="dark"
+              edgeTypes={edgeTypes}
+              nodesDraggable={false}
+              onNodesChange={keepNodeMeasurements}
+              key={names.join(",")}
+              fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
+              onNodeClick={(_, n) => {
+                select(n.id);
+                setFaultTarget(n.id);
+              }}
+              onEdgeClick={(_, edge) => {
+                setFaultTarget(edge.id);
+                select(
+                  edge.target.startsWith("leaf")
+                    ? edge.target
+                    : edge.source,
+                );
+              }}
+              onPaneClick={() => setFaultTarget("")}
+              fitView
+              nodesConnectable={false}
+            >
+              {packetPath && (
+                <ProbePacket
+                  key={packetPath.join("/")}
+                  hops={packetPath}
+                  onLap={automatic ? advanceRoute : undefined}
+                />
+              )}
+              <Background gap={18} size={1.4} color="var(--topology-grid)" />
+            </ReactFlow>
+          </div>
+          <div className="legend">
+            <span>● Healthy</span>
+            <span>● Degraded</span>
+            <span>● ICMP probe</span>
+          </div>
+          <div className="fabric-actions">
+            <button
+              className="primary"
+              disabled={!liveMode || !!active}
+              onClick={() =>
+                requestOperator({
+                  text: /^([1-3])-([1-4])$/.test(faultTarget) ? `Simulate a Leaf ${faultTarget.split("-")[1]} to Spine ${faultTarget.split("-")[0]} link failure for 30 seconds.` : "Simulate a Leaf 1 to Spine 2 link failure for 30 seconds.",
+                })
+              }
+            >
+              Simulate selected link
+            </button>
+            <button disabled={!liveMode || !active} onClick={resetIncident}>
+              {active && incident?.scenario !== "link"
+                ? "Restore incident"
+                : "Restore link"}
+            </button>
+          </div>
+          <div className="transmission">
+            <div>
+              <strong>Link activity</strong>
+              <small>
+                {frames.length
+                  ? "Recorded probes"
+                  : Object.keys(activity).length
+                    ? "Latest interval · " +
+                      Object.values(activity)[0].seconds.toFixed(1) +
+                      " s"
+                    : "Awaiting live counters"}
+              </small>
+            </div>
+            <p>
+              {selectedTraffic
+                ? (selectedHost ? "Leaf " + selectedHost.leaf + " access segment" : displayName(faultTarget)) +
+                  " · RX " +
+                  selectedTraffic.rx +
+                  " / TX " +
+                  selectedTraffic.tx +
+                  " packets at leaf"
+                : Object.keys(activity).length
+                  ? Math.round(totalRate).toLocaleString() +
+                    " B/s across measured links"
+                  : "Select a link to inspect its state."}
+            </p>
+            {!liveRoutes.length && observed.map((f, i) => (
+              <small key={i}>
+                Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
+                {f.probes.HTTP}
+              </small>
+            ))}
+          </div>
+        </section>
+        <Operator
+          page={page}
+          request={operatorRequest}
+          navigate={navigate}
+          signal={signal}
+          live={liveMode}
+          target={faultTarget}
+          run={incident}
+          preview={setPreview}
+          replay={frames.length ? {
+            text: frames[frame].reason,
+            review: frames[frame].review,
+            events: frames.slice(0, frame + 1).map((recorded) => ({
+              phase: recorded.label.toLowerCase(),
+              reason: recorded.reason || "",
+              time: recorded.eventTime || 0,
+            })),
+          } : undefined}
+          trace={trace}
+        />
+        {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
+      </div>
+      <section className="timeline">
+        <h2>Operations Timeline</h2>
+        {timeline.slice(0, 5).map((e, i) => (
+          <div key={i}>
+            <b>{e.type}</b>
+            <span>{e.text}</span>
+            <time>{new Date(e.time).toLocaleTimeString()}</time>
+          </div>
+        ))}
+        {!frames.length && !history.length && !incident && (
+          <p>Waiting for routing or incident events.</p>
+        )}
+      </section>
+      <details
+        className="drawer inspection"
+        open={!!faultTarget || undefined}
+      >
+        <summary>
+          Network inspection{" "}
+          {faultTarget && "· " + displayName(faultTarget)}
+        </summary>
+        <h2>Trace traffic</h2>
+        {frames.length ? (
+          <label>
+            Flow{" "}
+            <select
+              disabled={busy}
+              value={source}
+              onChange={(e) => {
+                setSource(+e.target.value);
+                setPaths([]);
+                setProbe("");
+              }}
+            >
+              <option value="1">Host 1 → Host 2</option>
+              <option value="2">Host 2 → Host 1</option>
+            </select>
+          </label>
+        ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
+        <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
+          {busy ? "Probing…" : "Trace traffic"}
+        </button>
+        <p role="status">
+          {probe || "Select a probe route to inspect its reachability."}
+        </p>
+        <hr />
+        <small>OBSERVED ROUTER STATE</small>
+        <h2>{selected}</h2>
+        <p>{router?.error}</p>
+        <pre>
+          {router
+            ? JSON.stringify(router.peers, null, 2)
+            : "Select a router to inspect peers."}
+        </pre>
+        <pre>
+          {router?.interfaces
+            .split("\n")
+            .filter((l) => /^eth/.test(l))
+            .join("\n")}
+        </pre>
+        <pre>{router?.routes}</pre>
+      </details>
+      {frames.length > 0 && (
+        <section className="incidents-recording">
+          <h2>Recorded incident · {frames[frame].label}</h2>
+          <p>{frames[frame].reason}</p>
+          {frames[frame].review?.decision && (
+            <details>
+              <summary>Model diagnosis and cited evidence</summary>
+              <p>
+                {frames[frame].review?.model} ·{" "}
+                {frames[frame].review?.decision?.diagnosis}
+              </p>
+              {frames[frame].review?.decision?.citations.map((key) => (
+                <p key={key}>
+                  {key} ·{" "}
+                  {JSON.stringify(
+                    frames[frame].review?.observation.facts[key],
+                  )}
+                </p>
+              ))}
             </details>
           )}
-          <details className="drawer collector">
-            <summary>Collector log</summary>
+          <p>
+            {frames[frame].probes
+              .map(
+                (f, i) =>
+                  "Host " +
+                  (i + 1) +
+                  " · ICMP " +
+                  f.probes.ICMP +
+                  " · HTTP " +
+                  f.probes.HTTP,
+              )
+              .join(" | ")}
+          </p>
+        </section>
+      )}
+      {mode === "LOCAL LAB / LIVE" && (
+        <details
+          className="drawer incident-drawer"
+          open={drawerOpen}
+          onToggle={(e) => setDrawerOpen(e.currentTarget.open)}
+        >
+          <summary>Incident controls and timeline</summary>
+          <IncidentPanel
+            onSignal={setSignal}
+            onRun={(r) => {
+              setIncident(r);
+              setLoaded(true);
+            }}
+            target={faultTarget}
+          />
+        </details>
+      )}
+      <details className="drawer collector">
+        <summary>Collector log</summary>
 
-            <p>
-              {history.length
-                ? history.slice(0, 5).map((h, i) => (
-                    <React.Fragment key={i}>
-                      {h.join(" · ")}
-                      <br />
-                    </React.Fragment>
-                  ))
-                : "No session changes in this view."}
-            </p>
-          </details>
-        </main>
-      </div>
-    </>
+        <p>
+          {history.length
+            ? history.slice(0, 5).map((h, i) => (
+                <React.Fragment key={i}>
+                  {h.join(" · ")}
+                  <br />
+                </React.Fragment>
+              ))
+            : "No session changes in this view."}
+        </p>
+      </details>
+    </WorkspaceShell>
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);

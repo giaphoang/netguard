@@ -10,8 +10,24 @@ const {chromium}=require('playwright-core');
   await page.getByRole('heading',{name:'Live Network Topology'}).waitFor();
   await page.locator('.react-flow__node').filter({hasText:'Spine 1'}).waitFor();
   await page.screenshot({path:'docs/proof/p3/command-center.png',fullPage:true});
+  const nav=page.getByRole('navigation',{name:'Workspace navigation'});
+  for(const link of await nav.getByRole('link').all()) {
+   const response=await page.request.get('http://127.0.0.1:3001'+await link.getAttribute('href'));
+   if(!response.ok()||!response.headers()['content-type']?.startsWith('text/html'))throw Error('Workspace link did not serve HTML: '+response.url());
+  }
+  const field=page.getByRole('textbox',{name:'Ask NetGuard'});
+  await page.getByRole('button',{name:'Open AI Agent',exact:true}).click();
+  await page.waitForURL('**/agent/');
+  await page.getByRole('heading',{name:'AI Agent',exact:true}).waitFor();
+  await field.fill('Draft to preserve');
+  await page.goBack();
+  await page.getByRole('heading',{name:'Command Center',exact:true}).waitFor();
+  if(await field.inputValue()!=='Draft to preserve')throw Error('Workspace navigation cleared the draft');
+  await page.goForward();
+  await page.getByRole('heading',{name:'AI Agent',exact:true}).waitFor();
+  await field.clear();
   for(const name of ['Incidents','AI Impact','Provisioning']) {
-   await page.getByRole('button',{name,exact:true}).click();
+   await nav.getByRole('link',{name,exact:true}).click();
    await page.getByRole('heading',{name,exact:true}).waitFor();
    if(name==='Incidents') {
     await page.getByPlaceholder('Find or inspect an incident…').waitFor();
@@ -25,7 +41,6 @@ const {chromium}=require('playwright-core');
    }
    await page.screenshot({path:'docs/proof/p3/'+name.toLowerCase().replace(' ','-')+'.png',fullPage:true});
   }
-  const field=page.getByRole('textbox',{name:'Ask NetGuard'});
   const chat=page.getByRole('log',{name:'Chat history'});
   const guide=page.getByRole('button',{name:'How to use NetGuard Agent'});
   await guide.scrollIntoViewIfNeeded();
@@ -60,9 +75,9 @@ const {chromium}=require('playwright-core');
    if(!(await rollback).ok())throw Error('Rollback failed');
   }
   await page.setViewportSize({width:390,height:844});
-  await page.getByRole('button',{name:'Command Center',exact:true}).click();
+  await nav.getByRole('link',{name:'Overview',exact:true}).click();
   await page.screenshot({path:'docs/proof/p3/mobile.png',fullPage:true});
   if(errors.length)throw Error(errors.join('\n'));
-  console.log('Four workspaces, fixed chat composer, history, topology preview, approval, verification, rollback and mobile rendering passed.');
+  console.log('Five workspaces, browser history, shared chat, fixed composer, topology preview, approval, verification, rollback and mobile rendering passed.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

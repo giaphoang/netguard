@@ -9,7 +9,7 @@ export function TopologyPreview({before,after,applied=false}:{before:FabricSpec;
       ...spec.hosts.map((h,i)=>({id:`host-${h.id}`,position:{x:i*150,y:220},data:{label:`Host ${h.id}`}}))
     ];
     const original = new Set([...before.spines.map(n=>`spine-${n}`),...before.leaves.map(n=>`leaf-${n}`),...before.hosts.map(h=>`host-${h.id}`)]);
-    return {nodes:nodes.map(n=>({...n,style:{border:original.has(n.id)?'1px solid #93a9d8':'2px dashed #2860ff',background:original.has(n.id)?'#fff':'#e9f0ff'}})),edges:[
+    return {nodes:nodes.map(n=>({...n,className:original.has(n.id) ? undefined : "pending"})),edges:[
       ...spec.spines.flatMap(s=>spec.leaves.map(l=>({id:`${s}-${l}`,source:`spine-${s}`,target:`leaf-${l}`}))),
       ...spec.hosts.map(h=>({id:`h${h.id}`,source:`leaf-${h.leaf}`,target:`host-${h.id}`}))
     ]};
@@ -22,6 +22,7 @@ export function TopologyPreview({before,after,applied=false}:{before:FabricSpec;
           <div style={{ height: 250 }}>
             <ReactFlow
               {...graph(spec)}
+              colorMode="dark"
               fitView
               nodesDraggable={false}
               nodesConnectable={false}

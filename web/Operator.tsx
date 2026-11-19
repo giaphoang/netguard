@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowUp, Bot, RotateCcw } from "lucide-react";
 import type { Run } from "./Incidents";
 import type { FabricSpec } from "./TopologyPreview";
+import type { WorkspaceName } from "./WorkspaceShell";
 import {
   Activity,
   AgentGuide,
@@ -45,9 +47,9 @@ type Turn = {
 };
 
 type Props = {
-  page: string;
+  page: WorkspaceName;
   request?: { text: string };
-  navigate: (page: string) => void;
+  navigate: (page: WorkspaceName) => void;
   signal: string;
   live: boolean;
   target: string;
@@ -149,11 +151,17 @@ export function Operator({
   const busy = !!latest && !latest.answer && !latest.error;
   const currentPlan = currentPlanId ? plans[currentPlanId] : undefined;
   const historyMode = page === "Incidents";
+  const agentWorkspace = page === "AI Agent";
+  const showAgentWelcome = agentWorkspace && !turns.length;
 
   useLayoutEffect(() => {
     const feed = transcript.current;
     if (followLatest.current && feed?.clientHeight) feed.scrollTop = feed.scrollHeight;
   }, [turns, incidents, plans, page]);
+
+  useEffect(() => {
+    help.current?.close();
+  }, [page]);
 
   useEffect(() => {
     const feed = transcript.current;
@@ -169,6 +177,14 @@ export function Operator({
     followLatest.current = true;
     setAtLatest(true);
     if (transcript.current) transcript.current.scrollTop = transcript.current.scrollHeight;
+  }
+
+  function newChat() {
+    if (working.current) return;
+    setTurns([]);
+    setInput("");
+    jumpToLatest();
+    composer.current?.focus({ preventScroll: true });
   }
 
   function checkScroll() {
@@ -372,12 +388,37 @@ export function Operator({
   const benchmarkStatus = latest?.prompt === benchmarkPrompt
     ? latest.error || latest.answer?.text || latest.steps[latest.steps.length - 1]?.detail
     : undefined;
+  const shortcuts = [
+    {
+      label: "Diagnose incident",
+      detail: "Review routing, link state, and probes.",
+      disabled: busy,
+      action: () => ask("Explain root cause", active ? run : undefined),
+    },
+    {
+      label: "Add a leaf",
+      detail: "Preview a new switch on both spines.",
+      disabled: busy || !live,
+      action: () => ask("Add one leaf connected to both spines with BGP."),
+    },
+    {
+      label: "Show impact",
+      detail: "Review measured workflow outcomes.",
+      disabled: busy,
+      action: () => ask("Evaluate impact"),
+    },
+  ].map(({ label, detail, disabled, action }) => (
+    <button type="button" key={label} aria-label={showAgentWelcome ? label : undefined} disabled={disabled} onClick={action}>
+      {label}
+      {showAgentWelcome && <small>{detail}</small>}
+    </button>
+  ));
 
   return (
     <section className="operator" aria-label={page === "AI Impact" ? undefined : "NetGuard Agent"}>
       <div className="chat-panel">
         <div className="operator-head">
-          <b className="op-icon" aria-hidden="true">✳</b>
+          <span className="op-icon"><Bot size={19} aria-hidden="true" /></span>
           <div>
             <h2>NetGuard Agent</h2>
             <small>{historyMode ? "Incident history" : page === "Provisioning" ? "Topology planning" : "Network operations"} · Local model</small>
@@ -385,6 +426,11 @@ export function Operator({
           <span className={"chat-mode" + (live ? " is-live" : "")}>
             {live ? "Live" : replay ? "Replay" : "Connecting"}
           </span>
+          {agentWorkspace && turns.length > 0 && (
+            <button type="button" className="chat-new" disabled={busy} onClick={newChat}>
+              <RotateCcw size={14} aria-hidden="true" /> New chat
+            </button>
+          )}
         </div>
         <div className="chat-feed">
           <div
@@ -395,13 +441,15 @@ export function Operator({
             ref={transcript}
             onScroll={checkScroll}
           >
-            <div className="chat-messages" ref={messages}>
+            <div className="chat-messages" ref={messages} data-welcome={showAgentWelcome || undefined}>
               {!turns.length && (
-                <div className="chat-welcome">
+                <div className={showAgentWelcome ? "chat-welcome agent-welcome" : "chat-welcome"}>
+                  {showAgentWelcome && <span className="op-icon"><Bot size={19} aria-hidden="true" /></span>}
                   <h3>{historyMode ? "Search the incident journal" : active ? "Current incident" : "What would you like to check?"}</h3>
                   <p>{historyMode
                     ? "Find resolved BGP incidents on Leaf 1, or ask what happened in the latest link failure."
                     : replay?.text || overview || signal || "Ask about a route, investigate an incident, or prepare a topology change."}</p>
+                  {showAgentWelcome && <div className="agent-shortcuts">{shortcuts}</div>}
                 </div>
               )}
               {turns.map((turn) => {
@@ -514,7 +562,9 @@ export function Operator({
               rows={2}
               placeholder={historyMode ? "Find or inspect an incident…" : "Ask about the network…"}
             />
-            <button type="submit" aria-label="Send request" disabled={busy || !input.trim()}>↑</button>
+              <button type="submit" aria-label="Send request" disabled={busy || !input.trim()}>
+                <ArrowUp size={19} aria-hidden="true" />
+              </button>
           </form>
           <div className="chips">
             {historyMode ? (
@@ -524,14 +574,8 @@ export function Operator({
               </>
             ) : (
               <>
-                <button type="button" disabled={busy} onClick={() => ask("Explain root cause", active ? run : undefined)}>
-                  Diagnose incident
-                </button>
-                <button type="button" disabled={busy || !live} onClick={() => ask("Add one leaf connected to both spines with BGP.")}>
-                  Add a leaf
-                </button>
+                {!showAgentWelcome && shortcuts}
                 <button type="button" onClick={() => navigate("Incidents")}>Search incidents</button>
-                <button type="button" disabled={busy} onClick={() => ask("Evaluate impact")}>Show impact</button>
               </>
             )}
             <button type="button" aria-haspopup="dialog" aria-controls="netguard-guide" onClick={() => help.current?.showModal()}>

@@ -1,9 +1,9 @@
 .impact {
-  --impact-ink: #172b4d;
-  --impact-muted: #536781;
-  --impact-blue: #0866e5;
-  --impact-line: #dce5f0;
-  --impact-tint: #eef5ff;
+  --impact-ink: var(--ink);
+  --impact-muted: var(--muted);
+  --impact-blue: var(--blue);
+  --impact-line: var(--line);
+  --impact-tint: var(--blue-tint);
   display: grid;
   gap: 16px;
   min-width: 0;
@@ -22,8 +22,8 @@
   min-width: 0;
   border: 1px solid var(--impact-line);
   border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 1px 3px #183e6710;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
 }
 
 .impact-panel {
@@ -84,7 +84,7 @@
 .impact-status {
   padding: 12px;
   border-radius: 8px;
-  background: #f5f8fc;
+  background: var(--surface-inset);
 }
 
 .impact-kpis,
@@ -155,8 +155,8 @@ button.impact-kpi > span:first-child {
 }
 
 button.impact-kpi:hover:not(:disabled) {
-  border-color: #8bb5f4;
-  background: #f8fbff;
+  border-color: var(--impact-blue);
+  background: var(--impact-tint);
 }
 
 .impact-chart-grid {
@@ -170,7 +170,7 @@ button.impact-kpi:hover:not(:disabled) {
   padding: 3px;
   margin-bottom: 10px;
   border-radius: 9px;
-  background: #f0f4fa;
+  background: var(--surface-inset);
 }
 
 .impact-tabs button,
@@ -189,15 +189,15 @@ button.impact-kpi:hover:not(:disabled) {
 }
 
 .impact-tabs button[aria-pressed="true"] {
-  background: #fff;
-  color: #0556be;
-  box-shadow: 0 1px 3px #183e6724;
+  background: var(--surface);
+  color: var(--impact-blue);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
 }
 
 .impact-action {
-  border-color: #cbdcf5;
-  background: #fff;
-  color: #0556be;
+  border-color: var(--input-border);
+  background: var(--surface);
+  color: var(--impact-blue);
   font-weight: 650;
 }
 
@@ -224,7 +224,7 @@ button.impact-kpi:hover:not(:disabled) {
 
 .impact-cohort {
   padding: 5px 0;
-  border-bottom: 1px solid #edf2f8;
+  border-bottom: 1px solid var(--line);
 }
 
 .impact-cohort-label {
@@ -273,7 +273,7 @@ button.impact-kpi:hover:not(:disabled) {
 }
 
 .impact-bar-track {
-  background: #e9eff8;
+  background: var(--surface-raised);
 }
 
 .impact-bar-fill {
@@ -281,11 +281,11 @@ button.impact-kpi:hover:not(:disabled) {
 }
 
 .impact-bar-fill[data-tone="manual"] {
-  background: #647ea6;
+  background: var(--muted);
 }
 
 .impact-bar-fill[data-tone="timer"] {
-  background: #ad7527;
+  background: var(--warning);
 }
 
 .impact-axis > div {
@@ -308,7 +308,7 @@ button.impact-kpi:hover:not(:disabled) {
 
 .impact-closure-difference strong {
   font-size: 19px;
-  color: #0556be;
+  color: var(--impact-blue);
 }
 
 .impact-evaluation-controls {
@@ -330,9 +330,9 @@ button.impact-kpi:hover:not(:disabled) {
   width: 100%;
   min-height: 36px;
   padding: 7px 9px;
-  border: 1px solid #cdd9e9;
+  border: 1px solid var(--input-border);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   color: var(--impact-ink);
   font-size: 13px;
   font-weight: 500;
@@ -347,9 +347,9 @@ button.impact-kpi:hover:not(:disabled) {
 .impact-score-charts > section {
   min-width: 0;
   padding: 13px;
-  border: 1px solid #e5edf8;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: #f8faff;
+  background: var(--surface-inset);
 }
 
 .impact-score-charts h3 {
@@ -366,8 +366,8 @@ button.impact-kpi:hover:not(:disabled) {
   align-items: center;
   justify-content: space-between;
   padding: 11px 13px;
-  background: #f8faff;
-  border-color: #e5edf8;
+  background: var(--surface-inset);
+  border-color: var(--line);
   text-align: left;
 }
 
@@ -376,7 +376,7 @@ button.impact-kpi:hover:not(:disabled) {
 }
 
 .impact-checks b {
-  color: #0556be;
+  color: var(--impact-blue);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -420,12 +420,12 @@ button.impact-kpi:hover:not(:disabled) {
 
 .impact-table :is(th, td) {
   padding: 10px 9px;
-  border-bottom: 1px solid #edf2f8;
+  border-bottom: 1px solid var(--line);
 }
 
 .impact-table thead {
-  background: #f3f7fd;
-  color: #415878;
+  background: var(--surface-raised);
+  color: var(--ink);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -449,7 +449,7 @@ button.impact-kpi:hover:not(:disabled) {
 
 .impact-support-row {
   align-items: center;
-  border-bottom: 1px solid #edf2f8;
+  border-bottom: 1px solid var(--line);
   padding: 9px 0;
 }
 
@@ -461,7 +461,7 @@ button.impact-kpi:hover:not(:disabled) {
   padding: 0;
   border: none;
   background: transparent;
-  color: #0556be;
+  color: var(--impact-blue);
   font-weight: 650;
   text-align: left;
 }
@@ -477,8 +477,8 @@ button.impact-kpi:hover:not(:disabled) {
   padding: 0;
   border: 0;
   border-left: 1px solid var(--impact-line);
-  background: #fff;
-  box-shadow: -12px 0 48px #142b501f;
+  background: var(--surface);
+  box-shadow: -12px 0 48px rgb(0 0 0 / 32%);
   color: var(--impact-ink);
   overflow: hidden;
 }
@@ -489,7 +489,7 @@ button.impact-kpi:hover:not(:disabled) {
 }
 
 .impact-evidence::backdrop {
-  background: rgb(15 32 57 / 35%);
+  background: rgb(0 0 0 / 55%);
 }
 
 .impact-evidence-head,
@@ -557,12 +557,12 @@ button.impact-kpi:hover:not(:disabled) {
 
 .impact-run-picker button:is(:hover, [aria-pressed="true"]) {
   background: var(--impact-tint);
-  border-color: #9dbded;
+  border-color: var(--impact-blue);
 }
 
 .impact-evidence-heading a {
   flex: none;
-  color: #0556be;
+  color: var(--impact-blue);
   font-size: 12px;
 }
 
@@ -571,7 +571,7 @@ button.impact-kpi:hover:not(:disabled) {
   gap: 12px;
   padding: 0 0 0 12px;
   margin: 14px 0;
-  border-left: 2px solid #b5cef3;
+  border-left: 2px solid var(--input-border);
   list-style: none;
 }
 
@@ -588,7 +588,7 @@ button.impact-kpi:hover:not(:disabled) {
   padding: 9px 10px;
   border: 1px solid var(--impact-line);
   border-radius: 8px;
-  background: #f8faff;
+  background: var(--surface-inset);
 }
 
 .impact-log > summary {
@@ -599,7 +599,7 @@ button.impact-kpi:hover:not(:disabled) {
 .impact-log pre {
   max-height: 46vh;
   margin: 8px 0 0;
-  background: #edf2f9;
+  background: var(--background);
 }
 
 .impact-log-meta {

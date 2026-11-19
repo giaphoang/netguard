@@ -2,7 +2,7 @@
 
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
-In **Command Center**, select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
+**Overview** opens the Command Center. Select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. The sidebar opens the dedicated AI Agent, Incidents, Provisioning, and AI Impact workspaces. Chat history and drafts follow you between workspaces. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
 
 P3 adds proactive investigations, topology-aware structured intent, approved spine/leaf/host provisioning with verification and rollback, and reproducible AI evaluation. The existing P0–P2 fabric, controls and benchmark history remain intact. [P3 stages and evidence](docs/P3_OPERATIONS.md) · [Earlier P2 diagnosis](docs/P2_AI.md)
 
@@ -19,7 +19,7 @@ Install Docker Engine with Compose v2 (or Docker Desktop with Linux containers),
     make setup
     make demo-up
 
-Open http://localhost:3000. Click a leaf to inspect its neighbor table and kernel routes. Select a host pair and click **Trace traffic**. Blue interconnects represent possible routes. ICMP and HTTP report the results of probes sent from the selected host. A green session by itself says nothing about end-to-end reachability.
+Open http://localhost:3000. Click a leaf to inspect its neighbor table and kernel routes. Select a host pair and click **Run probe**. Green interconnects show established BGP adjacencies, and the blue marker follows a verified ICMP path. The probe readout reports ICMP and HTTP results from the selected host.
 
 Ctrl-C stops the foreground web service. Use `make demo-down` to remove the lab containers and networks. `make demo-reset` recreates the currently approved topology. To review the recorded incident walkthrough without Docker, run `make demo-replay` after setup. It shares the same port as the live service.
 
