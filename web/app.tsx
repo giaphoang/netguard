@@ -5,6 +5,7 @@ import "@xyflow/react/dist/style.css";
 import "./style.css";
 import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
 import { Operator } from "./Operator";
+import { ArchitectureLab, type ArchitectureRequest } from "./ArchitectureLab";
 import { FabricSpec } from "./TopologyPreview";
 import { Cases } from "./Cases";
 import { IncidentPanel, Run } from "./Incidents";
@@ -63,6 +64,7 @@ function App() {
     [environment, setEnvironment] = useState("Local lab");
   const [operatorRequest, requestOperator] = useState<{ text: string }>(),
     [notice, setNotice] = useState("");
+  const [architectureRequest, setArchitectureRequest] = useState<ArchitectureRequest>();
   const [clock, setClock] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 2000);
@@ -526,6 +528,7 @@ function App() {
     <WorkspaceShell page={page} navigate={navigate} status={labStatus} environment={environment}>
       <WorkspaceHeader page={page} navigate={navigate} />
       {notice && <p role="status">{notice}</p>}
+      {page === "AI Architecture Lab" && <ArchitectureLab live={liveMode} initial={architectureRequest} />}
       <div className="kpis">
         {[
           [
@@ -726,6 +729,10 @@ function App() {
           page={page}
           request={operatorRequest}
           navigate={navigate}
+          openArchitecture={request => {
+            setArchitectureRequest(request);
+            navigate("AI Architecture Lab");
+          }}
           signal={signal}
           live={liveMode}
           target={faultTarget}

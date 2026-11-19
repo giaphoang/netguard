@@ -1,0 +1,252 @@
+main[data-page="AI Architecture Lab"] .workspace {
+  display: none;
+}
+
+.architecture-layout {
+  display: grid;
+  grid-template-columns: minmax(235px, 300px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.architecture-sidebar, .architecture-results {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.architecture-card {
+  min-width: 0;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--panel-shadow);
+}
+
+.architecture-card h2, .architecture-card h3, .architecture-card h4 {
+  margin: 0;
+}
+
+.architecture-card h2 {
+  font-size: 19px;
+}
+
+.architecture-card h4 {
+  font-size: 14px;
+}
+
+.architecture-card p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.architecture-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.architecture-card label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.architecture-card textarea {
+  resize: vertical;
+  background: var(--surface-inset);
+  padding: 10px;
+  line-height: 1.5;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+}
+
+.architecture-card form button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.architecture-example, .architecture-run-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.architecture-example {
+  margin-top: 10px;
+}
+
+.architecture-example button:first-child {
+  flex: 1;
+  text-align: left;
+}
+
+.architecture-example button:last-child {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+}
+
+.architecture-history {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.architecture-history button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  margin: 3px 0;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+}
+
+.architecture-history button[aria-current="true"] {
+  background: var(--blue-tint);
+  border-color: var(--line);
+}
+
+.architecture-history button span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.architecture-empty {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  min-height: 280px;
+  gap: 8px;
+}
+
+.architecture-empty svg {
+  color: var(--blue);
+}
+
+.architecture-card .architecture-error {
+  color: var(--danger);
+}
+
+.architecture-table-scroll {
+  overflow-x: auto;
+}
+
+.architecture-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.architecture-table :is(th, td) {
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  padding: 10px 9px;
+  white-space: nowrap;
+}
+
+.architecture-table thead {
+  color: var(--muted);
+}
+
+.architecture-table td:nth-child(4) {
+  color: var(--accent);
+}
+
+.architecture-options, .architecture-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.architecture-options > div, .architecture-charts > div {
+  background: var(--surface-inset);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+}
+
+.architecture-bar-row {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, auto) minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.architecture-bar-row progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.architecture-card details {
+  margin: 10px 0;
+}
+
+.architecture-card summary {
+  color: var(--blue);
+}
+
+.architecture-card pre {
+  max-height: 320px;
+}
+
+.architecture-card .topology-compare {
+  margin-top: 10px;
+}
+
+.architecture-diff {
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.architecture-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.architecture-stages li {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border-top: 2px solid var(--line);
+  background: var(--surface-inset);
+  border-radius: 5px;
+}
+
+.architecture-stages li[data-status="Recorded"] {
+  border-color: var(--success);
+}
+
+.architecture-stages li[data-status="In progress"] {
+  border-color: var(--blue);
+}
+
+.architecture-stages li[data-status="Review"] {
+  border-color: var(--warning);
+}
+
+.architecture-tools > details {
+  padding: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 1000px) {
+  .architecture-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

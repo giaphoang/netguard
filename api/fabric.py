@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from . import measurements, operator, expansion, traffic
+from . import architecture, measurements, operator, expansion, traffic
 from .controls import router as control_routes, running_controls
 
 from fastapi import FastAPI, HTTPException, Query
@@ -302,6 +302,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(control_routes)
 app.include_router(operator.router)
+app.include_router(architecture.router)
 
 
 @app.get("/api/state")

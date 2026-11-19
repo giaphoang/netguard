@@ -50,6 +50,10 @@ WORKFLOW_STEPS = {
         "Run the read-only evaluation",
         "Compare workflows using the same labeled observations.",
     ),
+    "architecture": (
+        "Select the Architecture Lab",
+        "Carry the objective to the experiment workspace for baseline measurements and review.",
+    ),
     "clarify": (
         "Review available evidence",
         "Check the observations for details that can answer the request.",
@@ -58,7 +62,7 @@ WORKFLOW_STEPS = {
 
 
 class Request(BaseModel):
-    prompt: str = Field(min_length=1, max_length=500)
+    prompt: str = Field(min_length=1, max_length=2000)
     selection: str = Field(default="", max_length=60)
     incident_history: bool = False
     incident_record: history.RecordReference | None = None
@@ -144,6 +148,11 @@ def operator_events(req, c):
 
 def answer_request(req, c, started, sample, spec, targets, graph):
     tool = spec.intent
+    if tool == "architecture":
+        return {
+            "text": "Open the Architecture Lab to measure a baseline and review the experiment.",
+            "architecture": {"prompt": req.prompt, "selection": req.selection},
+        }
     if tool == "benchmark":
         from .evaluation import assess_suite
 

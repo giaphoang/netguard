@@ -304,6 +304,7 @@ def ownership(topology, origins):
         "{{.Endpoints.docker.Host}}",
     ).startswith("unix://"):
         raise ValueError("A local Docker socket is required")
+    owners = {}
     for name in names(topology):
         info = json.loads(p.presets.docker("inspect", f"netguard-{name}-1"))[0]
         labels = info["Config"]["Labels"]
@@ -326,10 +327,15 @@ def ownership(topology, origins):
             for n in inspected
         ):
             raise ValueError("Topology requires isolated parentless lab networks")
+        owners[name] = info
+    return owners
 
 
 def execute(c, identity, rollback=False):
+    from .architecture import require_idle
+
     with c.lock:
+        require_idle(c.db)
         plan = current(c.db) if rollback else p.latest(c.db)
         if (
             not plan

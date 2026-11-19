@@ -4,6 +4,8 @@ A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-
 
 **Overview** opens the Command Center. Select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. The sidebar opens the dedicated AI Agent, Incidents, Provisioning, and AI Impact workspaces. Chat history and drafts follow you between workspaces. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
 
+**Architecture Lab** measures the live fabric, compares design alternatives, and shows a topology and configuration preview before approval. It saves the prediction and compares it with the measured outcome from the approved trial. [Architecture experiments and evidence](docs/ARCHITECTURE_LAB.md)
+
 P3 adds proactive investigations, topology-aware structured intent, approved spine/leaf/host provisioning with verification and rollback, and reproducible AI evaluation. The existing P0–P2 fabric, controls and benchmark history remain intact. [P3 stages and evidence](docs/P3_OPERATIONS.md) · [Earlier P2 diagnosis](docs/P2_AI.md)
 
 Three recruiter demonstrations: inject a fault and watch an unprompted investigation; ask to add a router or host and approve its preview; ask what could break if Spine 2 were removed, then inspect the policy block and versioned evaluation in **AI Impact**. The current guarded workflow identified 5/8 labeled diagnoses versus 4/8 for the frozen P2 reference. These are small lab regression results; failures remain visible and no time saved is reported without a matched manual baseline.

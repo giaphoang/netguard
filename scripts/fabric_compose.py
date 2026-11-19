@@ -4,10 +4,14 @@ import argparse
 import os
 from pathlib import Path
 
-from api import provision, expansion
+from api import architecture, provision, expansion
 
 
 def commands(db, operation):
+    if db.exists() and architecture.reservation(db):
+        if operation == "up":
+            return []
+        architecture.require_idle(db)
     plan = expansion.current(db) if db.exists() else None
     start = ["up", "-d"] + (["--force-recreate"] if operation == "reset" else [])
     if not plan or plan["phase"] not in provision.ACTIVE:

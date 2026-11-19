@@ -22,6 +22,7 @@ WORKFLOWS = {
     "detect_configuration_drift": "drift",
     "review_completed_incident": "postmortem",
     "evaluate_ai_quality": "benchmark",
+    "design_network_experiment": "architecture",
     "clarify_request": "clarify",
 }
 INSTRUCTION = """Choose a workflow only when the user requests one of the specialized tasks below.
@@ -30,6 +31,9 @@ device state, or networking concepts. For example, asking why one leaf is not se
 to another is a read-only question for answer_question.
 Return JSON only.
 Questions about AI test suites, prompt versions or diagnosis accuracy use evaluate_ai_quality.
+Requests to design, optimize or benchmark aggregate network throughput or ECMP use
+design_network_experiment. Read-only explanations of performance or protocol concepts use
+answer_question. A throughput objective can include proposed extra spines without requesting provisioning.
 Manual versus AI timing or time saved uses compare_operational_metrics.
 Use detect_configuration_drift only to compare running configuration with expected configuration.
 Hypothetical failures, disappearing devices, outages and what-if removals use assess_change_risk.
@@ -62,6 +66,7 @@ class Intent(BaseModel):
         "drift",
         "postmortem",
         "benchmark",
+        "architecture",
         "clarify",
     ]
     targets: list[str] = Field(max_length=8)

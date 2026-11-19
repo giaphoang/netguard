@@ -3,5 +3,6 @@
   "AI Agent": "/agent/",
   "Incidents": "/incidents/",
   "Provisioning": "/provisioning/",
+  "AI Architecture Lab": "/architecture/",
   "AI Impact": "/impact/"
 }

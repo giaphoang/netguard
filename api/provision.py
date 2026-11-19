@@ -141,12 +141,14 @@ def verify(leaves):
 
 def execute(c, identity, rollback=False):
     from . import expansion
+    from .architecture import require_idle
 
     candidate = expansion.current(c.db) if rollback else latest(c.db)
     if candidate and candidate.get("version") == 3:
         return expansion.execute(c, identity, rollback)
     # Reserve the operation under lock, then release it during Compose and probes.
     with c.lock:
+        require_idle(c.db)
         plan = latest(c.db)
         allowed = ("verified", "needs_review") if rollback else ("preview",)
         if (

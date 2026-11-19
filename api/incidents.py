@@ -132,6 +132,8 @@ def diagnose(scenario, sample, leaf_id=1, spine=1):
 
 class Controller:
     def __init__(self, db: Path):
+        from .architecture import recover
+
         self.db = db
         self.lock = threading.RLock()
         self.auto = False
@@ -152,6 +154,7 @@ class Controller:
         plan = provision.latest(db)
         if plan and plan["phase"] in ("applying", "rolling_back"):
             provision.save(db, plan, "needs_review")
+        recover(db)
         self.run = json.loads(row[0]) if row else None
         if self.active:
             self.event(
@@ -186,7 +189,10 @@ class Controller:
         self.save()
 
     def inject(self, scenario, ai=False, leaf=1, spine=1, duration=None, manual=False):
+        from .architecture import require_idle
+
         with self.lock:
+            require_idle(self.db)
             if manual and (ai or self.auto):
                 raise ValueError("Manual diagnosis requires manual approval mode")
             plan = provision.latest(self.db)

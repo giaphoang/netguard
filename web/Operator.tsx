@@ -18,6 +18,8 @@ import type { Evidence, Plan, PlanAction, Step } from "./ChatDetails";
 import { ChatIncidents, type IncidentHistory, type IncidentReference } from "./ChatIncidents";
 import { ImpactDashboard } from "./ImpactDashboard";
 import { duration, type Impact } from "./impactData";
+import { get, post } from "./localApi";
+import type { ArchitectureRequest } from "./ArchitectureLab";
 
 type Answer = {
   text: string;
@@ -29,6 +31,7 @@ type Answer = {
   impact?: boolean;
   plan?: Plan;
   incident_history?: IncidentHistory;
+  architecture?: ArchitectureRequest;
 };
 
 type IncidentRecord = Pick<Run, "events" | "review">;
@@ -50,6 +53,7 @@ type Props = {
   page: WorkspaceName;
   request?: { text: string };
   navigate: (page: WorkspaceName) => void;
+  openArchitecture: (request: ArchitectureRequest) => void;
   signal: string;
   live: boolean;
   target: string;
@@ -62,32 +66,6 @@ type Props = {
 const benchmarkPrompt = "Evaluate the AI operator against our incident test suite.";
 const progressMediaType = "application/x-ndjson";
 const errorText = (e: unknown) => e instanceof Error && e.message ? e.message : "Operator request failed.";
-
-async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch("/api/" + path, { cache: "no-store", signal });
-  if (!response.ok) throw Error("Controller state is unavailable.");
-  return response.json();
-}
-
-async function post(path: string, body: object = {}, accept = "application/json") {
-  const session = await fetch("/api/session", { cache: "no-store" });
-  if (!session.ok) throw Error("The live NetGuard session is unavailable.");
-  const { token } = await session.json();
-  const response = await fetch("/api/" + path, {
-    method: "POST",
-    headers: {
-      Accept: accept,
-      "Content-Type": "application/json",
-      "X-NetGuard-Session": token,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    throw Error(typeof data?.detail === "string" ? data.detail : "Operator request failed.");
-  }
-  return response;
-}
 
 async function readAnswer(
   prompt: string, selection: string, onStep: (step: Step) => void,
@@ -128,7 +106,7 @@ async function readAnswer(
 }
 
 export function Operator({
-  page, request, navigate, signal, live, target, run, replay, preview, trace,
+  page, request, navigate, openArchitecture, signal, live, target, run, replay, preview, trace,
 }: Props) {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -488,6 +466,11 @@ export function Operator({
                         steps={steps}
                       />
                       {answer && <p className="chat-text">{answer.text}</p>}
+                      {answer?.architecture && (
+                        <button type="button" onClick={() => openArchitecture(answer.architecture!)}>
+                          Open experiment objective
+                        </button>
+                      )}
                       {turn.error && <p className="chat-error">{turn.error}</p>}
                       {turn.incident && <Activity label="Incident timeline" steps={incidentSteps(turn.incident.events)} />}
                       {review && <IncidentReview review={review} />}
@@ -558,7 +541,7 @@ export function Operator({
                   e.currentTarget.form?.requestSubmit();
                 }
               }}
-              maxLength={500}
+              maxLength={2000}
               rows={2}
               placeholder={historyMode ? "Find or inspect an incident…" : "Ask about the network…"}
             />
