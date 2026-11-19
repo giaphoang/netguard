@@ -2,9 +2,10 @@
 
 Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or use `make demo-up` for local Docker on port 3000. Qwen runs through Ollama (`qwen2.5:1.5b`); a Mac-hosted model needs the existing reverse loopback tunnel to Ubuntu. [Ubuntu setup](UTM_ARM64_SETUP.md)
 
-## Four workspaces
+## Workspaces
 
 - **Command Center:** live React Flow topology, packet-counter activity, route animation, proactive notifications and a compact NetGuard Agent panel. Select a link before simulating a fault or asking about it.
+- **AI Agent** runs architecture experiments inside the chat transcript. **Tool activity** shows commands, inputs, outputs, and the controller’s checks. [Architecture experiments](ARCHITECTURE_LAB.md)
 - **Provisioning:** enter a change request, compare the current and proposed graph, review the configuration diff and risk, then approve. Watch deployment and verification; **Roll back this change** restores the previous topology.
 - **Incidents:** ask NetGuard Agent to search saved controller incidents and proactive investigations by device, scenario, status, recovery outcome, or keyword. Select **Inspect** for the recorded timeline and full log. The case browser and controller controls remain available on this page.
 - **AI Impact:** switch between diagnosis, recovery and provisioning timings. Select a bar to open its timestamped runs and full journal records. Filter the experiment table by workflow stage, recovery mechanism, or text. The matched comparison appears when both workflows have samples from the same conditions. Choose an evaluation run to compare workflow versions on its labeled cases.
@@ -16,6 +17,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Why isn’t Leaf 1 reaching Leaf 3?” | Check observed routes and probes for the pair. Device names like `leaf1` and `Leaf 1` both resolve. A missing measurement leaves reachability unverified. |
 | “How is ECMP different from BGP here?” | Get an explanation based on the current lab topology and evidence. |
 | Inject a selected link fault with Local AI diagnosis | Monitoring detects it without a chat prompt. The local model investigates; the controller validates a repair or escalates. Automatic restoration requires explicitly enabled lab auto-repair. |
+| “Watch for latency spikes, loss, or peer flapping.” | Opens a live reply with probe measurements, transit counters, and the tools and recovery checks for new investigations. Throughput uses matched active experiments. [Browser and recovery evidence](proof/architecture/monitor-chat.json) |
 | “What could break if I remove Spine 1?” | Compares before and projected after topologies, affected BGP sessions, and installed and surviving ECMP paths. Select another spine in Overview and ask about the selected spine to repeat the review. [Browser evidence](proof/architecture/risk-agent.json) |
 | “Add two leaves connected to every spine.” | Preview a validated, approval-required expansion. |
 | “Provision another spine with appropriate BGP neighbors.” | Preview a spine connected to every current leaf. |

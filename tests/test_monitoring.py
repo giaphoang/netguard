@@ -1,7 +1,7 @@
 import time
 from copy import deepcopy
 
-from api import advisor
+from api import advisor, fabric
 from api.incidents import Controller
 from api.monitoring import Observer, Rules, detect
 from test_incidents import sample
@@ -66,6 +66,35 @@ def test_rules_track_each_peer_and_both_sides():
         entry["facts"]["leaf-2/spine-2"]["leaf_peer"] = state
         history.append(entry)
     assert ("bgp_flapping", "leaf-2/spine-2", 3) in detect(history, Rules())
+
+
+def test_monitor_requires_measured_latency_and_observed_recovery(tmp_path, monkeypatch):
+    monkeypatch.setattr(advisor, "assess", lambda _: advisor.Decision(
+        diagnosis="unknown", component="unknown", action="handoff", citations=["host-1"],
+        next_check="Check observed RTT.",
+    ))
+    controller = Controller(tmp_path / "observer")
+    observer = Observer(controller)
+    stamp = time.time()
+
+    def feed(offset, rtt):
+        observed = sample()
+        observed["observed"] = stamp + offset
+        observed["flows"][0]["icmp"] = {"sent": 1, "received": 1, "rtt_ms": rtt}
+        observer.step(observed)
+
+    assert fabric.icmp_observation(
+        "64 bytes from host: seq=0 ttl=63 time=8.25 ms\n1 packets transmitted, 1 packets received"
+    ) == {"sent": 1, "received": 1, "rtt_ms": 8.25}
+    feed(0, 8)
+    assert controller.signal is None
+    feed(1, 9)
+    assert controller.signal["facts"]["findings"] == [("high_latency", "host-1", 9)]
+    feed(2, 10)
+    assert controller.signal and observer.recovered == 0
+    feed(3, 1)
+    feed(4, 1)
+    assert controller.signal is None
 
 
 def test_missing_model_escalates_once(tmp_path, monkeypatch):

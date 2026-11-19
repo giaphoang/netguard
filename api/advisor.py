@@ -65,6 +65,8 @@ def evidence(sample):
             "via": flow["candidates"],
             "probes": flow["probes"],
         }
+        if flow.get("icmp"):
+            facts[f"host-{flow['source']}"]["icmp"] = flow["icmp"]
     for host in sample.get("hosts", []):
         if host["name"] not in facts:
             facts[host["name"]] = {

@@ -16,6 +16,7 @@ from . import (
     chat_views,
     expansion,
     intents,
+    monitor_chat,
     provision,
     questions,
     risk_preview,
@@ -34,7 +35,10 @@ WORKFLOW_STEPS = {
         "Match the question to routing, peers and probe results.",
     ),
     "diagnose": ("Investigate the symptom", "Check observed peers, routes and probe results."),
-    "monitor": ("Read monitoring history", "Look up recorded peer and probe anomalies."),
+    "monitor": (
+        "Open live monitoring",
+        "Follow probe measurements and proactive investigations here.",
+    ),
     "simulate": ("Validate the simulation", "Check the selected link and requested duration."),
     "provision": (
         "Build a topology preview",
@@ -203,13 +207,9 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
             "evidence": {"observed": report["observed"], "facts": report},
         }
     if tool == "monitor":
-        rows = inv.cases(c.db, kind="monitor")
         return {
-            "text": "Monitoring live peer transitions and consecutive probe failures. Recent investigations appear below.",
-            "evidence": {
-                "observed": time.time(),
-                "facts": {r["id"]: r for r in rows if r["kind"] == "monitor"},
-            },
+            "text": "",
+            "record": {"source": "monitor", "id": "fabric"},
         }
     if tool in {"risk", "remove"}:
         began = time.time()
@@ -343,7 +343,11 @@ def monitoring(c=Depends(local)):
 
 
 @router.get("/api/operator/records/{source}/{identity}")
-def record_view(source: Literal["experiment"], identity: str, c=Depends(local)):
+def record_view(source: Literal["experiment", "monitor"], identity: str, c=Depends(local)):
+    if source == "monitor":
+        if identity != "fabric":
+            raise HTTPException(404, "Unknown monitoring record.")
+        return monitor_chat.view(c)
     return chat_views.experiment(architecture.get_run(c, identity))
 
 
@@ -436,6 +440,7 @@ async def watch(controller, done):
                         "routers": snapshot.model_dump()["routers"],
                         "hosts": snapshot.model_dump().get("hosts", []),
                         "flows": app.state.flows,
+                        "traffic": app.state.traffic,
                     },
                 )
         except Exception:

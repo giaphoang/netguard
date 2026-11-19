@@ -425,23 +425,46 @@ async def events():
 
 def probe_results(source: str, destination: str, *, http: bool = True) -> dict[str, str]:
     """Send bounded reachability checks to an address from the lab inventory."""
+    results, _ = probe_observations(source, destination, http=http)
+    return results
+
+
+def icmp_observation(output):
+    counts = re.search(r"(\d+) packets transmitted, (\d+) (?:packets )?received", output or "")
+    if counts is None:
+        return None
+    rtt = re.search(r"\btime[=<]\s*([\d.]+)\s*ms", output)
+    return {
+        "sent": int(counts[1]),
+        "received": int(counts[2]),
+        "rtt_ms": float(rtt[1]) if rtt else None,
+    }
+
+
+def probe_observations(source, destination, *, http=True):
     checks = {"ICMP": ["ping", "-c", "1", "-W", "2", destination]}
     if http:
         checks["HTTP"] = ["wget", "-T", "2", "-qO-", f"http://{destination}:8080/"]
     results = {}
+    icmp = None
     for protocol, args in checks.items():
         try:
-            command(source, *args)
+            output = command(source, *args)
+            if protocol == "ICMP":
+                icmp = icmp_observation(output)
             results[protocol] = "success"
         except subprocess.CalledProcessError as exc:
             results[protocol] = (
                 "failed"
-                if exc.returncode == 1 and not exc.stderr.startswith("Error response from daemon")
+                if exc.returncode == 1
+                and not (exc.stderr or "").startswith("Error response from daemon")
                 else "unavailable"
             )
+            if protocol == "ICMP" and results[protocol] == "failed":
+                icmp = icmp_observation(exc.stdout)
         except (OSError, subprocess.SubprocessError):
             results[protocol] = "unavailable"
-    return results
+    return results, icmp
 
 
 @app.get("/api/trace")
@@ -470,7 +493,7 @@ def trace(
     if REPLAY:
         return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
     dest = f"10.212.{3-source}.2"
-    results = probe_results(f"host-{source}", dest)
+    results, icmp = probe_observations(f"host-{source}", dest)
     candidates = None
     try:
         routes = command(f"leaf-{source}", "ip", "-4", "route")
@@ -496,6 +519,7 @@ def trace(
         "destination": dest,
         "candidates": candidates,
         "probes": results,
+        "icmp": icmp,
     }
 
 

@@ -17,6 +17,7 @@ class Rules(BaseModel):
     cooldown_s: int = Field(default=120, ge=30, le=3600)
     drift_interval_s: int = Field(default=60, ge=10, le=3600)
     recovery_samples: int = Field(default=2, ge=2, le=10)
+    latency_ms: float = Field(default=5, gt=0, le=10000)
 
     @classmethod
     def configured(cls):
@@ -41,11 +42,16 @@ def detect(history, rules):
                 for v in values[-rules.degraded_samples :]
             ):
                 findings.append(("link_or_peer_failure", key, rules.degraded_samples))
-        elif all(
-            not v.get("probes") or any(s != "success" for s in v["probes"].values())
-            for v in values[-rules.degraded_samples :]
-        ):
-            findings.append(("probe_degradation", key, rules.degraded_samples))
+        else:
+            recent = values[-rules.degraded_samples :]
+            if all(
+                not v.get("probes") or any(s != "success" for s in v["probes"].values())
+                for v in recent
+            ):
+                findings.append(("probe_degradation", key, rules.degraded_samples))
+            rtts = [v.get("icmp", {}).get("rtt_ms") for v in recent]
+            if all(value is not None and value >= rules.latency_ms for value in rtts):
+                findings.append(("high_latency", key, max(rtts)))
     return findings
 
 
@@ -84,6 +90,8 @@ class Observer:
         if change and change["phase"] in {"applying", "rolling_back"}:
             return  # The provisioning journal owns expected convergence and verification.
         obs = advisor.evidence(sample)
+        self.c.monitor_observation = obs
+        self.c.monitor_traffic = sample.get("traffic", {})
         self.history = [h for h in self.history if stamp - h["observed"] <= self.rules.window_s]
         self.history.append(obs)
         findings = detect(self.history, self.rules)
@@ -137,7 +145,13 @@ class Observer:
         self.save()
         try:
             decision = advisor.assess(
-                {**obs, "recent_observations": self.history[-4:], "drift": drift}
+                {
+                    **obs,
+                    "recent_observations": self.history[-4:],
+                    "drift": drift,
+                    "monitor_findings": findings,
+                    "link_load": self.c.monitor_traffic,
+                }
             )
             row.update(
                 decision=decision.model_dump(), model=advisor.model_name(), version=advisor.VERSION
@@ -237,10 +251,19 @@ class Observer:
                     for v in check["facts"].values()
                 )
                 event(row, "Evidence Retrieved", "configuration.drift", check)
+            latency_targets = [f[1] for f in row["facts"]["findings"] if f[0] == "high_latency"]
+            latency_clear = all(
+                latency is not None and latency < self.rules.latency_ms
+                for key in latency_targets
+                for latency in [
+                    row["latest_observation"]["facts"].get(key, {}).get("icmp", {}).get("rtt_ms")
+                ]
+            )
+            healthy_and_fast = healthy(sample) and latency_clear
             self.recovered = (
                 self.recovered + 1
-                if healthy(sample) and drift_clean
-                else (self.recovered if drifting and not scanned and healthy(sample) else 0)
+                if healthy_and_fast and drift_clean
+                else (self.recovered if drifting and not scanned and healthy_and_fast else 0)
             )
             if self.recovered >= self.rules.recovery_samples:
                 row.update(

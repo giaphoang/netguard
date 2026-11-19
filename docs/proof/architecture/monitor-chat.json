@@ -1,0 +1,766 @@
+{
+  "before": {
+    "title": "Live monitoring",
+    "text": "The background observer opens investigations and records recovery checks as evidence arrives.",
+    "blocks": [
+      {
+        "type": "table",
+        "title": "Latest probe observations",
+        "columns": [
+          "Direction",
+          "ICMP",
+          "HTTP",
+          "RTT",
+          "Lost / sent"
+        ],
+        "rows": [
+          [
+            "host-1 → host-2",
+            "success",
+            "success",
+            "0.403 ms",
+            "0 / 1"
+          ],
+          [
+            "host-2 → host-1",
+            "success",
+            "success",
+            "0.268 ms",
+            "0 / 1"
+          ]
+        ]
+      },
+      {
+        "type": "text",
+        "text": "High latency requires 2 consecutive RTT samples of at least 5 ms. BGP and probe alarms use the rolling observation window."
+      },
+      {
+        "type": "text",
+        "text": "Transit counters describe current load. Throughput degradation can be verified with matched active workloads in a throughput experiment."
+      },
+      {
+        "type": "section",
+        "title": "Current link load",
+        "blocks": [
+          {
+            "type": "table",
+            "title": "Observed transmit and receive counters",
+            "columns": [
+              "Link",
+              "Traffic",
+              "Sample interval"
+            ],
+            "rows": [
+              [
+                "1-1",
+                "61 B/s",
+                "3.9 s"
+              ],
+              [
+                "1-2",
+                "78 B/s",
+                "3.9 s"
+              ],
+              [
+                "2-1",
+                "1,568 B/s",
+                "3.9 s"
+              ],
+              [
+                "2-2",
+                "1,587 B/s",
+                "3.9 s"
+              ],
+              [
+                "access1",
+                "1,507 B/s",
+                "3.9 s"
+              ],
+              [
+                "access2",
+                "1,510 B/s",
+                "3.9 s"
+              ]
+            ]
+          }
+        ],
+        "collapsed": true
+      },
+      {
+        "type": "text",
+        "text": "Waiting for an anomaly to open an investigation."
+      },
+      {
+        "type": "link",
+        "label": "Monitoring journal",
+        "href": "/api/monitoring"
+      }
+    ],
+    "refresh_seconds": 4
+  },
+  "incident": {
+    "id": "13976b625dcc4d639a5a3529de2402a6",
+    "kind": "monitor",
+    "text": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice.",
+    "observed": 1795123922.9386268,
+    "facts": {
+      "history": [
+        {
+          "observed": 1795123906.363858,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.561
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.692
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795123910.233915,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.403
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.268
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795123914.336605,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.121
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 7.909
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795123917.961533,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.2
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.157
+              }
+            }
+          }
+        },
+        {
+          "observed": 1795123921.838939,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.199
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 2.44
+              }
+            }
+          }
+        }
+      ],
+      "routing": [
+        {
+          "name": "spine-1",
+          "peers": {
+            "10.211.11.2": "Established",
+            "10.211.12.2": "Established"
+          },
+          "routes": "10.211.11.0/28 dev eth1 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth0 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 6 via 10.211.11.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.12.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if369       UP             10.211.12.1/28 \neth1@if370       UP             10.211.11.1/28",
+          "error": null
+        },
+        {
+          "name": "spine-2",
+          "peers": {
+            "10.211.21.2": "Established",
+            "10.211.22.2": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.1 \n10.211.22.0/28 dev eth0 proto kernel scope link src 10.211.22.1 \n10.212.1.0/28 nhid 6 via 10.211.21.2 dev eth1 proto bgp metric 20 \n10.212.2.0/28 nhid 8 via 10.211.22.2 dev eth0 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if367       UP             10.211.22.1/28 \neth1@if371       UP             10.211.21.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-1",
+          "peers": {
+            "10.211.11.1": "Active",
+            "10.211.21.1": "Established"
+          },
+          "routes": "10.211.21.0/28 dev eth1 proto kernel scope link src 10.211.21.2 \n10.212.1.0/28 dev eth2 proto kernel scope link src 10.212.1.1 \n10.212.2.0/28 nhid 12 via 10.211.21.1 dev eth1 proto bgp metric 20",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if370       DOWN           10.211.11.2/28 \neth1@if371       UP             10.211.21.2/28 \neth2@if366       UP             10.212.1.1/28",
+          "error": null
+        },
+        {
+          "name": "leaf-2",
+          "peers": {
+            "10.211.12.1": "Established",
+            "10.211.22.1": "Established"
+          },
+          "routes": "10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.2 \n10.211.22.0/28 dev eth2 proto kernel scope link src 10.211.22.2 \n10.212.1.0/28 nhid 10 proto bgp metric 20 \n\tnexthop via 10.211.12.1 dev eth1 weight 1 \n\tnexthop via 10.211.22.1 dev eth2 weight 1 \n10.212.2.0/28 dev eth0 proto kernel scope link src 10.212.2.1",
+          "interfaces": "lo               UNKNOWN        127.0.0.1/8 ::1/128 \ngre0@NONE        DOWN           \ngretap0@NONE     DOWN           \nerspan0@NONE     DOWN           \neth0@if368       UP             10.212.2.1/28 \neth1@if369       UP             10.211.12.2/28 \neth2@if367       UP             10.211.22.2/28",
+          "error": null
+        }
+      ],
+      "probes": [
+        {
+          "timestamp": "2026-11-19T21:32:01.550312+00:00",
+          "source": 1,
+          "destination": "10.212.2.2",
+          "candidates": [
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          },
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 0.199
+          },
+          "spine": 2
+        },
+        {
+          "timestamp": "2026-11-19T21:32:01.641662+00:00",
+          "source": 2,
+          "destination": "10.212.1.2",
+          "candidates": [
+            1,
+            2
+          ],
+          "probes": {
+            "ICMP": "success",
+            "HTTP": "success"
+          },
+          "icmp": {
+            "sent": 1,
+            "received": 1,
+            "rtt_ms": 2.44
+          },
+          "spine": 2
+        }
+      ],
+      "drift": null,
+      "rules": {
+        "window_s": 60,
+        "degraded_samples": 2,
+        "flap_transitions": 3,
+        "cooldown_s": 120,
+        "drift_interval_s": 60,
+        "recovery_samples": 2,
+        "latency_ms": 5
+      },
+      "findings": [
+        [
+          "link_or_peer_failure",
+          "leaf-1/spine-1",
+          2
+        ]
+      ]
+    },
+    "status": "verified",
+    "incident_id": "a3eb9466a101486fa80d13b4b2a18249",
+    "affected": [
+      "leaf-1/spine-1"
+    ],
+    "events": [
+      {
+        "time": 1795123921.838939,
+        "stage": "Observed",
+        "tool": "telemetry.collect",
+        "result": {
+          "observed": 1795123921.838939
+        }
+      },
+      {
+        "time": 1795123922.9625213,
+        "stage": "Detected",
+        "tool": "monitor.rules",
+        "result": [
+          [
+            "link_or_peer_failure",
+            "leaf-1/spine-1",
+            2
+          ]
+        ]
+      },
+      {
+        "time": 1795123922.9625235,
+        "stage": "Evidence Retrieved",
+        "tool": "telemetry.snapshot",
+        "result": {
+          "observed": 1795123921.838939,
+          "facts": {
+            "leaf-1/spine-1": {
+              "interface": "DOWN",
+              "leaf_peer": "Active",
+              "spine_peer": "Established"
+            },
+            "leaf-1/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-1": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "leaf-2/spine-2": {
+              "interface": "UP",
+              "leaf_peer": "Established",
+              "spine_peer": "Established"
+            },
+            "host-1": {
+              "to": "host-2",
+              "via": [
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 0.199
+              }
+            },
+            "host-2": {
+              "to": "host-1",
+              "via": [
+                1,
+                2
+              ],
+              "probes": {
+                "ICMP": "success",
+                "HTTP": "success"
+              },
+              "icmp": {
+                "sent": 1,
+                "received": 1,
+                "rtt_ms": 2.44
+              }
+            }
+          }
+        }
+      },
+      {
+        "time": 1795123917.598132,
+        "stage": "Diagnosis",
+        "tool": "ollama.assess",
+        "result": {
+          "version": "fabric-triage-v6.1",
+          "model": "qwen2.5:1.5b",
+          "observation": {
+            "observed": 1795123916.5196779,
+            "facts": {
+              "leaf-1/spine-1": {
+                "interface": "DOWN",
+                "leaf_peer": "Active",
+                "spine_peer": "Established"
+              },
+              "leaf-1/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-1": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "leaf-2/spine-2": {
+                "interface": "UP",
+                "leaf_peer": "Established",
+                "spine_peer": "Established"
+              },
+              "host-1": {
+                "to": "host-2",
+                "via": [
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                },
+                "icmp": {
+                  "sent": 1,
+                  "received": 1,
+                  "rtt_ms": 0.155
+                }
+              },
+              "host-2": {
+                "to": "host-1",
+                "via": [
+                  1,
+                  2
+                ],
+                "probes": {
+                  "ICMP": "success",
+                  "HTTP": "success"
+                },
+                "icmp": {
+                  "sent": 1,
+                  "received": 1,
+                  "rtt_ms": 2.568
+                }
+              }
+            }
+          },
+          "decision": {
+            "diagnosis": "link",
+            "component": "leaf-1/spine-1",
+            "action": "restore_link",
+            "citations": [
+              "leaf-1/spine-1"
+            ],
+            "next_check": "check_leaf_spine_1_interface_state"
+          }
+        }
+      },
+      {
+        "time": 1795123917.5981877,
+        "stage": "Blocked",
+        "tool": "controller.handoff",
+        "result": "Human review required. check_leaf_spine_1_interface_state"
+      },
+      {
+        "time": 1795123924.7391317,
+        "stage": "Approved",
+        "tool": "controller.authorization",
+        "result": "reset: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795123924.7391317,
+        "stage": "Executed",
+        "tool": "controller.applying",
+        "result": "reset: RESTORE_INJECTED_LINK"
+      },
+      {
+        "time": 1795123925.0272288,
+        "stage": "Verification Started",
+        "tool": "controller.verifying",
+        "result": "Waiting for two consecutive healthy routing and traffic samples"
+      },
+      {
+        "time": 1795123929.0007455,
+        "stage": "Verified",
+        "tool": "controller.resolved",
+        "result": "All sessions and ECMP restored; both hosts passed ICMP and HTTP twice."
+      }
+    ],
+    "review": {
+      "version": "fabric-triage-v6.1",
+      "model": "qwen2.5:1.5b",
+      "observation": {
+        "observed": 1795123916.5196779,
+        "facts": {
+          "leaf-1/spine-1": {
+            "interface": "DOWN",
+            "leaf_peer": "Active",
+            "spine_peer": "Established"
+          },
+          "leaf-1/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-1": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "leaf-2/spine-2": {
+            "interface": "UP",
+            "leaf_peer": "Established",
+            "spine_peer": "Established"
+          },
+          "host-1": {
+            "to": "host-2",
+            "via": [
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            },
+            "icmp": {
+              "sent": 1,
+              "received": 1,
+              "rtt_ms": 0.155
+            }
+          },
+          "host-2": {
+            "to": "host-1",
+            "via": [
+              1,
+              2
+            ],
+            "probes": {
+              "ICMP": "success",
+              "HTTP": "success"
+            },
+            "icmp": {
+              "sent": 1,
+              "received": 1,
+              "rtt_ms": 2.568
+            }
+          }
+        }
+      },
+      "decision": {
+        "diagnosis": "link",
+        "component": "leaf-1/spine-1",
+        "action": "restore_link",
+        "citations": [
+          "leaf-1/spine-1"
+        ],
+        "next_check": "check_leaf_spine_1_interface_state"
+      }
+    },
+    "triaged_at": 1795123917.598132,
+    "decision": {
+      "diagnosis": "link",
+      "component": "leaf-1/spine-1",
+      "action": "restore_link",
+      "citations": [
+        "leaf-1/spine-1"
+      ],
+      "next_check": "check_leaf_spine_1_interface_state"
+    },
+    "controller_events": 6,
+    "verified_healthy_at": 1795123929.637277,
+    "outcome": "human_reset"
+  }
+}
