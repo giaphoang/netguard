@@ -8,7 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import advisor, provision
+from . import advisor, provision, investigations as inv
 from .controls import authorized, local, perform
 from .incidents import healthy, observe
 
@@ -30,6 +30,17 @@ class Intent(BaseModel):
 
 def interpret(req):
     q = req.prompt.lower()
+    if "test suite" in q or "compare diagnostic workflows" in q:
+        return "benchmark", {}
+    if "monitor" in q or "investigation history" in q:
+        return "monitor", {}
+    if "drift" in q:
+        return "drift", {}
+    if "postmortem" in q or "previous incidents" in q:
+        return "postmortem", {}
+    target = re.search(r"spine[- ]([12])\b", q)
+    if target and any(word in q for word in ("remove", "removing", "blast radius")):
+        return "risk", {"spine": int(target[1])}
     if q in {"explain root cause", "why is this connection failing?"} or q.startswith("why "):
         return "diagnose", {}
     if q in {
@@ -77,6 +88,54 @@ def operator(req: Request, c=Depends(authorized)):
     started = time.time()
     try:
         tool, args = interpret(req)
+        if tool == "benchmark":
+            from scripts.evaluate_ai import evaluate
+
+            results = {}
+
+            def baseline(obs):
+                return advisor.Decision.model_validate_json(
+                    advisor.infer(advisor.PROMPT, obs, advisor.Decision.model_json_schema())
+                )
+
+            for name, workflow in [
+                ("schema-only baseline", baseline),
+                (advisor.VERSION, advisor.assess),
+            ]:
+                results[name] = evaluate(workflow, name)
+            row = inv.record(
+                c.db,
+                "reliability evaluation",
+                "Compared two diagnostic workflows on identical recorded observations. No actuator was invoked.",
+                results,
+            )
+            return inv.response(row)
+        if tool == "monitor":
+            rows = inv.cases(c.db)
+            return {
+                "text": "Monitoring live peer transitions and consecutive probe failures. Recent investigations appear below.",
+                "evidence": {
+                    "observed": time.time(),
+                    "facts": {r["id"]: r for r in rows if r["kind"] == "monitor"},
+                },
+            }
+        if tool == "risk":
+            return inv.response(inv.risk(c.db, observe(), args["spine"]))
+        if tool == "drift":
+            return inv.response(inv.drift(c.db, observe()))
+        if tool == "postmortem":
+            last = next((r for r in c.status()["incidents"] if r["phase"] == "resolved"), None)
+            if not last:
+                return {"text": "No verified incident closure is available for review."}
+            return {
+                "text": f"Verified closure of {last['scenario']} incident {last['id']}. Candidate runbook: repeat its evidence checks and require the same post-repair probes. Human review required before adoption.",
+                "evidence": {
+                    "observed": time.time(),
+                    "facts": {
+                        k: last.get(k) for k in ("events", "review", "metrics", "before", "latest")
+                    },
+                },
+            }
         if tool == "size":
             return {
                 "text": "Choose one or two new BGP leaves. Each will connect to both spines.",
@@ -147,6 +206,18 @@ def operator(req: Request, c=Depends(authorized)):
         raise HTTPException(409, str(exc)) from exc
 
 
+@router.get("/api/investigations/{identity}")
+def investigation(identity: str, c=Depends(local)):
+    import sqlite3
+    import json
+
+    with sqlite3.connect(c.db) as conn:
+        row = conn.execute("SELECT data FROM investigations WHERE id=?", (identity,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Unknown investigation")
+    return json.loads(row[0])
+
+
 @router.get("/api/provision")
 def state(c=Depends(local)):
     return provision.latest(c.db)
@@ -178,46 +249,66 @@ async def watch(controller, done):
     import logging
 
     controller.signal = None
-    warnings = 0
-    while not done.is_set():
-        await asyncio.sleep(4)
-        try:
-            if controller.active:
-                controller.signal = None
-                warnings = 0
-                continue
-            from .fabric import app
+    from datetime import datetime
+    from .fabric import app
 
+    history = []
+    previous = None
+    episode = None
+    next_drift = time.monotonic() + 10
+    while not done.is_set():
+        await asyncio.sleep(1)
+        try:
             snapshot = app.state.snapshot
-            if not snapshot or not app.state.flows:
+            if not snapshot or snapshot.timestamp == previous or not app.state.flows:
                 continue
+            previous = snapshot.timestamp
+            stamp = datetime.fromisoformat(previous).timestamp()
             sample = {
-                "observed": time.time(),
+                "observed": stamp,
                 "routers": snapshot.model_dump()["routers"],
                 "flows": app.state.flows,
             }
-            if healthy(sample):
-                warnings = 0
-                controller.signal = None
-                continue
-            warnings += 1
-            if controller.signal or warnings < 2:
-                continue
+            if time.monotonic() >= next_drift and not controller.active:
+                next_drift = time.monotonic() + 60
+                await asyncio.to_thread(inv.drift, controller.db, sample, True)
             obs = advisor.evidence(sample)
-            signal = {
-                "observed": obs["observed"],
-                "text": "Unplanned degradation. Inspect live interfaces, peers and host probes.",
-                "evidence": obs,
-            }
-            controller.signal = signal
+            history = [v for v in history if 0 < stamp - v["observed"] <= 60] + [obs]
+            trigger = inv.anomaly(history)
+            if not trigger:
+                if healthy(sample) and episode:
+                    episode["verified_healthy_at"] = stamp
+                    inv.cases(controller.db, episode)
+                    episode = None
+                    controller.signal = None
+                continue
+            if episode:
+                continue
+            episode = inv.record(
+                controller.db,
+                "monitor",
+                trigger,
+                {"history": history, "routing": sample["routers"], "probes": sample["flows"]},
+            )
+            controller.signal = episode
             try:
-                decision = await asyncio.to_thread(advisor.assess, obs)
-                signal["text"] = (
-                    f"Observed degradation · {decision.diagnosis} on {decision.component}. {decision.next_check}"
+                d = await asyncio.to_thread(
+                    advisor.assess,
+                    {
+                        **obs,
+                        "recent_observations": history[-4:],
+                        "kernel_routes": {r["name"]: r["routes"] for r in sample["routers"]},
+                    },
+                )
+                episode.update(
+                    decision=d.model_dump(),
+                    model=advisor.model_name(),
+                    version=advisor.VERSION,
+                    text=f"{trigger}. Model assessment: {d.diagnosis} on {d.component}. {d.next_check}",
                 )
             except (ValueError, OSError, KeyError, http.client.HTTPException):
-                signal["text"] = (
-                    "Unplanned degradation. Local model unavailable; inspect the captured telemetry."
-                )
+                episode["text"] = trigger + ". Model unavailable. Review the saved evidence."
+            episode["triaged_at"] = time.time()
+            inv.cases(controller.db, episode)
         except Exception:
             logging.exception("Background observation failed")

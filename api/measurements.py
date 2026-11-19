@@ -122,7 +122,8 @@ def impact(db):
     recent = []
     required_handoffs = correct_handoffs = 0
     provisions = {}
-    for r in summaries(db):
+    records = summaries(db)
+    for r in records:
         kind = "assisted" if r.get("ai") else "manual" if r.get("manual") else None
         if not kind:
             continue
@@ -227,7 +228,75 @@ def impact(db):
         for r in rows
         if r["metric"] == "Verified closure" and all(r["n"])
     ]
+    from .investigations import cases
+
+    investigations = cases(db)
+
+    def metric(label, value, runs):
+        return {
+            "label": label,
+            "value": value,
+            "evidence": [
+                {"url": "/api/incidents/" + r["id"], "label": r["scenario"] + " · " + r["id"][:8]}
+                for r in runs
+            ],
+        }
+
+    timed = [
+        r for r in records if r.get("ai") and r.get("first_signal_at") and r.get("diagnosed_at")
+    ]
+    autonomous = [
+        r for r in records if any(e["reason"].startswith("automatic:") for e in r.get("events", []))
+    ]
+    escalations = [
+        r
+        for r in records
+        if r.get("ai") and r.get("review") and r["scenario"] in {"bgp", "endpoint"}
+    ]
+    kpis = [
+        metric(
+            "Mean time to correct AI diagnosis",
+            f"{sum(r['diagnosed_at']-r['first_signal_at'] for r in timed)/len(timed):.2f} s"
+            if timed
+            else "—",
+            timed,
+        ),
+        metric(
+            "Verified autonomous recovery",
+            f"{sum(r['phase']=='resolved' and r['attempts']==1 for r in autonomous)}/{len(autonomous)}",
+            autonomous,
+        ),
+        metric(
+            "Correct required escalation", f"{correct_handoffs}/{required_handoffs}", escalations
+        ),
+        metric(
+            "Matched manual minus assisted closure",
+            f"{median(matched):.2f} s" if matched else "—",
+            [r for r in records if r.get("baseline_routers") and (r.get("manual") or r.get("ai"))],
+        ),
+    ]
+    risk_checks = [
+        r for r in investigations if r["kind"] == "change risk" and "policy_check" in r["facts"]
+    ]
+    kpis.append(
+        {
+            "label": "Change-risk detection · spine-removal previews",
+            "value": f"{sum(r['facts']['policy_check']['observed']=='block' for r in risk_checks)}/{len(risk_checks)}",
+            "evidence": [
+                {
+                    "url": "/api/investigations/" + r["id"],
+                    "label": r["facts"]["policy_check"]["scenario"],
+                }
+                for r in risk_checks
+            ],
+        }
+    )
     return {
+        "kpis": kpis,
+        "investigations": [
+            {"kind": r["kind"], "text": r["text"], "url": "/api/investigations/" + r["id"]}
+            for r in investigations
+        ],
         "rows": rows,
         "saved": median(matched) if matched else None,
         "correct": diagnosed,

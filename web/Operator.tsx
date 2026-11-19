@@ -25,6 +25,8 @@ type Row = {
   n: number[];
 };
 type Impact = {
+  kpis?: {label:string;value:string;evidence:{url:string;label:string}[]}[];
+  investigations?:{kind:string;text:string;url:string}[];
   saved: number | null;
   correct: number;
   evaluated: number;
@@ -425,6 +427,9 @@ export function Operator({
                 a prompt or policy change.
               </p>
             )}
+            <h3>Experiment evidence</h3>
+            {impact.kpis?.map(k=><details key={k.label}><summary>{k.label} · {k.value}</summary>{k.evidence.length?k.evidence.map(e=><p key={e.url}><a href={e.url} target="_blank" rel="noreferrer">{e.label}</a></p>):<p>No qualifying experiments yet.</p>}</details>)}
+            {impact.investigations?.map(i=><p key={i.url}><a href={i.url} target="_blank" rel="noreferrer">{i.kind}</a> · {i.text}</p>)}
             <h3>Recent outcomes</h3>
             {impact.recent.map((r, i) => (
               <p key={i}>

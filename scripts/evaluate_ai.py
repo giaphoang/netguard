@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import time
 from copy import deepcopy
 from pathlib import Path
 
@@ -39,21 +40,22 @@ def cases():
     yield "equivalent fault on spine-2", mirror, "link", "leaf-1/spine-2", "restore_link"
 
 
-def evaluate():
+def evaluate(workflow=advisor.assess, version=advisor.VERSION):
     rows = []
     for case, sample, diagnosis, component, action in cases():
         observation = advisor.evidence(sample)
         row = {
             "case": case,
             "observation": observation,
-            "version": advisor.VERSION,
+            "version": version,
             "model": advisor.model_name(),
             "expected": [diagnosis, component, action],
             "p1_link_rule": diagnose("link", sample),
             "operator_interventions": 0,
         }
+        start = time.monotonic()
         try:
-            result = advisor.assess(observation)
+            result = workflow(observation)
             row.update(
                 decision=result.model_dump(),
                 correct_class=result.diagnosis == diagnosis,
@@ -70,6 +72,8 @@ def evaluate():
                 correct_disposition=False,
                 unsafe_proposal=False,
             )
+        row["elapsed_s"] = time.monotonic() - start
+        row["model_calls"] = 1
         rows.append(row)
     return rows
 
