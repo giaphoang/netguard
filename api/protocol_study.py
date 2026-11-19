@@ -1,18 +1,37 @@
-"""Render and syntax-check comparable routing designs for an isolated lab."""
+"""Comparable routing designs with a common failure and measurement contract."""
 
-import os
 import re
-import subprocess
-import time
 
-from . import chat_views, expansion, presets
+from . import expansion
 
+VERSION = "routing-study-v1"
 PROTOCOLS = {
     "BGP": ("bgpd", r"\b(?:e|i)?bgp\b"),
     "OSPF": ("ospfd", r"\bospf(?:v2)?\b"),
     "IS-IS": ("isisd", r"\bis[-\s]?is\b"),
 }
 FAILED_LINK = "leaf-1/spine-1"
+FAILED_PORT = "transit-s1"
+WORKLOAD = {
+    "route_interval_ms": 100,
+    "probe_interval_ms": 100,
+    "probe_count": 100,
+    "probe_timeout_s": 14,
+    "warmup_s": 1,
+    "failure_window_s": 8,
+    "stable_samples": 3,
+}
+PREDICTION = {
+    "local_route_upper_ms": 1000,
+    "both_routes_upper_ms": 6000,
+    "lost_probes_upper": 60,
+    "failed_adjacencies_remaining": 1,
+}
+TRADEOFFS = {
+    "BGP": "Policy and path selection per neighbor. Expect a local session reset and a remote prefix withdrawal.",
+    "OSPF": "IPv4 Area 0 link-state flooding and SPF. Expect a topology update followed by route installation.",
+    "IS-IS": "Level-2 link-state flooding and SPF over Layer 2. Expect a topology update followed by route installation, with one-second minimum intervals for LSP regeneration and SPF.",
+}
 
 
 def requested_protocols(prompt):
@@ -39,6 +58,8 @@ def render(protocol, spine, number):
         ]
         for index, destination in enumerate(ports.values(), start=1):
             lines.append(f" neighbor {destination} remote-as {65100 + index if spine else 65000}")
+            if not spine and index == 1:
+                lines.append(f" neighbor {destination} weight 200")
         lines.extend([" address-family ipv4 unicast", "  maximum-paths 2"])
         if not spine:
             lines.append(f"  network 10.218.{number}.0/28")
@@ -50,7 +71,6 @@ def render(protocol, spine, number):
             "ip ospf network point-to-point",
             "ip ospf hello-interval 1",
             "ip ospf dead-interval 4",
-            "ip ospf cost 10",
         ]
         configured = f"router ospf\n ospf router-id {router_id}\n maximum-paths 2\nexit\n!\n"
         access = ["ip ospf area 0", "ip ospf passive"]
@@ -63,7 +83,10 @@ def render(protocol, spine, number):
             "isis hello-multiplier 4",
         ]
         identifier = (10 if spine else 20) + number
-        configured = f"router isis STUDY\n net 49.0001.0000.0000.{identifier:04d}.00\n is-type level-2-only\nexit\n!\n"
+        configured = (
+            f"router isis STUDY\n net 49.0001.0000.0000.{identifier:04d}.00\n"
+            " is-type level-2-only\n lsp-gen-interval 1\n spf-interval 1\nexit\n!\n"
+        )
         access = ["ip router isis STUDY", "isis passive"]
     if not spine:
         ports[f"access{number}"] = None
@@ -71,195 +94,127 @@ def render(protocol, spine, number):
     for name, neighbor in ports.items():
         lines.append(f"interface {name}")
         lines.extend(" " + value for value in (settings if neighbor else access))
+        if neighbor:
+            metric = 20 if name == "transit-s2" else 10
+            lines.append(
+                f" ip ospf cost {metric}"
+                if protocol == "OSPF"
+                else f" isis metric level-2 {metric}"
+            )
         lines.extend(["exit", "!"])
     return header + configured + "\n".join(lines) + "\n"
 
 
-def inspect(source, name, config, trace):
-    daemon = PROTOCOLS[name][0]
-    started = time.time()
-    try:
-        presets.docker("exec", source, "test", "-x", f"/usr/lib/frr/{daemon}")
-    except (OSError, subprocess.SubprocessError):
-        result = "Executable unavailable in the live FRR image"
-    else:
-        trace.append(
-            {
-                "label": "Check FRR executable",
-                "stage": "Investigate",
-                "target": name,
-                "started": started,
-                "completed": time.time(),
-                "status": "complete",
-                "arguments": ["test", "-x", f"/usr/lib/frr/{daemon}"],
-                "result": "Present",
-            }
-        )
-        arguments = ["vtysh", "-C", "-f", "/dev/stdin"]
-        for device, content in config.items():
-            started = time.time()
-            try:
-                checked = subprocess.run(
-                    [
-                        "docker",
-                        "--context",
-                        os.environ.get("NETGUARD_CONTEXT", "default"),
-                        "exec",
-                        "-i",
-                        source,
-                        *arguments,
-                    ],
-                    input=content,
-                    text=True,
-                    capture_output=True,
-                    timeout=5,
-                    check=False,
-                )
-                outcome = checked.stderr.strip() or checked.stdout.strip()
-                passed = checked.returncode == 0 and not outcome
-            except (OSError, subprocess.SubprocessError) as exc:
-                passed, outcome = False, type(exc).__name__
-            trace.append(
-                {
-                    "label": "Dry-run FRR configuration",
-                    "stage": "Validate",
-                    "target": f"{name} {device}",
-                    "started": started,
-                    "completed": time.time(),
-                    "status": "complete" if passed else "failed",
-                    "arguments": arguments,
-                    "result": outcome or "Syntax accepted",
-                }
-            )
-        passed_all = all(
-            e["status"] == "complete" for e in trace if e.get("target", "").startswith(name + " ")
-        )
-        return (
-            "All four configurations passed syntax check"
-            if passed_all
-            else "Review syntax check output"
-        )
-    trace.append(
-        {
-            "label": "Check FRR executable",
-            "stage": "Investigate",
-            "target": name,
-            "started": started,
-            "completed": time.time(),
-            "status": "failed",
-            "arguments": ["test", "-x", f"/usr/lib/frr/{daemon}"],
-            "result": result,
-        }
-    )
-    return result
-
-
-TRADEOFFS = {
-    "BGP": (
-        "Per-neighbor IPv4 prefix policy and withdrawals",
-        "Kernel link event or session failure",
-    ),
-    "OSPF": ("Area 0 link-state flooding and SPF", "Kernel link event or adjacency expiry"),
-    "IS-IS": (
-        "Level-2 link-state flooding and SPF over Layer 2",
-        "Kernel link event or adjacency expiry",
-    ),
+COMMANDS = {
+    "BGP": "show bgp ipv4 unicast summary json",
+    "OSPF": "show ip ospf neighbor json",
+    "IS-IS": "show isis neighbor",
 }
+ROUTER_IMAGE = "quay.io/frrouting/frr:10.1.1"
+HOST_IMAGE = "busybox:1.36.1"
+ROUTER_MEMORY_MIB = 192
 
 
-def prepare(sample, prompt):
-    protocols = requested_protocols(prompt)
-    if len(protocols) < 2:
-        raise ValueError("Choose at least two routing protocols for the comparative design.")
-    router = next((r for r in sample["routers"] if not r.get("error")), None)
-    source = f"netguard-{router['name']}-1" if router else None
-    configurations, statuses, trace = {}, {}, []
-    for protocol in protocols:
-        configurations[protocol] = {
-            f"{role}-{n}": render(protocol, role == "spine", n)
-            for role in ("spine", "leaf")
-            for n in (1, 2)
+def compose():
+    services, networks = {}, {}
+
+    def attach(node, link, interface, address):
+        subnet = address.rsplit(".", 1)[0]
+        networks[link] = {
+            "internal": True,
+            "driver": "macvlan",
+            "ipam": {"config": [{"subnet": subnet + ".0/28", "gateway": subnet + ".14"}]},
         }
-        statuses[protocol] = (
-            inspect(source, protocol, configurations[protocol], trace)
-            if source
-            else "An available FRR container is required to check syntax."
-        )
-    shape = expansion.spec(None)
-    facts = {
-        "topology": shape,
+        services[node]["networks"][link] = {
+            "interface_name": interface,
+            "ipv4_address": address,
+        }
+
+    for role in ("spine", "leaf"):
+        for number in (1, 2):
+            name = f"{role}-{number}"
+            services[name] = {
+                "image": ROUTER_IMAGE,
+                "hostname": name,
+                "cap_add": ["NET_ADMIN", "SYS_ADMIN"],
+                "mem_limit": f"{ROUTER_MEMORY_MIB}m",
+                "cpus": expansion.ROUTER_CPUS,
+                "sysctls": {"net.ipv4.ip_forward": "1"},
+                "networks": {},
+                "volumes": [
+                    f"./{name}.conf:/etc/frr/frr.conf:ro",
+                    "./daemons:/etc/frr/daemons:ro",
+                ],
+            }
+    for spine in (1, 2):
+        for leaf in (1, 2):
+            link = f"s{spine}l{leaf}"
+            subnet = f"10.217.{spine}{leaf}"
+            attach(f"spine-{spine}", link, f"transit-l{leaf}", subnet + ".1")
+            attach(f"leaf-{leaf}", link, f"transit-s{spine}", subnet + ".2")
+    for number in (1, 2):
+        link, subnet = f"access{number}", f"10.218.{number}"
+        host = f"host-{number}"
+        services[host] = {
+            "image": HOST_IMAGE,
+            "cap_add": ["NET_ADMIN"],
+            "mem_limit": f"{expansion.HOST_MEMORY_MIB}m",
+            "cpus": expansion.HOST_CPUS,
+            "networks": {},
+            "command": [
+                "sh",
+                "-ec",
+                f"ip route replace 10.218.{3-number}.0/28 via {subnet}.1; exec sleep infinity",
+            ],
+        }
+        attach(f"leaf-{number}", link, link, subnet + ".1")
+        attach(host, link, link, subnet + ".2")
+    return {"services": services, "networks": networks}
+
+
+def draft(protocols, project):
+    return {
+        "topology": expansion.spec(None),
+        "project": project,
         "failed_link": FAILED_LINK,
-        "protocols": protocols,
-        "configurations": configurations,
-        "syntax_checks": statuses,
-        "addressing": {
-            "transit": "10.217.<spine><leaf>.0/28, spine .1 and leaf .2",
-            "access": "10.218.<leaf>.0/28, router .1 and test host .2",
+        "failed_port": FAILED_PORT,
+        "compose": compose(),
+        "requirements": {
+            "additional_memory_mib": 4 * ROUTER_MEMORY_MIB + 2 * expansion.HOST_MEMORY_MIB,
+            "total_cpu_limits": 4 * expansion.ROUTER_CPUS + 2 * expansion.HOST_CPUS,
         },
-        "prediction": {
-            "silent_detection_s": 4,
-            "hard_link_down": "The local link event should trigger recomputation ahead of timer expiry.",
-            "measurement": "Pending",
+        "prediction": dict(PREDICTION),
+        "arms": {
+            name: {
+                "daemon": PROTOCOLS[name][0],
+                "daemons": f"zebra=yes\n{PROTOCOLS[name][0]}=yes\nvtysh_enable=yes\n",
+                "configurations": {
+                    f"{role}-{number}": render(name, role == "spine", number)
+                    for role in ("spine", "leaf")
+                    for number in (1, 2)
+                },
+                "control_plane": COMMANDS[name],
+                "expectation": TRADEOFFS[name],
+            }
+            for name in protocols
         },
     }
-    blocks = [
-        chat_views.topology(
-            shape,
-            shape,
-            before_label="Common isolated baseline",
-            after_label="Identical link failure",
-            excluded_links=[FAILED_LINK],
-        ),
-        chat_views.table(
-            "Routing protocol comparison",
-            [
-                "Protocol",
-                "Control plane",
-                "Failure trigger",
-                "Configured silent detection",
-                "Local syntax",
-            ],
-            [[name, *TRADEOFFS[name], "4 s", statuses[name]] for name in protocols],
-        ),
-        chat_views.text(
-            "Each arm uses two spines, two leaves, two hosts and a one-second keepalive or hello. "
-            "The four-second timer models silent failure detection. Route installation and traffic "
-            "recovery add protocol processing and scheduling time."
-        ),
-        chat_views.table(
-            "Experiment measurements",
-            ["Measure", "Collection method", "Actual"],
-            [
-                [
-                    "Convergence",
-                    "Timestamp the link-down event and first kernel route on the surviving spine.",
-                    "Pending",
-                ],
-                [
-                    "Traffic disruption",
-                    "Count missing sequence numbers during numbered ICMP probes.",
-                    "Pending",
-                ],
-                [
-                    "Control plane",
-                    "Record the adjacency transition and routing updates around the event.",
-                    "Pending",
-                ],
-            ],
-        ),
-    ]
-    for name, configs in configurations.items():
-        blocks.append(
-            chat_views.section(
-                f"{name} configuration preview",
-                [
-                    chat_views.text(f"Enable zebra and {PROTOCOLS[name][0]} in this experiment."),
-                    *(
-                        chat_views.code(device + ".conf", config)
-                        for device, config in configs.items()
-                    ),
-                ],
-                collapsed=True,
-            )
-        )
-    return facts, blocks, trace
+
+
+def assess(trial, prediction):
+    checks = {
+        "local_route_ms": (trial["routes_ms"]["leaf-1"], prediction["local_route_upper_ms"]),
+        "both_routes_ms": (max(trial["routes_ms"].values()), prediction["both_routes_upper_ms"]),
+        "lost_probes": (trial["traffic"]["lost"], prediction["lost_probes_upper"]),
+    }
+    neighbors = dict(trial["neighbors_before"])
+    for node in ("leaf-1", "spine-1"):
+        neighbors[node] = prediction["failed_adjacencies_remaining"]
+    return {
+        "excess": {name: max(0, actual - ceiling) for name, (actual, ceiling) in checks.items()},
+        "neighbor_mismatches": {
+            node: {"actual": actual, "expected": neighbors[node]}
+            for node, actual in trial["neighbors_after"].items()
+            if actual != neighbors[node]
+        },
+    }

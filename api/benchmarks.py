@@ -45,33 +45,36 @@ class Lab:
             if missing:
                 raise ValueError("Install these tools on the NetGuard guest: " + ", ".join(missing))
             owners = expansion.ownership(topology, origins)
-            if not all(info["State"]["Running"] for info in owners.values()):
-                raise ValueError("An owned lab container is unavailable.")
-            self.containers = {name: info["Id"] for name, info in owners.items()}
-            host_namespace = os.readlink("/proc/self/ns/net")
-            for name in nodes:
-                info = owners[name]
-                pid, identity = info["State"]["Pid"], info["Id"]
-                if not info["State"]["Running"] or pid <= 1:
-                    raise ValueError(f"{name} is unavailable.")
-                proc = Path(f"/proc/{pid}")
-                fd = os.open(proc / "ns/net", os.O_RDONLY)
-                self.stack.callback(os.close, fd)
-                namespace = os.readlink(f"/proc/self/fd/{fd}")
-                if (
-                    identity not in (proc / "cgroup").read_text()
-                    or namespace == host_namespace
-                    or namespace in {n["namespace"] for n in self.identities.values()}
-                    or namespace != os.readlink(proc / "ns/net")
-                ):
-                    raise ValueError(f"{name} does not own a dedicated local network namespace.")
-                self.namespaces[name] = fd
-                self.identities[name] = {
-                    "container": identity,
-                    "namespace": namespace,
-                    "started": info["State"]["StartedAt"],
-                }
-            event["result"] = {"containers": self.containers, "namespaces": self.identities}
+            event["result"] = self.pin_namespaces(owners, nodes)
+
+    def pin_namespaces(self, owners, nodes):
+        if not all(info["State"]["Running"] for info in owners.values()):
+            raise ValueError("An owned lab container is unavailable.")
+        self.containers = {name: info["Id"] for name, info in owners.items()}
+        host_namespace = os.readlink("/proc/self/ns/net")
+        for name in nodes:
+            info = owners[name]
+            pid, identity = info["State"]["Pid"], info["Id"]
+            if pid <= 1:
+                raise ValueError(f"{name} is unavailable.")
+            proc = Path(f"/proc/{pid}")
+            fd = os.open(proc / "ns/net", os.O_RDONLY)
+            self.stack.callback(os.close, fd)
+            namespace = os.readlink(f"/proc/self/fd/{fd}")
+            if (
+                identity not in (proc / "cgroup").read_text()
+                or namespace == host_namespace
+                or namespace in {n["namespace"] for n in self.identities.values()}
+                or namespace != os.readlink(proc / "ns/net")
+            ):
+                raise ValueError(f"{name} does not own a dedicated local network namespace.")
+            self.namespaces[name] = fd
+            self.identities[name] = {
+                "container": identity,
+                "namespace": namespace,
+                "started": info["State"]["StartedAt"],
+            }
+        return {"containers": self.containers, "namespaces": self.identities}
 
     def command(self, node, arguments):
         fd = self.namespaces[node]

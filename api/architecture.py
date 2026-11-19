@@ -21,13 +21,16 @@ from . import (
     architecture_plans as plans,
     expansion,
     gre,
+    intents,
     investigations,
+    protocol_study,
     provision,
     quality,
 )
 from .benchmarks import DURATION, STREAMS, TRIALS, Lab
 from .controls import authorized, local
 from .incidents import healthy, observe
+from .routing_lab import RoutingLab
 
 router = APIRouter(prefix="/api/architecture")
 RESERVED = ("investigating", "applying", "rolling_back", "verified", "needs_review")
@@ -324,6 +327,134 @@ def prepare(controller, run):
         trace.mark("blocked", error_text(exc))
 
 
+def prepare_routing(controller, run):
+    trace = Trace(controller.db, run)
+    try:
+        protocols = protocol_study.requested_protocols(run["prompt"])
+        if len(protocols) < 2:
+            raise ValueError("Choose at least two routing protocols for comparison.")
+        with trace.tool("Resolve the requested protocols", model=run["model"]) as event:
+            event["result"] = protocols
+        with trace.tool("Read the installed model revision", model=run["model"]) as event:
+            run["model_revision"] = event["result"] = advisor.model_revision()
+        active, spec = current_fabric(controller)
+        trace.stage = "Investigate"
+        run["snapshot"] = inspect_fabric(trace, spec)
+        lab = RoutingLab(controller.db, run["id"], trace)
+        trace.stage = "Plan"
+        run["plan"] = protocol_study.draft(protocols, lab.project)
+        trace.stage = "Validate"
+        runtime = lab.runtime(spec, run["plan"])
+        with trace.tool("Select an owned FRR image for syntax checks") as event:
+            owners = expansion.ownership(spec, expansion.approved_origins(controller.db, active))
+            source = next(
+                (
+                    owner["Id"]
+                    for owner in owners.values()
+                    if owner["Image"] == runtime["images"][protocol_study.ROUTER_IMAGE]
+                ),
+                None,
+            )
+            if not source:
+                raise ValueError(
+                    "An owned router with the local trial FRR image is required for syntax checks."
+                )
+            event["result"] = source
+        lab.validate(run["plan"], source, lambda: checkpoint(controller))
+        checkpoint(controller)
+        run["scope"] = {
+            "topology": spec,
+            "provision_id": (active or {}).get("id"),
+            "runtime": runtime,
+        }
+        run["digest"] = digest(run)
+        run["expires"] = time.time() + PREVIEW_TTL
+        trace.mark(
+            "preview",
+            "Review the predicted convergence, fault scope, and configuration before approving the comparison.",
+        )
+    except ERRORS as exc:
+        trace.mark("blocked", error_text(exc))
+
+
+def apply_routing(controller, run):
+    trace = Trace(controller.db, run)
+    trace.stage = "Approve and implement"
+    try:
+        lab = RoutingLab(controller.db, run["id"], trace)
+        active, spec = current_fabric(controller)
+        plan = run["plan"]
+        runtime = lab.runtime(spec, plan)
+        if run["scope"] != {
+            "topology": spec,
+            "provision_id": (active or {}).get("id"),
+            "runtime": runtime,
+        }:
+            raise ValueError(
+                "The active fabric or trial runtime changed. Generate a fresh preview."
+            )
+        inspect_fabric(trace, spec)
+        run["actual"], run["evaluation"] = {}, {}
+        for protocol in plan["arms"]:
+            trace.stage = "Approve and implement"
+            lab.preflight(plan)
+            with controller.lock:
+                checkpoint(controller)
+                run.update(active_arm=protocol, change_started=True)
+                trace.mark(
+                    "applying", f"Starting the approved {protocol} trial in the isolated project."
+                )
+            lab.start(plan, protocol)
+            trace.stage = "Verify"
+            trial = lab.trial(
+                plan, protocol, runtime, run["method"], lambda: checkpoint(controller)
+            )
+            run["actual"][protocol] = trial
+            trace.stage = "Evaluate"
+            with trace.tool(
+                "Compare measured results with the saved prediction", node=protocol
+            ) as event:
+                run["evaluation"][protocol] = event["result"] = protocol_study.assess(
+                    trial, plan["prediction"]
+                )
+            trace.stage = "Clean up"
+            lab.remove(plan, protocol, runtime)
+            run["active_arm"] = None
+            save(controller.db, run)
+        trace.stage = "Verify"
+        run["verification"] = inspect_fabric(trace, spec)
+        run["change_started"] = False
+        trace.mark(
+            "completed",
+            "Routing comparison complete. The trial containers and networks were removed and the active fabric passed verification.",
+        )
+    except ERRORS as exc:
+        run["failure"] = error_text(exc)
+        if run.get("change_started"):
+            restore_routing(controller, run, trace)
+        else:
+            trace.mark("blocked", run["failure"])
+
+
+def restore_routing(controller, run, trace):
+    trace.stage = "Clean up"
+    trace.mark("rolling_back", "Removing the isolated trial and rechecking the active fabric.")
+    try:
+        if run.get("active_arm"):
+            lab = RoutingLab(controller.db, run["id"], trace)
+            lab.remove(run["plan"], run["active_arm"], run["scope"]["runtime"])
+            run["active_arm"] = None
+        _, spec = current_fabric(controller)
+        run["rollback_verification"] = inspect_fabric(trace, spec)
+        run["change_started"] = False
+        trace.mark(
+            "rolled_back",
+            "The isolated trial was removed and the active fabric passed verification.",
+        )
+    except ERRORS as exc:
+        trace.mark("needs_review", error_text(exc))
+
+
 def verdict(run):
     baseline, actual = run["baseline"], run["actual"]
     prediction = run["plan"]["prediction"]
@@ -484,7 +615,7 @@ def start(req: Request, background: BackgroundTasks, controller=Depends(authoriz
     return {"id": queue(req, controller, background)}
 
 
-def queue(req, controller, background):
+def queue(req, controller, background, *, routing_study=False):
     if not req.prompt.strip():
         raise HTTPException(422, "Enter a network objective.")
     with controller.lock:
@@ -511,11 +642,23 @@ def queue(req, controller, background):
             "trace": [],
             "message": "Investigating the requested objective.",
         }
+        prepare_run = prepare
+        if routing_study:
+            prepare_run = prepare_routing
+            run.update(
+                kind="routing_study",
+                version=protocol_study.VERSION,
+                intent_version=intents.VERSION,
+                prompt_sha256=fingerprint(intents.INSTRUCTION),
+                method=dict(protocol_study.WORKLOAD),
+                endpoints=["host-1", "host-2"],
+                baseline={},
+            )
         save(controller.db, run)
     if background is None:
-        prepare(controller, run)
+        prepare_run(controller, run)
     else:
-        background.add_task(prepare, controller, run)
+        background.add_task(prepare_run, controller, run)
     return run["id"]
 
 
@@ -525,12 +668,14 @@ def approve(
 ):
     with controller.lock:
         run = get_run(controller, identity)
+        routing_study = run.get("kind") == "routing_study"
+        expected_version = protocol_study.VERSION if routing_study else plans.VERSION
         try:
             check_controller(controller)
             require_idle(controller.db)
             if (
                 run["phase"] != "preview"
-                or run["version"] != plans.VERSION
+                or run["version"] != expected_version
                 or time.time() >= run["expires"]
                 or req.digest != run["digest"]
                 or digest(run) != run["digest"]
@@ -540,7 +685,7 @@ def approve(
             raise HTTPException(409, str(exc)) from exc
         run["approval"] = {"time": time.time(), "digest": req.digest}
         Trace(controller.db, run).mark("applying", "Approval recorded. Rechecking the live fabric.")
-        background.add_task(apply, controller, run)
+        background.add_task(apply_routing if routing_study else apply, controller, run)
     return {"id": identity}
 
 
@@ -559,5 +704,6 @@ def rollback(identity: str, background: BackgroundTasks, controller=Depends(auth
             raise HTTPException(409, str(exc)) from exc
         trace = Trace(controller.db, run)
         trace.mark("rolling_back", "Rollback requested by the local operator.")
-        background.add_task(restore, controller, run, trace)
+        restore_run = restore_routing if run.get("kind") == "routing_study" else restore
+        background.add_task(restore_run, controller, run, trace)
     return {"id": identity}

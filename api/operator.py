@@ -19,7 +19,6 @@ from . import (
     intents,
     monitor_chat,
     provision,
-    protocol_study,
     questions,
     risk_preview,
 )
@@ -198,7 +197,16 @@ def operator_events(req, c, background=None):
                 "version": intents.VERSION,
                 "model": advisor.model_name(),
                 "authorization": "human approval before changes"
-                if tool in {"simulate", "provision", "capacity", "architecture", "remove", "repair"}
+                if tool
+                in {
+                    "simulate",
+                    "provision",
+                    "capacity",
+                    "architecture",
+                    "routing_study",
+                    "remove",
+                    "repair",
+                }
                 else "read only",
                 "observed": sample["observed"],
             },
@@ -233,9 +241,12 @@ def operator_events(req, c, background=None):
 
 def answer_request(req, c, started, sample, spec, targets, graph, background=None):
     tool = spec.intent
-    if tool == "architecture":
+    if tool in {"architecture", "routing_study"}:
         identity = architecture.queue(
-            architecture.Request(prompt=req.prompt, selection=req.selection), c, background
+            architecture.Request(prompt=req.prompt, selection=req.selection),
+            c,
+            background,
+            routing_study=tool == "routing_study",
         )
         return {
             "text": "",
@@ -340,23 +351,6 @@ def answer_request(req, c, started, sample, spec, targets, graph, background=Non
                     "result": details,
                 }
             ],
-        }
-    if tool == "routing_study":
-        facts, blocks, trace = protocol_study.prepare(sample, req.prompt)
-        summary = (
-            "The isolated routing design is ready for review. Measured convergence and "
-            "traffic disruption require a dedicated comparative experiment runner."
-        )
-        record = inv.record(c.db, "routing design", summary, facts)
-        return {
-            "text": summary,
-            "blocks": [
-                *blocks,
-                chat_views.link(
-                    "Full routing design evidence", "/api/investigations/" + record["id"]
-                ),
-            ],
-            "trace": trace,
         }
     if tool == "repair":
         with c.lock:
