@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 TRACE = ContextVar("inference_trace", default=None)
 
 VERSION = "fabric-triage-v6.1"
+MONITOR_VERSION = "fabric-monitor-v2"
 MODEL = "qwen2.5:1.5b"
 PROMPT = """Diagnose one observation from a two-spine lab. Each link record reports
 the leaf interface state and both BGP peer observations. Each host record reports
@@ -133,6 +134,33 @@ def assess(observation, *, prompt=PROMPT, context=None):
     if len(abnormal) == 1 and not incomplete:
         schema["properties"]["citations"]["items"]["enum"] = [abnormal[0]]
         schema["properties"]["citations"]["maxItems"] = 1
+    monitor_classes = None
+    if findings := observation.get("monitor_findings"):
+        recent_flaps = {target for kind, target, _ in findings if kind == "bgp_flapping"}
+        monitor_classes = {
+            "unknown": {"unknown"},
+            "link": {k for k in abnormal if links[k]["interface"] == "DOWN"},
+            "bgp": {k for k in links if links[k]["interface"] == "UP" and (
+                k in recent_flaps or k in abnormal
+            )},
+            "endpoint": set(endpoints) if not abnormal else set(),
+        }
+        if incomplete:
+            monitor_classes = {"unknown": {"unknown"}}
+        allowed = set(schema["properties"]["diagnosis"]["enum"])
+        monitor_classes = {
+            kind: components for kind, components in monitor_classes.items()
+            if components and kind in allowed
+        }
+        candidates = sorted(set.union(*monitor_classes.values()))
+        schema["properties"]["diagnosis"]["enum"] = list(monitor_classes)
+        schema["properties"]["component"]["enum"] = candidates
+        schema["properties"]["action"]["enum"] = ["handoff"]
+        prompt += (
+            " Recurring recorded BGP transitions support a BGP diagnosis even when the peer has recovered."
+            " Packet loss, latency and configuration differences report symptoms. If the root cause is"
+            " uncertain, use unknown and propose a read-only next check. Always select handoff."
+        )
     decision = Decision.model_validate_json(infer(prompt, supplied, schema))
     allowed_diagnoses = schema["properties"]["diagnosis"].get("enum")
     if allowed_diagnoses is not None and decision.diagnosis not in allowed_diagnoses:
@@ -143,6 +171,11 @@ def assess(observation, *, prompt=PROMPT, context=None):
         raise DecisionRejected("Decision exceeds the observed component scope", decision)
     if not set(decision.citations) <= set(keys):
         raise DecisionRejected("Model cited an unknown observation", decision)
+    if monitor_classes is not None and (
+        decision.action != "handoff" or decision.component not in monitor_classes[decision.diagnosis]
+        or (decision.diagnosis not in {"endpoint", "unknown"} and decision.component not in decision.citations)
+    ):
+        raise DecisionRejected("Monitor diagnosis exceeds the available evidence", decision)
     return decision
 
 

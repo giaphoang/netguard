@@ -87,17 +87,18 @@ def test_trace_runs_selected_host_pair_and_returns_its_path(monkeypatch):
 
     def probe(source, address, *, http):
         called.append((source, address, http))
-        return {"ICMP": status, "HTTP": status}
+        return {"ICMP": status, "HTTP": status}, {"sent": 1, "received": int(status == "success"), "rtt_ms": None}
 
     def next_hop(router, source, target):
         assert (router.name, source, target) == ("leaf-2", "10.212.2.3", "10.212.1.2")
         return 2
 
-    monkeypatch.setattr(fabric, "probe_results", probe)
+    monkeypatch.setattr(fabric, "probe_observations", probe)
     monkeypatch.setattr(fabric, "probe_spine", next_hop)
     client = TestClient(fabric.app)
     route = client.get("/api/trace?source=3&target=host-1").json()
     assert route["path"] == ["host-3", "leaf-2", "spine-2", "leaf-1", "host-1"]
+    assert route["icmp"]["received"] == 1
     assert called == [("host-3", "10.212.1.2", True)]
     status = "failed"
     failed = client.get("/api/trace?source=3&target=host-1").json()

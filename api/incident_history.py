@@ -16,7 +16,9 @@ SCENARIOS = {
     "endpoint": "Endpoint outage",
     "configuration_drift": "Configuration drift",
 }
-FINDINGS = {"bgp_flapping": "bgp", "configuration_drift": "configuration_drift"}
+FINDINGS = {
+    "bgp_flapping": "bgp", "link_or_peer_failure": "link", "configuration_drift": "configuration_drift"
+}
 FINDING_TITLES = {"bgp_flapping": "BGP flapping"}
 RESULT_LIMIT = 6
 RECORD_ID = re.compile(r"\b[0-9a-f]{8,32}\b", re.IGNORECASE)

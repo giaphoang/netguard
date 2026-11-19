@@ -108,7 +108,8 @@ def host_state(pair):
         }
         if host["id"] > 2:
             source = "host-2" if host["leaf"] == 1 else "host-1"
-            result.update(probes=probe_results(source, result["address"]), probe_from=source)
+            probes, icmp = probe_observations(source, address)
+            result.update(probes=probes, icmp=icmp, probe_from=source)
         return result
     except (OSError, subprocess.SubprocessError):
         return {
@@ -189,10 +190,12 @@ def observe_probe(routers, source, target, *, recorded=None, http=False):
     source_name = source["name"]
     target_name = target["name"]
     address = target["address"]
-    timestamp, results = recorded or (
-        datetime.now(timezone.utc).isoformat(),
-        probe_results(source_name, address, http=http),
-    )
+    if recorded:
+        timestamp, results, *measurements = recorded
+        icmp = measurements[0] if measurements else None
+    else:
+        timestamp = datetime.now(timezone.utc).isoformat()
+        results, icmp = probe_observations(source_name, address, http=http)
     source_leaf = f"leaf-{source['leaf']}"
     target_leaf = f"leaf-{target['leaf']}"
     path = None
@@ -214,6 +217,7 @@ def observe_probe(routers, source, target, *, recorded=None, http=False):
         "timestamp": timestamp,
         "probes": results,
         "path": path,
+        "icmp": icmp,
     }
 
 
@@ -226,11 +230,12 @@ def probe_paths(snapshot: Snapshot, flows: list[dict], *, all_directions=False) 
         (f"host-{flow['source']}", f"host-{3 - flow['source']}"): (
             flow.get("timestamp", snapshot.timestamp),
             flow["probes"],
+            flow.get("icmp"),
         )
         for flow in flows
     }
     directions.update(
-        ((host["probe_from"], host["name"]), (snapshot.timestamp, host["probes"]))
+        ((host["probe_from"], host["name"]), (snapshot.timestamp, host["probes"], host.get("icmp")))
         for host in snapshot.hosts
         if host.get("probe_from")
     )

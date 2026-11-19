@@ -578,6 +578,7 @@ async def watch(controller, done):
                         "hosts": snapshot.model_dump().get("hosts", []),
                         "flows": app.state.flows,
                         "traffic": app.state.traffic,
+                        "probe_paths": app.state.probe_paths,
                     },
                 )
         except Exception:

@@ -27,7 +27,7 @@ def view(controller):
     for name, values in observation.get("facts", {}).items():
         if "probes" not in values:
             continue
-        probes, icmp = values["probes"], values.get("icmp", {})
+        probes, icmp = values["probes"], values.get("icmp") or {}
         rtt, sent, received = (icmp.get(key) for key in ("rtt_ms", "sent", "received"))
         rows.append(
             [
@@ -53,7 +53,8 @@ def view(controller):
         blocks.append(
             chat_views.text(
                 f"High latency requires {rules['degraded_samples']} consecutive RTT samples of at least "
-                f"{rules['latency_ms']:g} ms. BGP and probe alarms use the rolling observation window."
+                f"{rules['latency_ms']:g} ms. The packet loss threshold is {rules['packet_loss_pct']:g}% "
+                f"across {rules['degraded_samples']} measured probe samples."
             )
         )
     blocks.append(

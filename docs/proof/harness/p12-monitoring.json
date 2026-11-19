@@ -1,0 +1,24 @@
+{
+  "operator_prompts": 0,
+  "controller_actions": 0,
+  "manual_test_restoration": true,
+  "id": "35d2d65f42794a808ce639b7cdbf17c3",
+  "decision": {
+    "diagnosis": "link",
+    "component": "leaf-1/spine-1",
+    "action": "handoff",
+    "citations": [
+      "leaf-1/spine-1"
+    ],
+    "next_check": "check leaf-1/spine-1 interface and peer connectivity"
+  },
+  "findings": [
+    [
+      "link_or_peer_failure",
+      "leaf-1/spine-1",
+      2
+    ]
+  ],
+  "recovery_samples": 2,
+  "final_fabric_healthy": true
+}

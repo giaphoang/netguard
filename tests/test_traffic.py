@@ -77,9 +77,9 @@ def test_added_leaf_without_host_can_show_its_loopback_probe(monkeypatch):
 
     def check(source, address, *, http):
         assert (source, address, http) == ("host-1", "10.214.0.3", False)
-        return {"ICMP": "success"}
+        return {"ICMP": "success"}, None
 
-    monkeypatch.setattr(fabric, "probe_results", check)
+    monkeypatch.setattr(fabric, "probe_observations", check)
     monkeypatch.setattr(fabric, "probe_spine", lambda *_: 2)
     [result] = fabric.probe_paths(snapshot, [])
     assert result["path"] == ["host-1", "leaf-1", "spine-2", "leaf-3"]
@@ -94,7 +94,7 @@ def test_live_map_probes_both_directions_for_each_discovered_host(monkeypatch):
         {"name": "host-2", "leaf": 2, "address": "10.212.2.2"},
         {"name": "host-3", "leaf": 2, "address": "10.212.2.3"},
     ]
-    monkeypatch.setattr(fabric, "probe_results", lambda *_args, **_kwargs: {"ICMP": "success"})
+    monkeypatch.setattr(fabric, "probe_observations", lambda *_args, **_kwargs: ({"ICMP": "success"}, None))
     monkeypatch.setattr(fabric, "probe_spine", lambda *_: 1)
     paths = {
         (r["source"], r["target"]): r["path"]
