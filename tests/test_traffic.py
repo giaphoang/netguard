@@ -83,3 +83,24 @@ def test_added_leaf_without_host_can_show_its_loopback_probe(monkeypatch):
     monkeypatch.setattr(fabric, "probe_spine", lambda *_: 2)
     [result] = fabric.probe_paths(snapshot, [])
     assert result["path"] == ["host-1", "leaf-1", "spine-2", "leaf-3"]
+
+
+def test_live_map_probes_both_directions_for_each_discovered_host(monkeypatch):
+    from api import fabric
+
+    snapshot = fabric.Snapshot.model_validate_json(fabric.FIXTURE.read_text())
+    snapshot.hosts = [
+        {"name": "host-1", "leaf": 1, "address": "10.212.1.2"},
+        {"name": "host-2", "leaf": 2, "address": "10.212.2.2"},
+        {"name": "host-3", "leaf": 2, "address": "10.212.2.3"},
+    ]
+    monkeypatch.setattr(fabric, "probe_results", lambda *_args, **_kwargs: {"ICMP": "success"})
+    monkeypatch.setattr(fabric, "probe_spine", lambda *_: 1)
+    paths = {
+        (r["source"], r["target"]): r["path"]
+        for r in fabric.probe_paths(snapshot, [], all_directions=True)
+    }
+    assert len(paths) == 6
+    assert paths["host-3", "host-1"] == ["host-3", "leaf-2", "spine-1", "leaf-1", "host-1"]
+    assert paths["host-1", "host-3"] == ["host-1", "leaf-1", "spine-1", "leaf-2", "host-3"]
+    assert paths["host-3", "host-2"] == ["host-3", "host-2"]

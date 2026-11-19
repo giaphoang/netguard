@@ -16,7 +16,7 @@ from typing import Annotated
 from . import measurements, operator, expansion, traffic
 from .controls import router as control_routes, running_controls
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -95,12 +95,13 @@ def collect() -> Snapshot:
 def host_state(pair):
     host, topology = pair
     name = f"host-{host['id']}"
+    address = expansion.host_ip(host, topology)
     try:
         interfaces = command(name, "ip", "addr", "show")
         result = {
             "name": name,
             "leaf": host["leaf"],
-            "address": expansion.host_ip(host, topology),
+            "address": address,
             "interfaces": interfaces,
             "error": None,
         }
@@ -109,7 +110,12 @@ def host_state(pair):
             result.update(probes=probe_results(source, result["address"]), probe_from=source)
         return result
     except (OSError, subprocess.SubprocessError):
-        return {"name": name, "leaf": host["leaf"], "error": "Host telemetry unavailable"}
+        return {
+            "name": name,
+            "leaf": host["leaf"],
+            "address": address,
+            "error": "Host telemetry unavailable",
+        }
 
 
 DB = Path(os.environ.get("NETGUARD_TIMELINE_DB", ROOT / ".runtime/timeline.sqlite"))
@@ -165,63 +171,85 @@ def probe_spine(leaf: Router, source: str, destination: str) -> int | None:
     return None
 
 
-def probe_paths(snapshot: Snapshot, flows: list[dict]) -> list[dict]:
-    """Attach a live graph path to each sampled ICMP flow when its next hop is known."""
-    routers = {r.name: r for r in snapshot.routers}
-    hosts = {h["name"]: h for h in snapshot.hosts}
-    active_leaves = {h["leaf"] for h in hosts.values()}
-    directions = []
-    for flow in flows:
-        source = f"host-{flow['source']}"
-        target = hosts.get(f"host-{3 - flow['source']}")
-        if target:
-            directions.append((source, target, flow["probes"]))
-    for host in hosts.values():
-        if host.get("probe_from"):
-            directions.append((host["probe_from"], host, host["probes"]))
-    for router in routers.values():
+def probe_targets(snapshot: Snapshot) -> dict[str, dict]:
+    targets = {h["name"]: h for h in snapshot.hosts if "address" in h}
+    active_leaves = {h["leaf"] for h in snapshot.hosts}
+    for router in snapshot.routers:
         if not router.name.startswith("leaf-"):
             continue
         leaf = int(router.name.removeprefix("leaf-"))
         address = f"10.214.0.{leaf}"
         if leaf not in active_leaves and f"{address}/32" in router.interfaces.split():
-            target = {"name": router.name, "leaf": leaf, "address": address}
-            directions.append(("host-1", target, None))
+            targets[router.name] = {"name": router.name, "leaf": leaf, "address": address}
+    return targets
 
-    def observe_path(direction):
-        source, target, results = direction
-        host = hosts.get(source)
-        if not host or "address" not in host or "address" not in target:
-            return None
-        address = target["address"]
-        if results is None:
-            results = probe_results(source, address, http=False)
-        source_leaf = f"leaf-{host['leaf']}"
-        target_leaf = f"leaf-{target['leaf']}"
-        path = None
-        if (
-            results["ICMP"] == "success"
-            and source_leaf != target_leaf
-            and source_leaf in routers
-            and target_leaf in routers
-        ):
-            spine = probe_spine(routers[source_leaf], host["address"], address)
+
+def observe_probe(routers, source, target, *, recorded=None, http=False):
+    source_name = source["name"]
+    target_name = target["name"]
+    address = target["address"]
+    timestamp, results = recorded or (
+        datetime.now(timezone.utc).isoformat(),
+        probe_results(source_name, address, http=http),
+    )
+    source_leaf = f"leaf-{source['leaf']}"
+    target_leaf = f"leaf-{target['leaf']}"
+    path = None
+    if results["ICMP"] == "success":
+        if source_leaf == target_leaf and target_name.startswith("host-"):
+            path = [source_name, target_name]
+        elif source_leaf in routers and target_leaf in routers:
+            spine = probe_spine(routers[source_leaf], source["address"], address)
             if f"spine-{spine}" in routers:
-                path = [source, source_leaf, f"spine-{spine}", target_leaf]
-                if target["name"] != target_leaf:
-                    path.append(target["name"])
-        return {
-            "source": source,
-            "target": target["name"],
-            "source_leaf": source_leaf,
-            "target_leaf": target_leaf,
-            "address": address,
-            "probes": results,
-            "path": path,
-        }
+                path = [source_name, source_leaf, f"spine-{spine}", target_leaf]
+                if target_name != target_leaf:
+                    path.append(target_name)
+    return {
+        "source": source_name,
+        "target": target_name,
+        "source_leaf": source_leaf,
+        "target_leaf": target_leaf,
+        "address": address,
+        "timestamp": timestamp,
+        "probes": results,
+        "path": path,
+    }
 
+
+def probe_paths(snapshot: Snapshot, flows: list[dict], *, all_directions=False) -> list[dict]:
+    """Reuse base health probes and sample additional directions for the live map."""
+    routers = {r.name: r for r in snapshot.routers}
+    targets = probe_targets(snapshot)
+    hosts = [name for name in targets if name.startswith("host-")]
+    directions = {
+        (f"host-{flow['source']}", f"host-{3 - flow['source']}"): (
+            flow.get("timestamp", snapshot.timestamp),
+            flow["probes"],
+        )
+        for flow in flows
+    }
+    directions.update(
+        ((host["probe_from"], host["name"]), (snapshot.timestamp, host["probes"]))
+        for host in snapshot.hosts
+        if host.get("probe_from")
+    )
+    if all_directions:
+        for source in hosts:
+            for target in targets:
+                if source != target:
+                    directions.setdefault((source, target), None)
+    else:
+        for target in targets:
+            if target.startswith("leaf-"):
+                directions[("host-1", target)] = None
+
+    def observe_path(pair):
+        source, target = pair
+        return observe_probe(routers, targets[source], targets[target], recorded=directions[pair])
+
+    pairs = [pair for pair in directions if all(name in targets for name in pair)]
     with ThreadPoolExecutor(max_workers=4) as pool:
-        return [result for result in pool.map(observe_path, directions) if result]
+        return list(pool.map(observe_path, pairs))
 
 
 async def poll(app: FastAPI) -> None:
@@ -233,7 +261,7 @@ async def poll(app: FastAPI) -> None:
         leaves = [int(r.name.split("-")[1]) for r in snapshot.routers if r.name.startswith("leaf-")]
         current, routes = await asyncio.gather(
             asyncio.to_thread(traffic.collect, leaves),
-            asyncio.to_thread(probe_paths, snapshot, flows),
+            asyncio.to_thread(probe_paths, snapshot, flows, all_directions=True),
         )
         for flow in flows:
             source = f"host-{flow['source']}"
@@ -416,7 +444,28 @@ def probe_results(source: str, destination: str, *, http: bool = True) -> dict[s
 
 
 @app.get("/api/trace")
-def trace(source: Annotated[int, Query(ge=1, le=2)] = 1):
+def trace(
+    source: Annotated[int, Query(ge=1, le=4)] = 1,
+    target: Annotated[str | None, Query(pattern=r"^(?:host|leaf)-[1-4]$")] = None,
+):
+    if target is not None:
+        if REPLAY:
+            raise HTTPException(409, "Select a recorded probe direction in replay")
+        snapshot = getattr(app.state, "snapshot", None)
+        if snapshot is None:
+            raise HTTPException(503, "Waiting for live topology")
+        endpoints = probe_targets(snapshot)
+        source_name = f"host-{source}"
+        if target == source_name or source_name not in endpoints or target not in endpoints:
+            raise HTTPException(422, "Select two different endpoints in the current lab")
+        return observe_probe(
+            {router.name: router for router in snapshot.routers},
+            endpoints[source_name],
+            endpoints[target],
+            http=target.startswith("host-"),
+        )
+    if source not in (1, 2):
+        raise HTTPException(422, "Choose a target for an added host")
     if REPLAY:
         return json.loads((FIXTURE.parent / "probes.json").read_text())[source - 1]
     dest = f"10.212.{3-source}.2"

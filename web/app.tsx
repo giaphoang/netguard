@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Background, ReactFlow } from "@xyflow/react";
+import { Background, ReactFlow, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
 import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
@@ -26,6 +26,7 @@ type ProbePath = {
   source_leaf: string;
   target_leaf: string;
   address: string;
+  timestamp: string;
   probes: Record<string, string>;
   path: string[] | null;
 };
@@ -47,7 +48,11 @@ function displayName(id: string) {
 const routeId = (route: ProbePath) => `${route.source}/${route.target}`;
 const routeLabel = (route: ProbePath) =>
   `${displayName(route.source)} → ${displayName(route.target)}`;
-const baseProbe = (route: ProbePath) => ["host-1", "host-2"].includes(route.target);
+const baseProbe = (route: ProbePath) =>
+  ["host-1/host-2", "host-2/host-1"].includes(routeId(route));
+const probeStatus = (route: ProbePath) =>
+  Object.entries(route.probes).map(([protocol, state]) => `${protocol} ${state}`).join(" · ");
+const PROBE_FRESH_MS = 18_000;
 
 function App() {
   const [preview, setPreview] = useState<FabricSpec>();
@@ -79,10 +84,29 @@ function App() {
     [selected, select] = useState("leaf-1");
   const [source, setSource] = useState(1),
     [routeChoice, setRouteChoice] = useState("auto"),
-    [routeIndex, setRouteIndex] = useState(0),
+    [autoRoute, setAutoRoute] = useState(""),
+    [manualProbe, setManualProbe] = useState<ProbePath>(),
     [probe, setProbe] = useState(""),
     [busy, setBusy] = useState(false),
     [offline, setOffline] = useState(false);
+  const probeRequest = useRef<AbortController>();
+  useEffect(() => () => probeRequest.current?.abort(), []);
+  const [nodeMeasurements, setNodeMeasurements] = useState<
+    Record<string, { width: number; height: number }>
+  >({});
+  function keepNodeMeasurements(changes: NodeChange[]) {
+    const measured = changes.filter(change => change.type === "dimensions" && change.dimensions);
+    if (!measured.length) return;
+    setNodeMeasurements((previous) => {
+      const next = { ...previous };
+      for (const change of measured) {
+        if (change.type === "dimensions" && change.dimensions) {
+          next[change.id] = change.dimensions;
+        }
+      }
+      return next;
+    });
+  }
   const [frames, setFrames] = useState<
       {
         label: string;
@@ -221,6 +245,8 @@ function App() {
           : "BGP warning";
     return {
       id,
+      // Preserve React Flow's measured ports when telemetry replaces the node data.
+      measured: nodeMeasurements[id],
       position: { x: (n - 1) * 225, y: spine ? 0 : host ? 232 : 140 },
       className: host
         ? pending ? "pending" : sample?.hosts?.find(h=>h.name===id)?.error ? "impaired" : "host"
@@ -253,43 +279,58 @@ function App() {
     !frames.length &&
     !offline &&
     sample &&
-    clock - Date.parse(sample.timestamp) < 18000;
+    clock - Date.parse(sample.timestamp) < PROBE_FRESH_MS;
   const activity = fresh ? sample.traffic || {} : {};
-  const drawable = fresh
-    ? liveRoutes.filter((r) => r.path?.every((id) => names.includes(id)))
-    : [];
+  const probeTime = (route: ProbePath) => Date.parse(route.timestamp || sample?.timestamp || "");
+  function drawable(route: ProbePath) {
+    return !frames.length &&
+      route.probes.ICMP === "success" &&
+      clock - probeTime(route) < PROBE_FRESH_MS &&
+      route.path?.every((id) => names.includes(id));
+  }
+  const available = liveRoutes.filter(drawable);
   const cycle = [
-    ...drawable.filter((r) => !baseProbe(r)).reverse(),
-    ...drawable.filter(baseProbe),
+    ...available.filter((r) => !baseProbe(r)),
+    ...available.filter(baseProbe),
   ];
-  const cycleKeys = cycle.map(routeId).join("|");
+  const automatic = routeChoice === "auto";
   const pinnedRoute = liveRoutes.find((r) => routeId(r) === routeChoice);
-  const shownRoute = pinnedRoute || cycle[routeIndex % cycle.length];
-  const packetPath = shownRoute && drawable.includes(shownRoute) ? shownRoute.path : null;
+  const useManualProbe = pinnedRoute && manualProbe && routeId(manualProbe) === routeChoice &&
+    manualProbe.address === pinnedRoute.address &&
+    probeTime(manualProbe) >= probeTime(pinnedRoute);
+  const shownRoute = automatic
+    ? cycle.find((r) => routeId(r) === autoRoute) || cycle[0]
+    : useManualProbe ? manualProbe : pinnedRoute;
+  const shownId = shownRoute && routeId(shownRoute);
+  const packetPath = shownRoute && drawable(shownRoute) ? shownRoute.path : null;
   useEffect(() => {
-    setRouteIndex(0);
-    if (pinnedRoute || !cycleKeys.includes("|")) return;
-    const timer = setInterval(() => setRouteIndex((i) => i + 1), 3400);
-    return () => clearInterval(timer);
-  }, [cycleKeys, pinnedRoute?.target]);
-  useEffect(() => {
-    if (liveRoutes.length && !pinnedRoute) setRouteChoice("auto");
-  }, [liveRoutes, pinnedRoute]);
+    if (automatic && shownId) setAutoRoute(shownId);
+  }, [automatic, shownId]);
 
-  const routeSource = Number(shownRoute?.source.split("-")[1]) || source;
+  function advanceRoute() {
+    const current = cycle.findIndex((r) => routeId(r) === shownId);
+    if (cycle.length > 1) setAutoRoute(routeId(cycle[(current + 1) % cycle.length]));
+  }
+
   function chooseRoute(value: string) {
+    probeRequest.current?.abort();
+    setBusy(false);
+    setManualProbe(undefined);
     setRouteChoice(value);
     setPaths([]);
     setProbe("");
+    const route = liveRoutes.find((r) => routeId(r) === value);
+    if (route) void runProbe(route);
   }
 
   const routePicker = (
     <select
       aria-label="Animated probe direction"
-      value={pinnedRoute ? routeChoice : "auto"}
+      value={routeChoice}
       onChange={(e) => chooseRoute(e.target.value)}
     >
       <option value="auto">Auto cycle</option>
+      {!automatic && !pinnedRoute && <option value={routeChoice}>Route unavailable</option>}
       {liveRoutes.map((r) => (
         <option key={routeId(r)} value={routeId(r)}>{routeLabel(r)}</option>
       ))}
@@ -305,12 +346,6 @@ function App() {
       if (!state || !remote) unknownLinks++;
       const failed = (!!state && state !== "Established") || (!!remote && remote !== "Established");
       const live = !offline && state === "Established" && remote === "Established";
-      const chosen =
-        incident && incident.phase !== "resolved"
-          ? incident.latest
-              .find((f) => f.source === routeSource)
-              ?.candidates?.includes(s)
-          : paths.includes(s);
       const onProbePath = packetPath?.includes("spine-" + s) && packetPath.includes("leaf-" + l);
       if (failed) warnings++;
       edges.push({
@@ -325,7 +360,7 @@ function App() {
         labelBgPadding: [6, 4] as [number, number],
         style: {
           stroke: failed ? "#c25137" : live ? "#309276" : "#a4acb7",
-          strokeWidth: (onProbePath || chosen) && live ? 4.5 : 3,
+          strokeWidth: (onProbePath || paths.includes(s)) && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
@@ -348,6 +383,14 @@ function App() {
         ? "degraded"
         : "healthy";
   const liveMode = mode === "LOCAL LAB / LIVE";
+  let routeDetail = automatic ? "Waiting for a live probe route" : "Selected route is unavailable";
+  if (packetPath) {
+    routeDetail = packetPath.map(displayName).join(" → ");
+    if (packetPath.length === 2) routeDetail += " · Shared access network";
+  } else if (shownRoute) {
+    routeDetail = routeLabel(shownRoute) + " · Waiting for a verified path";
+  }
+  if (busy) routeDetail = "Checking " + (shownRoute ? routeLabel(shownRoute) : "probe route");
   async function trace() {
     if (frames.length) {
       const d = frames[frame].probes[source - 1];
@@ -368,28 +411,36 @@ function App() {
       );
       return;
     }
-    if (shownRoute && !baseProbe(shownRoute)) {
-      setPaths([]);
-      setProbe(
-        routeLabel(shownRoute) + " · " + (fresh
-          ? Object.entries(shownRoute.probes).map(([protocol, result]) => protocol + " " + result).join(" · ")
-          : "Awaiting fresh probe results"),
-      );
+    if (!shownRoute) {
+      setProbe("Choose an available probe route.");
       return;
     }
+    setRouteChoice(routeId(shownRoute));
+    await runProbe(shownRoute);
+  }
+
+  async function runProbe(route: ProbePath) {
+    probeRequest.current?.abort();
+    const controller = new AbortController();
+    probeRequest.current = controller;
     setBusy(true);
+    setProbe("");
+    const query = new URLSearchParams({ source: route.source.split("-")[1], target: route.target });
     try {
-      const r = await fetch("/api/trace?source=" + routeSource);
-      if (!r.ok) throw Error();
-      const d = await r.json();
-      setPaths(d.candidates || []);
-      setProbe(
-        d.timestamp + " · ICMP " + d.probes.ICMP + " · HTTP " + d.probes.HTTP,
-      );
+      const response = await fetch("/api/trace?" + query, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw Error("Probe request unavailable");
+      const observation: ProbePath = await response.json();
+      if (controller.signal.aborted) return;
+      if (routeId(observation) !== routeId(route)) throw Error("Unexpected probe route");
+      setManualProbe(observation);
+      setProbe(`${routeLabel(observation)} · ${probeStatus(observation)}`);
     } catch {
-      setProbe("Probe request unavailable");
+      if (!controller.signal.aborted) setProbe("Probe request unavailable");
     } finally {
-      setBusy(false);
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
   const sessions = leaves
@@ -612,12 +663,30 @@ function App() {
                   {playing ? "Pause playback" : "Play walkthrough"}
                 </button>
               )}
+              {liveMode && (
+                <div className="route-readout probe-controls">
+                  <div>
+                    <label>
+                      Probe route {routePicker}
+                    </label>
+                    <button disabled={busy || !shownRoute} onClick={trace}>
+                      {busy ? "Probing…" : "Run probe"}
+                    </button>
+                  </div>
+                  <small aria-live={automatic ? "off" : "polite"}>
+                    {routeDetail}
+                    {shownRoute && " · " + probeStatus(shownRoute)}
+                    {probe === "Probe request unavailable" && " · " + probe}
+                  </small>
+                </div>
+              )}
               <div className="canvas">
                 <ReactFlow
                   nodes={nodes}
                   edges={edges}
                   edgeTypes={edgeTypes}
                   nodesDraggable={false}
+                  onNodesChange={keepNodeMeasurements}
                   key={names.join(",")}
                   fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
                   onNodeClick={(_, n) => {
@@ -636,7 +705,13 @@ function App() {
                   fitView
                   nodesConnectable={false}
                 >
-                  {packetPath && <ProbePacket key={packetPath.join("/")} hops={packetPath} />}
+                  {packetPath && (
+                    <ProbePacket
+                      key={packetPath.join("/")}
+                      hops={packetPath}
+                      onLap={automatic ? advanceRoute : undefined}
+                    />
+                  )}
                   <Background gap={18} size={1.4} color="#cedaff" />
                 </ReactFlow>
               </div>
@@ -689,23 +764,6 @@ function App() {
                         " B/s across measured links"
                       : "Select a link to inspect its state."}
                 </p>
-                {liveMode && (
-                  <div className="route-readout">
-                    <label>
-                      Probe route{" "}
-                      {routePicker}
-                    </label>
-                    <small>
-                      {packetPath ? packetPath.map(displayName).join(" → ")
-                        : "Awaiting a successful probe and route lookup"}
-                    </small>
-                  </div>
-                )}
-                {liveRoutes.map((r) => (
-                  <small key={routeId(r)}>
-                    {routeLabel(r)} · {Object.entries(r.probes).map(([protocol, result]) => protocol + " " + result).join(" · ")}
-                  </small>
-                ))}
                 {!liveRoutes.length && observed.map((f, i) => (
                   <small key={i}>
                     Host {i ? "B → A" : "A → B"} · ICMP {f.probes.ICMP} · HTTP{" "}
@@ -768,8 +826,8 @@ function App() {
                 </select>
               </label>
             ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
-            <button disabled={busy || mode === "CONNECTING"} onClick={trace}>
-              {busy ? "Probing…" : shownRoute && !baseProbe(shownRoute) ? "Read latest probe" : "Trace traffic"}
+            <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
+              {busy ? "Probing…" : "Trace traffic"}
             </button>
             <p role="status">
               {probe || "Select a probe route to inspect its reachability."}

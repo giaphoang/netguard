@@ -72,3 +72,35 @@ def test_host_inventory_uses_busybox_compatible_ip_command(monkeypatch):
     result = fabric.host_state(({"id": 1, "leaf": 1}, expansion.BASE))
     assert result["error"] is None and result["name"] == "host-1"
     assert calls
+
+
+def test_trace_runs_selected_host_pair_and_returns_its_path(monkeypatch):
+    snapshot = fabric.Snapshot.model_validate_json(fabric.FIXTURE.read_text())
+    snapshot.hosts = [
+        {"name": "host-1", "leaf": 1, "address": "10.212.1.2"},
+        {"name": "host-3", "leaf": 2, "address": "10.212.2.3"},
+    ]
+    monkeypatch.setattr(fabric.app.state, "snapshot", snapshot, raising=False)
+    monkeypatch.setattr(fabric, "REPLAY", False)
+    status = "success"
+    called = []
+
+    def probe(source, address, *, http):
+        called.append((source, address, http))
+        return {"ICMP": status, "HTTP": status}
+
+    def next_hop(router, source, target):
+        assert (router.name, source, target) == ("leaf-2", "10.212.2.3", "10.212.1.2")
+        return 2
+
+    monkeypatch.setattr(fabric, "probe_results", probe)
+    monkeypatch.setattr(fabric, "probe_spine", next_hop)
+    client = TestClient(fabric.app)
+    route = client.get("/api/trace?source=3&target=host-1").json()
+    assert route["path"] == ["host-3", "leaf-2", "spine-2", "leaf-1", "host-1"]
+    assert called == [("host-3", "10.212.1.2", True)]
+    status = "failed"
+    failed = client.get("/api/trace?source=3&target=host-1").json()
+    assert failed["probes"]["ICMP"] == "failed" and failed["path"] is None
+    assert client.get("/api/trace?source=3&target=host-4").status_code == 422
+    assert len(called) == 2

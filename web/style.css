@@ -826,11 +826,6 @@ main:not([data-page="Diagnostics"]) .collector {
     line-height: 1.4;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .packet {
-    display: none;
-  }
-}
 .route-overlay {
   position: absolute;
   left: 0;
@@ -838,9 +833,24 @@ main:not([data-page="Diagnostics"]) .collector {
   overflow: visible;
   pointer-events: none;
 }
-.transmission .route-readout {
+.access-probe {
+  stroke: #3458ff;
+  stroke-dasharray: 4 4;
+  stroke-width: 1.5;
+}
+.probe-controls {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px;
+}
+.probe-controls > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.probe-controls small {
   display: block;
-  margin: 8px 0;
+  margin-top: 6px;
 }
 .route-readout label {
   font-size: 11px;
