@@ -21,6 +21,19 @@ def target_hosts(prompt, current):
     return int(match[1]) if match[1].isdigit() else topology.WORDS.index(match[1])
 
 
+def has_host_growth_goal(prompt):
+    words = topology.normalize(prompt)
+    if not re.search(r"\bhosts?\b", words) or not re.search(
+        r"\b(?:capacity|budget|total|support|scale|grow|double|twice)\b",
+        words,
+    ):
+        return False
+    try:
+        return target_hosts(prompt, 2) > 0
+    except ValueError:
+        return False
+
+
 def resources(spec, *, include_usage=False):
     if not presets.docker(
         "context",

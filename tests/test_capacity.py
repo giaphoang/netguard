@@ -1,4 +1,6 @@
-from api import capacity, expansion
+import json
+
+from api import advisor, capacity, evaluation, expansion, intents
 from api.incidents import Controller
 from test_incidents import sample
 
@@ -42,3 +44,26 @@ def test_capacity_enforces_host_policy_and_guest_budget(tmp_path, monkeypatch):
     details, plan, result = capacity.plan(controller, "Support four hosts.", sample(), 1)
     assert details["target_hosts"] == 4
     assert plan is None and "available memory" in result
+
+
+def test_host_growth_keeps_specific_add_node_tool_out_of_the_model_choices(monkeypatch):
+    def classify(prompt, context, schema):
+        assert schema["properties"]["intent"]["enum"] == ["plan_host_capacity", "answer_question"]
+        return json.dumps(
+            {
+                "intent": "plan_host_capacity",
+                "targets": [],
+                "node_type": "host",
+                "quantity": None,
+                "duration_s": None,
+                "scope": "network",
+            }
+        )
+
+    monkeypatch.setattr(advisor, "infer", classify)
+    spec, targets, _ = intents.interpret(
+        "Help our fabric support twice the host population within its resource budget.",
+        "",
+        evaluation.expanded(),
+    )
+    assert spec.intent == "capacity" and targets == []

@@ -6,9 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import advisor, protocol_study, topology
+from . import advisor, capacity, protocol_study, topology
 
-VERSION = "topology-intent-v9"
+VERSION = "topology-intent-v10"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -108,6 +108,8 @@ def interpret(prompt, selection, sample):
     choices = list(WORKFLOWS)
     if len(protocol_study.requested_protocols(prompt)) >= 2:
         choices = ["design_routing_study", "answer_question"]
+    elif not references and capacity.has_host_growth_goal(prompt):
+        choices = ["plan_host_capacity", "answer_question"]
     schema["properties"]["intent"]["enum"] = choices
     references = list(dict.fromkeys(references))
     schema["properties"]["targets"].update(

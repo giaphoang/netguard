@@ -23,7 +23,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 | “Add two leaves connected to every spine.” | Preview a validated, approval-required expansion. |
 | “Provision another spine with appropriate BGP neighbors.” | Preview a spine connected to every current leaf. |
 | “Add a host under Leaf 2.” | Allocate an unused host address and preview its attachment. |
-| “Support twice as many hosts within the VM budget.” | Reads guest capacity, estimates the minimum additions and checks the host ceiling. An eligible plan previews deployment in chat and records BGP, host probes, and Docker usage after approval. [Verified two-to-four-host rollout and rollback](proof/architecture/capacity-chat.json) |
+| “Support twice as many hosts within the VM budget.” | Reads guest capacity, estimates the minimum additions and checks the host ceiling. An eligible plan previews deployment in chat and records BGP, host probes, and Docker usage after approval. [Verified two-to-four-host rollout and rollback](proof/architecture/capacity-chat.json) · [Live three-to-six-host request blocked at the four-host ceiling](proof/architecture/capacity-live-guard.json) |
 | “Investigate the most unstable BGP peer.” | Compare recorded transitions; say when history is insufficient. |
 | “Find resolved BGP incidents on Leaf 1.” | Search the saved journal and show the newest matching records. |
 | “What happened in the latest link failure?” | Open the latest matching record with timestamps, any recorded durations and its full log. You can also inspect by incident ID or the displayed eight-character prefix. |
