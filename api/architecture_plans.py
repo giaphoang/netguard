@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from . import expansion, topology
 from .benchmarks import HASH_POLICY
 
-VERSION = "architecture-v1"
+VERSION = "architecture-v2"
 INTENT_PROMPT = """Choose the architecture objective supported by this lab.
 Use throughput for goals to design, increase, optimize or benchmark aggregate network
 throughput (bandwidth, performance, multiple flows or ECMP). Use unsupported for other
-objectives, including questions about how a protocol works. Return only the objective name.
+objectives, including questions about how a protocol works.
+Use gre for designing, deploying or benchmarking GRE, or comparing GRE, IP-in-IP and MPLS
+for deployment in this lab. Return only the objective name.
 The model cannot approve or execute network changes."""
 REFERENCES = re.compile(r"\b(?:spine|leaf|host)\s+(?:\d+|" + "|".join(topology.WORDS) + r"|a|b)\b")
 
@@ -40,17 +42,8 @@ def endpoints(prompt, selection, spec, sample):
         f"host-{h['id']}": Endpoint(f"host-{h['id']}", expansion.host_ip(h, spec), h["leaf"])
         for h in spec["hosts"]
     }
-    references = list(dict.fromkeys(REFERENCES.findall(topology.normalize(prompt))))
-    if (
-        not references
-        and selection
-        and re.search(r"\b(selected|this host|this leaf)\b", prompt, re.I)
-    ):
-        references = [selection]
-    graph = topology.inventory(sample)
-    resolved = list(dict.fromkeys(topology.resolve(name, graph) for name in references))
     chosen = []
-    for name in resolved:
+    for name in resolve_targets(prompt, selection, sample):
         if name in hosts:
             chosen.append(hosts[name])
         elif name.startswith("leaf-"):
@@ -77,6 +70,18 @@ def endpoints(prompt, selection, spec, sample):
     return source, target
 
 
+def resolve_targets(prompt, selection, sample):
+    references = list(dict.fromkeys(REFERENCES.findall(topology.normalize(prompt))))
+    if (
+        not references
+        and selection
+        and re.search(r"\b(selected|this host|this leaf|this router)\b", prompt, re.I)
+    ):
+        references = [selection]
+    graph = topology.inventory(sample)
+    return list(dict.fromkeys(topology.resolve(name, graph) for name in references))
+
+
 def requested_multiplier(prompt):
     match = re.search(r"\b(\d+(?:\.\d+)?)\s*(?:[x×]|times\b)", prompt, re.I)
     if match:
@@ -90,18 +95,20 @@ def requested_multiplier(prompt):
 
 
 def route_paths(lab, endpoints, spec):
-    results = {}
-    for source, target in (endpoints, endpoints[::-1]):
-        routes = lab.json(source.router, "ip", "-j", "-4", "route", "show", "exact", target.subnet)
-        configured = {f"10.211.{10 * s + source.leaf}.1": s for s in spec["spines"]}
-        hops = [hop for route in routes for hop in route.get("nexthops", [route])]
-        spines = sorted({configured[h["gateway"]] for h in hops if h.get("gateway") in configured})
-        if spines != sorted(spec["spines"]):
-            raise ValueError(
-                f"{source.router} does not have all approved paths to {target.subnet}."
-            )
-        results[source.router] = spines
-    return results
+    return {
+        source.router: sorted(route_hops(lab, source, target, spec["spines"]))
+        for source, target in (endpoints, endpoints[::-1])
+    }
+
+
+def route_hops(lab, source, target, spines):
+    routes = lab.json(source.router, "ip", "-j", "-4", "route", "show", "exact", target.subnet)
+    configured = {f"10.211.{10 * s + source.leaf}.1": s for s in spines}
+    hops = [hop for route in routes for hop in route.get("nexthops", [route])]
+    result = {configured[h["gateway"]]: h for h in hops if h.get("gateway") in configured}
+    if set(result) != set(spines):
+        raise ValueError(f"{source.router} does not have all approved paths to {target.subnet}.")
+    return result
 
 
 def link_counters(lab, source, spines):

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import advisor, topology
 
-VERSION = "topology-intent-v4"
+VERSION = "topology-intent-v5"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -31,7 +31,8 @@ device state, or networking concepts. For example, asking why one leaf is not se
 to another is a read-only question for answer_question.
 Return JSON only.
 Questions about AI test suites, prompt versions or diagnosis accuracy use evaluate_ai_quality.
-Requests to design, optimize or benchmark aggregate network throughput or ECMP use
+Requests to design, optimize or benchmark aggregate network throughput, ECMP or a GRE tunnel use
+design_network_experiment. Comparing GRE, IP-in-IP and MPLS to choose an implementation also uses
 design_network_experiment. Read-only explanations of performance or protocol concepts use
 answer_question. A throughput objective can include proposed extra spines without requesting provisioning.
 Manual versus AI timing or time saved uses compare_operational_metrics.

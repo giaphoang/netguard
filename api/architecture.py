@@ -15,7 +15,7 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from . import advisor, architecture_plans as plans, expansion, provision
+from . import advisor, architecture_plans as plans, expansion, gre, provision
 from .benchmarks import DURATION, STREAMS, TRIALS, Lab
 from .controls import authorized, local
 from .incidents import healthy, observe
@@ -39,7 +39,7 @@ class Request(BaseModel):
 
 
 class Objective(BaseModel):
-    objective: Literal["throughput", "unsupported"]
+    objective: Literal["throughput", "gre", "unsupported"]
 
 
 class Approval(BaseModel):
@@ -209,11 +209,12 @@ def checkpoint(controller):
         raise ValueError("Emergency stop requested. End the experiment.")
 
 
-def measure(controller, lab, pair, spec, *, single=False):
+def measure(controller, lab, pair, spec, *, single=False, sockets=None):
     paths = plans.route_paths(lab, pair, spec)
+    source, target = sockets or [endpoint.socket for endpoint in pair]
     result = lab.benchmark(
-        pair[0].socket,
-        pair[1].socket,
+        source,
+        target,
         counters=lambda: plans.link_counters(lab, pair[0], spec["spines"]),
         checkpoint=lambda: checkpoint(controller),
         single=single,
@@ -238,19 +239,29 @@ def prepare(controller, run):
             event["result"] = objective
             run["kind"] = objective
         if objective == "unsupported":
-            trace.mark("blocked", "The lab supports throughput and ECMP experiments.")
+            trace.mark("blocked", "Choose a throughput or GRE design objective for the lab.")
             return
-        multiplier = plans.requested_multiplier(run["prompt"])
+        is_gre = objective == "gre"
+        multiplier = None if is_gre else plans.requested_multiplier(run["prompt"])
         run["requested_multiplier"] = multiplier
         trace.stage = "Investigate"
         run["snapshot"] = inspect_fabric(trace, spec)
-        pair = plans.endpoints(run["prompt"], run["selection"], spec, run["snapshot"])
+        select_endpoints = gre.endpoints if is_gre else plans.endpoints
+        pair = select_endpoints(run["prompt"], run["selection"], spec, run["snapshot"])
         run["endpoints"] = [asdict(endpoint) for endpoint in pair]
         with Lab(trace) as lab:
             run["scope"] = open_scope(controller, lab, active, spec, pair)
-            run["baseline"] = measure(controller, lab, pair, spec, single=True)
+            underlay = gre.underlay(lab, pair, spec["spines"]) if is_gre else {}
+            run["baseline"] = {
+                **underlay,
+                **measure(controller, lab, pair, spec, single=not is_gre),
+            }
             trace.stage = "Plan"
-            run["plan"] = plans.throughput(lab, pair, spec, run["baseline"], multiplier)
+            run["plan"] = (
+                gre.plan(lab, pair, spec, run["baseline"], run["id"])
+                if is_gre
+                else plans.throughput(lab, pair, spec, run["baseline"], multiplier)
+            )
         trace.stage = "Validate"
         with trace.tool("Review policy, capacity and rollback") as event:
             checkpoint(controller)
@@ -298,6 +309,11 @@ def verdict(run):
         )
     if min(actual["guest_cpu_pct"], baseline["guest_cpu_pct"]) >= 90:
         interpretation.append("Median guest CPU utilization was at least 90% in both arms.")
+    if run["kind"] == "gre":
+        interpretation.append(
+            f"DF pings measured an inner MTU of {actual['mtu_bytes']} bytes. "
+            "The wire capture confirmed bidirectional GRE."
+        )
     return {
         "measured_multiplier": measured,
         "goal_met": None if goal is None else measured >= goal,
@@ -327,14 +343,26 @@ def apply(controller, run):
                     "The topology or endpoint namespaces changed. Review the saved plan."
                 )
             inspect_fabric(trace, spec)
-            plans.set_policies(
+            is_gre = run["kind"] == "gre"
+            if is_gre:
+                live = gre.underlay(lab, pair, spec["spines"])
+                if live["route_mtu"] != run["baseline"]["route_mtu"]:
+                    raise ValueError("The underlay MTU changed. Generate a fresh preview.")
+            configure = gre.configure if is_gre else plans.set_policies
+            configure(
                 lab,
                 run["plan"],
                 before_write=lambda node: begin_change(controller, run, trace, node),
             )
             trace.stage = "Verify"
             run["verification"] = inspect_fabric(trace, spec)
-            run["actual"] = measure(controller, lab, pair, spec)
+            sockets = None
+            if is_gre:
+                run["encapsulation"] = gre.verify(lab, run["plan"])
+                sockets = gre.sockets(run["plan"]["change"])
+            run["actual"] = measure(controller, lab, pair, spec, sockets=sockets)
+            if is_gre:
+                run["actual"]["mtu_bytes"] = run["encapsulation"]["mtu_bytes"]
             inspect_fabric(trace, spec)
             trace.stage = "Evaluate"
             with trace.tool("Compare prediction with measurements") as event:
@@ -377,7 +405,8 @@ def restore(controller, run, trace):
                 or scope["provision_id"] != run["scope"]["provision_id"]
             ):
                 raise ValueError("The approved topology changed. Review rollback manually.")
-            plans.restore_policies(lab, run["plan"], run["touched"], run["scope"]["identities"])
+            restore_change = gre.restore if run["kind"] == "gre" else plans.restore_policies
+            restore_change(lab, run["plan"], run["touched"], run["scope"]["identities"])
             run["rollback_verification"] = inspect_fabric(trace, spec)
         trace.mark("rolled_back", "Original configuration restored and connectivity verified.")
     except ERRORS as exc:

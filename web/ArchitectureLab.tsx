@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Activity, Check, Clipboard, FlaskConical } from "lucide-react";
 import { get, post } from "./localApi";
-import { TopologyPreview, type FabricSpec } from "./TopologyPreview";
+import { TopologyPreview, type FabricSpec, type Overlay } from "./TopologyPreview";
 import "./architecture.css";
 
 export type ArchitectureRequest = { prompt: string; selection?: string };
-type Metric = "gbps" | "p95_ms" | "loss_pct" | "guest_cpu_pct" | "healthy_paths";
+type Metric = "gbps" | "p95_ms" | "loss_pct" | "guest_cpu_pct" | "healthy_paths" | "mtu_bytes";
 type Readings = Partial<Record<Metric, number | null>>;
 type Benchmark = Readings & {
   link_bytes: Record<string, number>;
@@ -41,11 +41,13 @@ type Run = RunSummary & {
   endpoints?: { node: string; address: string; leaf: number }[];
   baseline?: Benchmark;
   actual?: Benchmark;
+  encapsulation?: { mtu_bytes: number; capture: string };
   failure?: string;
   method: { tcp_seconds: number; tcp_streams: number; repeats: number };
   plan?: {
     before: FabricSpec;
     after: FabricSpec;
+    overlay?: Overlay;
     diff: string;
     risk: { eligible: boolean; reason: string; rollback: string };
     alternatives: { name: string; assessment: string; cost: string }[];
@@ -64,6 +66,9 @@ type Run = RunSummary & {
 const examples = [{
   label: "Double aggregate throughput",
   prompt: "Analyze my current NetGuard spine-leaf network and propose an architecture capable of delivering twice the aggregate throughput while preserving path redundancy. Measure the existing bottlenecks, compare alternatives such as additional spines, ECMP optimization, and capacity changes. Show a topology preview, expected throughput improvement, resource costs, and risks. After approval, implement the best feasible design, benchmark the new topology, and compare actual results against your prediction. If 2× is not achievable within this VM, explain why.",
+}, {
+  label: "Design and benchmark GRE",
+  prompt: "Design a GRE tunnel between two appropriate routers in my existing NetGuard topology. First inspect network connectivity, MTU, routes, and the direct-path throughput baseline. Explain the purpose of the tunnel and estimate its effect on usable MTU, throughput, latency, and CPU usage before deploying. Preview the architecture and exact configuration diff. After approval, deploy the tunnel, verify encapsulation and end-to-end traffic, run identical direct-vs-GRE benchmarks, and compare actual performance against your estimates. Roll back if connectivity or safety checks fail.",
 }];
 const activePhases = ["investigating", "applying", "rolling_back"];
 const phaseLabels: Record<string, string> = {
@@ -78,6 +83,7 @@ const metrics: { key: Metric; label: string; unit: string; digits: number }[] = 
   { key: "loss_pct", label: "ICMP packet loss", unit: "%", digits: 1 },
   { key: "guest_cpu_pct", label: "Guest CPU utilization", unit: "%", digits: 1 },
   { key: "healthy_paths", label: "Healthy spine paths", unit: "", digits: 0 },
+  { key: "mtu_bytes", label: "Usable IPv4 MTU", unit: "bytes", digits: 0 },
 ];
 
 function tableValue(value: number | null | undefined, digits: number, unit: string) {
@@ -91,8 +97,8 @@ function MeasurementTable({ run }: { run: Run }) {
       <p>{run.method.repeats} matched TCP runs · {run.method.tcp_seconds}s each · {run.method.tcp_streams} parallel streams. Goodput is the median received rate across trials.</p>
       <div className="architecture-table-scroll" tabIndex={0} aria-label="Benchmark comparison">
         <table className="architecture-table">
-          <thead><tr><th scope="col">Metric</th><th scope="col">Baseline</th><th scope="col">Predicted</th><th scope="col">Actual</th><th scope="col">Prediction error</th></tr></thead>
-          <tbody>{metrics.map(({ key, label, digits, unit }) => {
+          <thead><tr><th scope="col">Metric</th><th scope="col">{run.kind === "gre" ? "Direct path" : "Baseline"}</th><th scope="col">Predicted</th><th scope="col">{run.kind === "gre" ? "Measured GRE" : "Actual"}</th><th scope="col">Prediction error</th></tr></thead>
+          <tbody>{metrics.filter(({ key }) => key !== "mtu_bytes" || run.kind === "gre").map(({ key, label, digits, unit }) => {
             const delta = run.evaluation?.prediction_error[key];
             return (
               <tr key={key}>
@@ -113,6 +119,9 @@ function MeasurementTable({ run }: { run: Run }) {
       )}
       {run.plan && <p>{run.plan.assumptions}</p>}
       {run.evaluation?.interpretation && <p>{run.evaluation.interpretation}</p>}
+      {run.encapsulation && (
+        <details><summary>GRE packet capture</summary><pre>{run.encapsulation.capture}</pre></details>
+      )}
     </section>
   );
 }
@@ -211,7 +220,7 @@ function Experiment({ run, busy, act }: { run: Run; busy: boolean; act: (action:
           </div>
           <details open={run.phase === "preview" || undefined}>
             <summary>Topology and configuration diff</summary>
-            <TopologyPreview before={run.plan.before} after={run.plan.after} applied={run.phase === "verified"} />
+            <TopologyPreview before={run.plan.before} after={run.plan.after} overlay={run.plan.overlay} applied={run.phase === "verified"} />
             {run.plan.diff && <pre className="architecture-diff">{run.plan.diff}</pre>}
           </details>
           <p>{run.plan.risk.reason}</p>

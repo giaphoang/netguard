@@ -206,6 +206,20 @@ main[data-page="AI Architecture Lab"] .workspace {
   margin-top: 10px;
 }
 
+.topology-overlay-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  color: var(--accent);
+}
+
+.topology-overlay-key::before {
+  content: "";
+  width: 25px;
+  border-top: 2px dashed currentColor;
+}
+
 .architecture-diff {
   border-radius: 8px;
   border: 1px solid var(--line);
