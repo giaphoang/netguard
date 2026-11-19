@@ -35,6 +35,12 @@ class Decision(BaseModel):
     next_check: str = Field(min_length=1, max_length=300)
 
 
+class DecisionRejected(ValueError):
+    def __init__(self, message, decision):
+        super().__init__(message)
+        self.decision = decision
+
+
 def evidence(sample):
     routers = {r["name"]: r for r in sample["routers"]}
     facts = {}
@@ -74,9 +80,27 @@ def model_name():
     return os.environ.get("NETGUARD_MODEL", MODEL)
 
 
-def assess(observation):
+def model_revision():
+    client = http.client.HTTPConnection("127.0.0.1", 11434, timeout=5)
+    name = model_name()
+    try:
+        client.request("GET", "/api/tags")
+        response = client.getresponse()
+        if response.status != 200:
+            raise ValueError(f"Model inventory returned HTTP {response.status}")
+        models = json.loads(response.read(65536))["models"]
+        for row in models:
+            if row["name"] in (name, name + ":latest"):
+                return {"name": row["name"], "digest": row["digest"]}
+        raise ValueError("The configured Ollama model is unavailable.")
+    finally:
+        client.close()
+
+
+def assess(observation, *, prompt=PROMPT, context=None):
     schema = Decision.model_json_schema()
-    keys = list(observation["facts"])
+    supplied = observation if context is None else context
+    keys = [key for key in supplied["facts"] if key in observation["facts"]]
     schema["properties"]["citations"]["items"]["enum"] = keys
     # Ground the candidate set in telemetry, independently of the injected target.
     links = {k: v for k, v in observation["facts"].items() if "/" in k}
@@ -107,16 +131,16 @@ def assess(observation):
     if len(abnormal) == 1 and not incomplete:
         schema["properties"]["citations"]["items"]["enum"] = [abnormal[0]]
         schema["properties"]["citations"]["maxItems"] = 1
-    decision = Decision.model_validate_json(infer(PROMPT, observation, schema))
+    decision = Decision.model_validate_json(infer(prompt, supplied, schema))
     allowed_diagnoses = schema["properties"]["diagnosis"].get("enum")
     if allowed_diagnoses is not None and decision.diagnosis not in allowed_diagnoses:
-        raise ValueError("Diagnosis contradicts observed interface state")
+        raise DecisionRejected("Diagnosis contradicts observed interface state", decision)
     if decision.component not in candidates or (
         decision.action == "restore_link" and not repairable
     ):
-        raise ValueError("Decision exceeds the observed component scope")
-    if not set(decision.citations) <= observation["facts"].keys():
-        raise ValueError("Model cited an unknown observation")
+        raise DecisionRejected("Decision exceeds the observed component scope", decision)
+    if not set(decision.citations) <= set(keys):
+        raise DecisionRejected("Model cited an unknown observation", decision)
     return decision
 
 
@@ -157,7 +181,11 @@ def infer(instruction, context, schema):
         call["http_status"] = response.status
         if response.status != 200:
             raise ValueError(f"Ollama returned HTTP {response.status}")
-        return json.loads(response.read(32768))["message"]["content"]
+        data = json.loads(response.read(32768))
+        for key in ("prompt_eval_count", "eval_count", "load_duration", "total_duration"):
+            if key in data:
+                call[key] = data[key]
+        return data["message"]["content"]
     finally:
         call["completed"] = time.time()
         client.close()

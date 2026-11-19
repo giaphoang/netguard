@@ -7,13 +7,15 @@ from dataclasses import dataclass
 from . import expansion, topology
 from .benchmarks import HASH_POLICY
 
-VERSION = "architecture-v2"
+VERSION = "architecture-v3"
 INTENT_PROMPT = """Choose the architecture objective supported by this lab.
 Use throughput for goals to design, increase, optimize or benchmark aggregate network
 throughput (bandwidth, performance, multiple flows or ECMP). Use unsupported for other
 objectives, including questions about how a protocol works.
 Use gre for designing, deploying or benchmarking GRE, or comparing GRE, IP-in-IP and MPLS
-for deployment in this lab. Return only the objective name.
+for deployment in this lab. Use evaluation for comparing incident diagnosis workflows,
+including candidate prompts or candidate context retrieval evaluated on recorded incidents.
+Return only the objective name.
 The model cannot approve or execute network changes."""
 REFERENCES = re.compile(r"\b(?:spine|leaf|host)\s+(?:\d+|" + "|".join(topology.WORDS) + r"|a|b)\b")
 

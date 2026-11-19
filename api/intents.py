@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import advisor, topology
 
-VERSION = "topology-intent-v5"
+VERSION = "topology-intent-v6"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -23,6 +23,7 @@ WORKFLOWS = {
     "review_completed_incident": "postmortem",
     "evaluate_ai_quality": "benchmark",
     "design_network_experiment": "architecture",
+    "compare_diagnosis_workflows": "architecture",
     "clarify_request": "clarify",
 }
 INSTRUCTION = """Choose a workflow only when the user requests one of the specialized tasks below.
@@ -30,7 +31,9 @@ Use answer_question for ordinary questions about the network, paths, packet deli
 device state, or networking concepts. For example, asking why one leaf is not sending packets
 to another is a read-only question for answer_question.
 Return JSON only.
-Questions about AI test suites, prompt versions or diagnosis accuracy use evaluate_ai_quality.
+Use compare_diagnosis_workflows to compare the current diagnosis workflow with a candidate or
+improved prompt or context retrieval strategy on the same recorded incidents. For a general run
+of the existing AI test suite or a question about diagnosis accuracy, use evaluate_ai_quality.
 Requests to design, optimize or benchmark aggregate network throughput, ECMP or a GRE tunnel use
 design_network_experiment. Comparing GRE, IP-in-IP and MPLS to choose an implementation also uses
 design_network_experiment. Read-only explanations of performance or protocol concepts use
@@ -80,6 +83,11 @@ class Intent(BaseModel):
 class RequestMode(BaseModel):
     model_config = ConfigDict(extra="forbid")
     mode: Literal["hypothetical_impact", "current_state", "requested_change"]
+
+
+class EvaluationMode(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: Literal["existing_suite", "paired_workflows"]
 
 
 def interpret(prompt, selection, sample):
@@ -156,6 +164,22 @@ def interpret(prompt, selection, sample):
         targets = [topology.resolve(selection, graph)]
     if spec.intent in {"risk", "remove", "simulate"} and not targets:
         raise ValueError("Name the existing node or link to assess or change.")
+    if spec.intent == "benchmark":
+        mode = EvaluationMode.model_validate_json(
+            advisor.infer(
+                "Choose paired_workflows when the request compares a new, improved or candidate "
+                "diagnosis prompt, context retrieval method, or workflow against the current "
+                "version on matching cases. Choose existing_suite when the user asks to run the "
+                "existing evaluation without asking to compare a candidate. "
+                "Example: 'Evaluate the AI operator against our incident test suite.' uses existing_suite. "
+                "Example: 'Assess the current diagnosis workflow against a better retrieval prompt "
+                "using the same recorded incidents.' uses paired_workflows.",
+                {"request": prompt},
+                EvaluationMode.model_json_schema(),
+            )
+        )
+        if mode.mode == "paired_workflows":
+            spec.intent = "architecture"
     if spec.intent in {"remove", "risk"} or (spec.intent == "simulate" and seconds is None):
         mode = RequestMode.model_validate_json(
             advisor.infer(

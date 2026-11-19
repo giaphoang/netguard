@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Activity, Check, Clipboard, FlaskConical } from "lucide-react";
 import { get, post } from "./localApi";
 import { TopologyPreview, type FabricSpec, type Overlay } from "./TopologyPreview";
+import { WorkflowEvaluation, type EvaluationReport } from "./WorkflowEvaluation";
 import "./architecture.css";
 
 export type ArchitectureRequest = { prompt: string; selection?: string };
@@ -17,6 +18,8 @@ type Tool = {
   stage: string;
   tool: string;
   node?: string;
+  case?: string;
+  version?: string;
   arguments?: string[];
   status: string;
   started: number;
@@ -33,6 +36,7 @@ type RunSummary = {
 };
 type Run = RunSummary & {
   model: string;
+  model_revision?: { name: string; digest: string };
   version: string;
   kind?: string;
   digest?: string;
@@ -43,7 +47,8 @@ type Run = RunSummary & {
   actual?: Benchmark;
   encapsulation?: { mtu_bytes: number; capture: string };
   failure?: string;
-  method: { tcp_seconds: number; tcp_streams: number; repeats: number };
+  method: { tcp_seconds?: number; tcp_streams?: number; repeats?: number };
+  quality?: EvaluationReport;
   plan?: {
     before: FabricSpec;
     after: FabricSpec;
@@ -69,14 +74,19 @@ const examples = [{
 }, {
   label: "Design and benchmark GRE",
   prompt: "Design a GRE tunnel between two appropriate routers in my existing NetGuard topology. First inspect network connectivity, MTU, routes, and the direct-path throughput baseline. Explain the purpose of the tunnel and estimate its effect on usable MTU, throughput, latency, and CPU usage before deploying. Preview the architecture and exact configuration diff. After approval, deploy the tunnel, verify encapsulation and end-to-end traffic, run identical direct-vs-GRE benchmarks, and compare actual performance against your estimates. Roll back if connectivity or safety checks fail.",
+}, {
+  label: "Evaluate diagnosis workflows",
+  prompt: "Evaluate our current incident-diagnosis workflow against an improved prompt and context-retrieval strategy using the same recorded incidents. Include different routers, topology sizes, rare failures, and ambiguous evidence. Compare diagnosis accuracy, latency, tool usage, incorrect repair suggestions, and correct human escalations. Recommend improvements only when supported by evaluation results.",
 }];
 const activePhases = ["investigating", "applying", "rolling_back"];
 const phaseLabels: Record<string, string> = {
   investigating: "Investigating", preview: "Awaiting approval", applying: "Running approved experiment",
   verified: "Verified", rolling_back: "Restoring", rolled_back: "Restored", blocked: "Blocked",
   interrupted: "Interrupted", needs_review: "Needs operator review",
+  evaluated: "Evaluation complete",
 };
 const stages = ["Understand", "Investigate", "Plan", "Validate", "Approve and implement", "Verify", "Evaluate"];
+const replayStages = ["Understand", "Investigate", "Plan", "Verify", "Evaluate"];
 const metrics: { key: Metric; label: string; unit: string; digits: number }[] = [
   { key: "gbps", label: "Aggregate TCP goodput", unit: "Gbps", digits: 2 },
   { key: "p95_ms", label: "p95 ICMP RTT", unit: "ms", digits: 2 },
@@ -159,7 +169,7 @@ function ToolTrace({ run }: { run: Run }) {
     <section className="architecture-card">
       <h3>Agent execution trace</h3>
       <ol className="architecture-stages" aria-label="Experiment stages">
-        {stages.map(stage => {
+        {(run.kind === "evaluation" ? replayStages : stages).map(stage => {
           const events = run.trace.filter(tool => tool.stage === stage);
           const waiting = events.some(tool => tool.status === "running");
           const status = waiting ? "In progress" : events.some(tool => tool.status === "failed") ? "Review" : events.length ? "Recorded" : "Pending";
@@ -171,7 +181,7 @@ function ToolTrace({ run }: { run: Run }) {
         <div className="architecture-tools">
           {run.trace.map((tool, i) => (
             <details key={i}>
-              <summary>{tool.tool}{tool.node ? " · " + tool.node : ""} <small>{tool.stage} · {tool.status}</small></summary>
+              <summary>{tool.tool}{tool.node ? " · " + tool.node : ""}{tool.case ? " · " + tool.case : ""} <small>{[tool.version, tool.stage, tool.status].filter(Boolean).join(" · ")}</small></summary>
               {tool.arguments && <pre>{tool.tool + " " + tool.arguments.join(" ")}</pre>}
               {tool.completed && <small>{(tool.completed - tool.started).toFixed(2)}s</small>}
               {tool.error && <p>{tool.error}</p>}
@@ -205,11 +215,13 @@ function Experiment({ run, busy, act }: { run: Run; busy: boolean; act: (action:
           <summary>Objective and provenance</summary>
           <p>{run.prompt}</p>
           <small>{run.model} · {run.version} · {new Date(run.created * 1000).toLocaleString()}</small>
+          {run.model_revision && <p>Model revision <code>{run.model_revision.digest.slice(0, 12)}</code></p>}
           {run.endpoints && <p>{run.endpoints.map(endpoint => endpoint.node + " (" + endpoint.address + ")").join(" → ")}</p>}
         </details>
       </section>
       {run.baseline && <MeasurementTable run={run} />}
       {run.baseline && <LinkDistribution run={run} />}
+      {run.quality && <WorkflowEvaluation report={run.quality} />}
       {run.plan && (
         <section className="architecture-card">
           <h3>Design review</h3>

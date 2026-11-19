@@ -52,7 +52,7 @@ WORKFLOW_STEPS = {
     ),
     "architecture": (
         "Select the Architecture Lab",
-        "Carry the objective to the experiment workspace for baseline measurements and review.",
+        "Carry the objective to the experiment workspace for evidence collection and review.",
     ),
     "clarify": (
         "Review available evidence",
@@ -150,7 +150,7 @@ def answer_request(req, c, started, sample, spec, targets, graph):
     tool = spec.intent
     if tool == "architecture":
         return {
-            "text": "Open the Architecture Lab to measure a baseline and review the experiment.",
+            "text": "Open the Architecture Lab to run the objective and review its evidence.",
             "architecture": {"prompt": req.prompt, "selection": req.selection},
         }
     if tool == "benchmark":

@@ -13,9 +13,17 @@ from dataclasses import asdict
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
-from . import advisor, architecture_plans as plans, expansion, gre, provision
+from . import (
+    advisor,
+    architecture_plans as plans,
+    expansion,
+    gre,
+    investigations,
+    provision,
+    quality,
+)
 from .benchmarks import DURATION, STREAMS, TRIALS, Lab
 from .controls import authorized, local
 from .incidents import healthy, observe
@@ -39,7 +47,7 @@ class Request(BaseModel):
 
 
 class Objective(BaseModel):
-    objective: Literal["throughput", "gre", "unsupported"]
+    objective: Literal["throughput", "gre", "evaluation", "unsupported"]
 
 
 class Approval(BaseModel):
@@ -136,6 +144,8 @@ class Trace:
 
 
 def error_text(exc):
+    if isinstance(exc, ValidationError):
+        return "The model returned an invalid structured response."
     if isinstance(exc, subprocess.CalledProcessError):
         return (
             f"Tool exited with status {exc.returncode}: "
@@ -228,6 +238,8 @@ def prepare(controller, run):
     try:
         active, spec = current_fabric(controller)
         run["topology"] = spec
+        with trace.tool("Read the installed model revision", model=run["model"]) as event:
+            run["model_revision"] = event["result"] = advisor.model_revision()
         with trace.tool("Interpret objective with the local model", model=run["model"]) as event:
             objective = Objective.model_validate_json(
                 advisor.infer(
@@ -239,7 +251,19 @@ def prepare(controller, run):
             event["result"] = objective
             run["kind"] = objective
         if objective == "unsupported":
-            trace.mark("blocked", "Choose a throughput or GRE design objective for the lab.")
+            trace.mark("blocked", "Choose a throughput, GRE or workflow evaluation objective.")
+            return
+        if objective == "evaluation":
+            run["method"] = {"role": "Alternating paired replay on labeled observations"}
+            report = quality.run_suite(trace, lambda: checkpoint(controller), run["model_revision"])
+            record = investigations.record(
+                controller.db,
+                "reliability evaluation",
+                report["recommendation"],
+                report,
+            )
+            run["quality"] = {**report, "record_id": record["id"]}
+            trace.mark("evaluated", "Paired diagnosis workflow evaluation complete.")
             return
         is_gre = objective == "gre"
         multiplier = None if is_gre else plans.requested_multiplier(run["prompt"])
