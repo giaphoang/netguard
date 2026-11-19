@@ -3,6 +3,7 @@
 import http.client
 import re
 import time
+import unicodedata
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,15 +22,26 @@ class Request(BaseModel):
 
 
 class Intent(BaseModel):
-    tool: Literal["diagnose", "repair", "simulate", "provision", "evaluate", "clarify"]
+    tool: Literal["diagnose", "repair", "simulate", "provision", "evaluate", "risk", "clarify"]
     leaf: int = Field(ge=0, le=4)
     spine: int = Field(ge=0, le=2)
     count: int = Field(ge=0, le=9)
     seconds: int = Field(ge=0, le=600)
 
 
+def spine_risk(prompt):
+    target_pattern = r"\bspines?[\s_\-‐‑‒–—]+(\d+|one|two)\b"
+    targets = {
+        {"one": "1", "two": "2"}.get(name, name) for name in re.findall(target_pattern, prompt)
+    }
+    multiple = re.search(target_pattern + r"(?:\s+(?:and|or)\s+|,\s*)(?:\d+|one|two)\b", prompt)
+    if targets in ({"1"}, {"2"}) and not multiple:
+        return "risk", {"spine": int(targets.pop())}
+    return "risk_clarify", {}
+
+
 def interpret(req):
-    q = req.prompt.lower()
+    q = unicodedata.normalize("NFKC", req.prompt).casefold()
     if "test suite" in q or "compare diagnostic workflows" in q:
         return "benchmark", {}
     if "monitor" in q or "investigation history" in q:
@@ -38,9 +50,10 @@ def interpret(req):
         return "drift", {}
     if "postmortem" in q or "previous incidents" in q:
         return "postmortem", {}
-    target = re.search(r"spine[- ]([12])\b", q)
-    if target and any(word in q for word in ("remove", "removing", "blast radius")):
-        return "risk", {"spine": int(target[1])}
+    if re.search(r"\bspines?\b", q) and re.search(
+        r"\b(?:remov(?:e|ing|al)|decommission(?:ing)?|without|blast radius|take .+ offline)\b", q
+    ):
+        return spine_risk(q)
     if q in {"explain root cause", "why is this connection failing?"} or q.startswith("why "):
         return "diagnose", {}
     if q in {
@@ -73,11 +86,18 @@ def interpret(req):
         return "simulate", {"leaf": leaf, "spine": spine, "seconds": seconds}
     spec = Intent.model_validate_json(
         advisor.infer(
-            "Classify a network operator request. Return tool simulate for a timed link failure, provision for adding BGP leaves, diagnose for questions about connectivity, repair for recovery, evaluate for metrics. Use zero for unspecified numerical fields. For an unspecified target use the graph selection (spine-leaf edge ID). Use clarify for unsupported or ambiguous requests. Do not invent parameters.",
+            "Classify a network operator request. Use risk for a what-if question about losing "
+            "or removing an entire spine router. Use simulate for a timed link failure, provision "
+            "for adding BGP leaves, diagnose for questions about connectivity, repair for recovery, "
+            "and evaluate for metrics. Use zero for unspecified numbers. For an unspecified "
+            "target, use the graph selection (spine-leaf edge ID). Use clarify for unsupported "
+            "or ambiguous requests. Do not invent parameters.",
             req.model_dump(),
             Intent.model_json_schema(),
         )
     )
+    if spec.tool == "risk":
+        return spine_risk(q)
     if spec.tool in {"provision", "simulate"}:
         return "clarify", {}
     return spec.tool, spec.model_dump()
@@ -121,6 +141,8 @@ def operator(req: Request, c=Depends(authorized)):
             }
         if tool == "risk":
             return inv.response(inv.risk(c.db, observe(), args["spine"]))
+        if tool == "risk_clarify":
+            return {"text": "Which single spine should I assess? Specify Spine 1 or Spine 2."}
         if tool == "drift":
             return inv.response(inv.drift(c.db, observe()))
         if tool == "postmortem":

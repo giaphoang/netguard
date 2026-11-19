@@ -7,6 +7,56 @@ from api import operator, provision, measurements
 from api.incidents import Controller
 
 
+@pytest.mark.parametrize(
+    ("target", "spine"),
+    [("Spine 1", 1), ("Spine 2", 2), ("spine‑one", 1), ("spine   ２", 2)],
+)
+def test_spine_removal_returns_targeted_evidence(tmp_path, monkeypatch, target, spine):
+    surviving_peer = "Established" if spine == 2 else "Idle"
+    monkeypatch.setattr(
+        operator,
+        "observe",
+        lambda: {
+            "routers": [
+                {
+                    "name": "leaf-1",
+                    "peers": {"10.211.11.1": "Established", "10.211.21.1": "Idle"},
+                    "routes": "",
+                }
+            ]
+        },
+    )
+    result = operator.operator(
+        operator.Request(prompt=f"What could break if I remove {target}?"),
+        Controller(tmp_path / "journal"),
+    )
+    assert result["text"].startswith(f"Blocked removal of Spine {spine}.")
+    assert result["evidence"]["facts"]["leaf-1"]["surviving_peer"] == surviving_peer
+    assert "action" not in result
+
+
+@pytest.mark.parametrize("target", ["Spine 3", "Spine 1 and Spine 2", "Spine 1 or 2"])
+def test_spine_removal_requests_one_supported_target(target):
+    request = operator.Request(prompt=f"What could break if I remove {target}?")
+    assert operator.interpret(request) == ("risk_clarify", {})
+
+
+def test_model_risk_intent_uses_spine_named_by_operator(monkeypatch):
+    monkeypatch.setattr(
+        operator.advisor,
+        "infer",
+        lambda *_: '{"tool":"risk","leaf":0,"spine":2,"count":0,"seconds":0}',
+    )
+    assert operator.interpret(operator.Request(prompt="Suppose Spine One disappears")) == (
+        "risk",
+        {"spine": 1},
+    )
+    assert operator.interpret(operator.Request(prompt="Suppose the router disappears")) == (
+        "risk_clarify",
+        {},
+    )
+
+
 def test_exact_targets_and_duration():
     tool, args = operator.interpret(
         operator.Request(prompt="Simulate a Leaf 1 → Spine 2 link failure for 30 seconds.")
