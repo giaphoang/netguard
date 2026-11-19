@@ -630,7 +630,7 @@ function App() {
             </div>
           )}
           <div className="canvas">
-            <ReactFlow
+            {page === "Command Center" && <ReactFlow
               nodes={nodes}
               edges={edges}
               colorMode="dark"
@@ -663,7 +663,7 @@ function App() {
                 />
               )}
               <Background gap={18} size={1.4} color="var(--topology-grid)" />
-            </ReactFlow>
+            </ReactFlow>}
           </div>
           <div className="legend">
             <span>● Healthy</span>
