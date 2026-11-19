@@ -257,28 +257,6 @@ pre {
 a {
   color: #246c57;
 }
-.impact-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-.impact-grid div {
-  padding: 10px;
-  background: #f2f3f4;
-  border-radius: 7px;
-}
-.impact-grid b {
-  display: block;
-}
-.bar {
-  background: #6390ed;
-  height: 9px;
-  border-radius: 5px;
-  min-width: 1px;
-}
-.bar.ai {
-  background: #63bb83;
-}
 nav {
   flex-wrap: wrap;
 }
@@ -636,9 +614,6 @@ form button {
 .timeline p {
   padding: 0 14px;
 }
-main:not([data-page="AI Impact"]) .impact {
-  display: none;
-}
 main:not([data-page="Command Center"]) .kpis,
 main:not([data-page="Command Center"]) .timeline {
   display: none;
@@ -655,13 +630,7 @@ main[data-page="Provisioning"] .fabric {
 main[data-page="AI Impact"] .operator {
   border: 0;
   background: none;
-}
-.impact {
-  margin: 0;
-  padding: 16px;
-}
-.impact-grid {
-  margin: 12px 0;
+  overflow: visible;
 }
 main:not([data-page="Diagnostics"]) .inspection:not([open]),
 main:not([data-page="Incidents"]) .incident-drawer:not([open]),
@@ -812,11 +781,6 @@ main[data-page="Incidents"] .incident-drawer { display:block; }
 @media(max-width:760px) { main[data-page="Command Center"] .workspace,.case-workspace,.topology-compare { grid-template-columns:1fr; } .monitor-notice { flex-wrap:wrap; } main[data-page="Command Center"] .canvas { height:320px; } main[data-page="Command Center"] .operator { position:static; } }
 .case-list { max-height:72vh;overflow:auto; }
 .case-detail { align-self:start; }
-.evaluation-result { border:1px solid #dbe4f5;border-radius:10px;padding:14px;margin:16px 0;background:#fff; }
-.table-scroll { overflow-x:auto; }
-.evaluation-result table { width:100%;border-collapse:collapse;font-size:12px; }
-.evaluation-result th,.evaluation-result td { text-align:left;padding:12px 8px;border-bottom:1px solid #e4eaf4; }
-.evaluation-result th { color:#52658c; }
 
 .chat-panel {
   display: grid;

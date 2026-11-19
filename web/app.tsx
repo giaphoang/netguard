@@ -553,7 +553,7 @@ function App() {
         <main data-page={page}>
           <div className="page-title">
             <div>
-              <small>Network intelligence</small>
+              {page !== "AI Impact" && <small>Network intelligence</small>}
               <h1>{page}</h1>
               <p>
                 {
@@ -561,7 +561,7 @@ function App() {
                     "Command Center":
                       "Observe the fabric. Ask AI to investigate. Validate every action.",
                     "AI Impact":
-                      "Measured outcomes from manual and AI-assisted operations.",
+                      "Recorded workflow timings, recovery outcomes and AI reliability evaluations.",
                     Diagnostics:
                       "Inspect routing state, link counters and host probes.",
                     Provisioning: "Preview, approve and verify fabric changes.",

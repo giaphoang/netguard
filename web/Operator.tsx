@@ -13,8 +13,8 @@ import {
   planSteps,
 } from "./ChatDetails";
 import type { Evidence, Plan, PlanAction, Step } from "./ChatDetails";
-import { duration, WorkflowImpact } from "./WorkflowImpact";
-import type { Impact } from "./WorkflowImpact";
+import { ImpactDashboard } from "./ImpactDashboard";
+import { duration, type Impact } from "./impactData";
 
 type Answer = {
   text: string;
@@ -56,6 +56,7 @@ type Props = {
 };
 
 const benchmarkPrompt = "Evaluate the AI operator against our incident test suite.";
+const progressMediaType = "application/x-ndjson";
 const errorText = (e: unknown) => e instanceof Error && e.message ? e.message : "Operator request failed.";
 
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -64,13 +65,14 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   return response.json();
 }
 
-async function post(path: string, body: object = {}) {
+async function post(path: string, body: object = {}, accept = "application/json") {
   const session = await fetch("/api/session", { cache: "no-store" });
   if (!session.ok) throw Error("The live NetGuard session is unavailable.");
   const { token } = await session.json();
   const response = await fetch("/api/" + path, {
     method: "POST",
     headers: {
+      Accept: accept,
       "Content-Type": "application/json",
       "X-NetGuard-Session": token,
     },
@@ -83,8 +85,16 @@ async function post(path: string, body: object = {}) {
   return response;
 }
 
-async function readAnswer(prompt: string, selection: string, onStep: (step: Step) => void) {
-  const response = await post("operator/stream", { prompt, selection });
+async function readAnswer(prompt: string, selection: string, onStep: (step: Step) => void): Promise<Answer> {
+  const response = await post("operator", { prompt, selection }, progressMediaType);
+  const mediaType = response.headers.get("content-type")?.split(";", 1)[0];
+  if (mediaType === "application/json") {
+    const answer: Answer = await response.json();
+    // JSON-only controllers identify repairs by their approval path.
+    answer.incident_id ??= /^incidents\/([^/]+)\/approve$/.exec(answer.action ?? "")?.[1];
+    return answer;
+  }
+  if (mediaType !== progressMediaType) throw Error("The Agent returned an unexpected response.");
   const reader = response.body?.getReader();
   if (!reader) throw Error("The Agent response is unavailable.");
 
@@ -115,7 +125,6 @@ export function Operator({
 }: Props) {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [impact, setImpact] = useState<Impact>();
   const [plans, setPlans] = useState<Record<string, Plan>>({});
   const [currentPlanId, setCurrentPlanId] = useState<string>();
   const [incidents, setIncidents] = useState<Record<string, IncidentRecord>>({});
@@ -208,22 +217,6 @@ export function Operator({
     });
   }, [run]);
 
-  useEffect(() => {
-    if (!live || page !== "AI Impact") return;
-    const controller = new AbortController();
-    const poll = () => {
-      get<Impact>("impact", controller.signal)
-        .then((value) => { if (!controller.signal.aborted) setImpact(value); })
-        .catch(() => {});
-    };
-    poll();
-    const timer = setInterval(poll, 3000);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [live, page]);
-
   function patchTurn(id: number, change: Partial<Turn> | ((turn: Turn) => Partial<Turn>)) {
     setTurns((previous) => previous.map((turn) => turn.id === id
       ? { ...turn, ...(typeof change === "function" ? change(turn) : change) }
@@ -272,7 +265,6 @@ export function Operator({
       if (answer.impact) {
         startStep(id, "Read recorded workflow measurements");
         measurements = await get<Impact>("impact").catch(() => undefined);
-        if (measurements) setImpact(measurements);
       }
       if (answer.plan) {
         planRead.current += 1;
@@ -367,7 +359,7 @@ export function Operator({
     : undefined;
 
   return (
-    <section className="operator" aria-label="NetGuard Agent">
+    <section className="operator" aria-label={page === "AI Impact" ? undefined : "NetGuard Agent"}>
       <div className="chat-panel">
         <div className="operator-head">
           <b className="op-icon" aria-hidden="true">✳</b>
@@ -527,8 +519,7 @@ export function Operator({
         </div>
       )}
       {page === "AI Impact" && (
-        <WorkflowImpact
-          impact={impact}
+        <ImpactDashboard
           busy={busy}
           live={live}
           evaluating={evaluating}

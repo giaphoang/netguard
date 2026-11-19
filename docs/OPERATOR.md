@@ -7,7 +7,7 @@ Open the Ubuntu dashboard through its SSH tunnel at `http://127.0.0.1:3001`, or 
 - **Command Center:** live React Flow topology, packet-counter activity, route animation, proactive notifications and a compact NetGuard Agent panel. Select a link before simulating a fault or asking about it.
 - **Provisioning:** enter a change request, compare the current and proposed graph, review the configuration diff and risk, then approve. Watch deployment and verification; **Roll back this change** restores the previous topology.
 - **Incidents:** search investigations by device, finding or status. Open a case for its diagnosis, observations and actual tool timeline. Full timestamped evidence is collapsed. Use the controller controls for approvals, escalation, manual benchmarks and emergency stop.
-- **AI Impact:** inspect measured durations, sample counts and supporting experiment records. A dash means the comparison or baseline is missing.
+- **AI Impact:** switch between diagnosis, recovery and provisioning timings. Select a bar to open its timestamped runs and full journal records. Filter the experiment table by workflow stage, recovery mechanism, or text. The matched comparison appears when both workflows have samples from the same conditions. Choose an evaluation run to compare workflow versions on its labeled cases.
 
 ## Recruiter workflows
 
