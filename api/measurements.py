@@ -137,7 +137,22 @@ def outcome(run):
     return "human_reset"
 
 
-def impact(db):
+def provision_topologies(plans):
+    from .expansion import names, spec
+
+    topologies = []
+    for plan in plans:
+        topology = spec(plan)
+        recorded = {
+            "routers": [name for name in names(topology) if not name.startswith("host-")],
+            "hosts": topology["hosts"],
+        }
+        if recorded not in topologies:
+            topologies.append(recorded)
+    return topologies
+
+
+def impact(db, include_evidence=False):
     """Matched medians require the same fabric, fault, timing and approval policy."""
     groups = {}
     diagnosed = evaluated = rejected = escalated = verified = attempted = 0
@@ -145,8 +160,22 @@ def impact(db):
     required_handoffs = correct_handoffs = 0
     provisions = {}
     records = summaries(db)
+    outcomes = Counter()
+    outcome_evidence = {}
     for r in records:
+        recorded_outcome = outcome(r)
+        outcomes[recorded_outcome] += 1
         kind = "assisted" if r.get("ai") else "manual" if r.get("manual") else None
+        run = {
+            "at": r["events"][-1]["time"] if r.get("events") else 0,
+            "task": r["scenario"],
+            "mode": kind or "rule",
+            "outcome": recorded_outcome,
+            "seconds": r.get("metrics", {}).get("closure_s"),
+        }
+        if include_evidence:
+            run["url"] = "/api/incidents/" + r["id"]
+            outcome_evidence.setdefault(recorded_outcome, []).append(run)
         if not kind:
             continue
         decision = (r.get("review") or {}).get("decision") or {}
@@ -174,15 +203,7 @@ def impact(db):
         if r.get("attempts"):
             attempted += r["attempts"]
             verified += r["phase"] == "resolved"
-        recent.append(
-            {
-                "at": r["events"][-1]["time"] if r["events"] else 0,
-                "task": r["scenario"],
-                "mode": kind,
-                "outcome": outcome(r),
-                "seconds": r["metrics"].get("closure_s"),
-            }
-        )
+        recent.append(run)
         if "baseline_routers" not in r:
             continue
         key = (
@@ -192,33 +213,44 @@ def impact(db):
             tuple(r["baseline_routers"]),
             r["auto"],
             r.get("duration"),
-            "repair" if outcome(r) in {"ai_repair", "manual_repair", "rule_repair"} else outcome(r),
+            "repair"
+            if recorded_outcome in {"ai_repair", "manual_repair", "rule_repair"}
+            else recorded_outcome,
         )
         group = groups.setdefault(key, {"manual": {}, "assisted": {}})[kind]
         if r.get("first_signal_at") and r.get("diagnosed_at"):
             group.setdefault("Diagnosis", []).append(
-                max(0, r["diagnosed_at"] - r["first_signal_at"])
+                (max(0, r["diagnosed_at"] - r["first_signal_at"]), run)
             )
         if "traffic_recovery_s" in r["metrics"]:
-            group.setdefault("Routing failover", []).append(r["metrics"]["traffic_recovery_s"])
+            group.setdefault("Routing failover", []).append((r["metrics"]["traffic_recovery_s"], run))
         if r["phase"] == "resolved" and "closure_s" in r["metrics"]:
-            group.setdefault("Verified closure", []).append(r["metrics"]["closure_s"])
+            group.setdefault("Verified closure", []).append((r["metrics"]["closure_s"], run))
     rows = []
     for key, modes in groups.items():
         for metric in ("Diagnosis", "Routing failover", "Verified closure"):
             a, b = (modes[k].get(metric, []) for k in ("manual", "assisted"))
             if a or b:
-                rows.append(
-                    {
-                        "metric": metric,
-                        "scenario": f"{key[0]} · L{key[1]} / S{key[2]} · {len(key[3])} routers · {'automatic' if key[4] else 'approval'}"
-                        + (f" · {key[5]}s" if key[5] else "")
-                        + f" · {key[6]}",
-                        "manual": median(a) if a else None,
-                        "assisted": median(b) if b else None,
-                        "n": [len(a), len(b)],
+                row = {
+                    "metric": metric,
+                    "scenario": f"{key[0]} · L{key[1]} / S{key[2]} · {len(key[3])} routers · {'automatic' if key[4] else 'approval'}"
+                    + (f" · {key[5]}s" if key[5] else "")
+                    + f" · {key[6]}",
+                    "manual": median(seconds for seconds, _ in a) if a else None,
+                    "assisted": median(seconds for seconds, _ in b) if b else None,
+                    "n": [len(a), len(b)],
+                }
+                if include_evidence:
+                    row["evidence"] = {
+                        "scenario": key[0],
+                        "leaf": key[1],
+                        "spine": key[2],
+                        "simulation_seconds": key[5],
+                        "approval": "automatic" if key[4] else "approval",
+                        "topologies": [{"routers": list(key[3])}],
+                        "runs": [{**run, "seconds": seconds} for seconds, run in [*a, *b]],
                     }
-                )
+                rows.append(row)
     with sqlite3.connect(db) as conn:
         for (raw,) in conn.execute("SELECT data FROM expansions ORDER BY rowid"):
             p = json.loads(raw)
@@ -226,29 +258,36 @@ def impact(db):
             if any(e["phase"] == "applying" for e in p["events"]):
                 attempted += 1
                 verified += end is not None
-                recent.append(
-                    {
-                        "at": p["events"][-1]["time"],
-                        "task": "Provisioning",
-                        "mode": "assisted",
-                        "outcome": p["phase"],
-                        "seconds": end - p["started"] if end else None,
-                    }
-                )
+                run = {
+                    "at": p["events"][-1]["time"],
+                    "task": "Provisioning",
+                    "mode": "assisted",
+                    "outcome": p["phase"],
+                    "seconds": end - p["started"] if end else None,
+                }
+                if include_evidence:
+                    run["url"] = "/api/provision/" + p["id"]
+                recent.append(run)
                 if end:
                     provisions.setdefault(
                         ", ".join(p.get("added", [f"leaf-{n}" for n in p["leaves"]])), []
-                    ).append(end - p["started"])
-    for size, times in provisions.items():
-        rows.append(
-            {
-                "metric": "Provisioning",
-                "scenario": size,
-                "manual": None,
-                "assisted": median(times),
-                "n": [0, len(times)],
+                    ).append((run, p))
+    for size, samples in provisions.items():
+        row = {
+            "metric": "Provisioning",
+            "scenario": size,
+            "manual": None,
+            "assisted": median(run["seconds"] for run, _ in samples),
+            "n": [0, len(samples)],
+        }
+        if include_evidence:
+            row["evidence"] = {
+                "scenario": "provisioning",
+                "approval": "approval",
+                "topologies": provision_topologies(plan for _, plan in samples),
+                "runs": [run for run, _ in samples],
             }
-        )
+        rows.append(row)
     matched = [
         r["manual"] - r["assisted"]
         for r in rows
@@ -318,7 +357,7 @@ def impact(db):
             ],
         }
     )
-    return {
+    result = {
         "evaluations": [
             {
                 "id": r["id"],
@@ -345,7 +384,7 @@ def impact(db):
             }
             for r in evaluations
         ],
-        "outcomes": dict(Counter(outcome(r) for r in records)),
+        "outcomes": dict(outcomes),
         "kpis": kpis,
         "investigations": [
             {"kind": r["kind"], "text": r["text"], "url": "/api/investigations/" + r["id"]}
@@ -363,3 +402,6 @@ def impact(db):
         "correct_handoffs": correct_handoffs,
         "recent": sorted(recent, key=lambda row: row["at"], reverse=True)[:8],
     }
+    if include_evidence:
+        result["outcome_evidence"] = outcome_evidence
+    return result

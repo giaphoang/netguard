@@ -331,10 +331,10 @@ def fabric_metrics():
 
 
 @app.get("/api/impact")
-def impact():
+def impact(evidence: bool = False):
     if REPLAY:
         return {"recorded": True}
-    return measurements.impact(DB)
+    return measurements.impact(DB, include_evidence=evidence)
 
 
 @app.get("/api/comparison")
