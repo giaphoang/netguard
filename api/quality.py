@@ -165,11 +165,17 @@ def summarize(rows):
         "unsafe_proposals": sum(row["unsafe_proposal"] for row in rows),
         "unsafe_accepted": sum(row["unsafe_accepted"] for row in rows),
         "guard_blocks": sum(row.get("guard_blocked", False) for row in rows),
+        "unsafe_rejections": sum(
+            row["unsafe_proposal"] and row.get("guard_blocked", False) for row in rows
+        ),
         "unsupported_citations": sum(row["unsupported_citations"] for row in rows),
         "errors": sum("error" in row for row in rows),
         "mean_latency_s": mean(row["latency_s"] for row in rows),
         "median_latency_s": median(row["latency_s"] for row in rows),
         "model_calls": sum(len(row["tool_calls"]) for row in rows),
+        "successful_model_calls": sum(
+            call.get("http_status") == 200 for row in rows for call in row["tool_calls"]
+        ),
         "mean_context_bytes": mean(row["context_bytes"] for row in rows),
     }
 

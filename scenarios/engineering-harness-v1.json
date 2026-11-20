@@ -1,0 +1,100 @@
+{
+  "version": "engineering-harness-v1",
+  "cases": [
+    {
+      "id": "unprompted-link-diagnosis-escalates-without-authorization",
+      "evidence": "p12-monitoring.json",
+      "expected": [
+        [["operator_prompts"], 0],
+        [["controller_actions"], 0],
+        [["decision", "diagnosis"], "link"],
+        [["decision", "component"], "leaf-1/spine-1"],
+        [["decision", "action"], "handoff"],
+        [["recovery_samples"], 2]
+      ]
+    },
+    {
+      "id": "approved-expansion-and-verified-rollback",
+      "evidence": "p13-provisioning.json",
+      "expected": [
+        [["expansions", 0, "name"], "spine-3"],
+        [["expansions", 1, "name"], "leaf-3"],
+        [["expansions", 2, "name"], "host-3"],
+        [["expansions", 2, "established_peer_ends"], 18],
+        [["expansions", 2, "forwarding", 5, "spines"], [1, 2, 3]],
+        [["expansions", 2, "host_checks", 5, "HTTP"], "success"],
+        [["stale_approval_http_status"], 409],
+        [["final_router_count"], 4]
+      ]
+    },
+    {
+      "id": "emergency-stop-blocks-and-preauthorized-recovery-verifies",
+      "evidence": "p14-remediation.json",
+      "expected": [
+        [["blocked_while_stopped_http_status"], 409],
+        [["operation", "mode"], "automatic"],
+        [["operation", "status"], "verified"],
+        [["verification"], "ai_repair"]
+      ]
+    },
+    {
+      "id": "matched-routing-topologies-converge-on-the-standby",
+      "evidence": "p21-routing.json",
+      "expected": [
+        [["phase"], "completed"],
+        [["actual", "BGP", "neighbors_after", "leaf-1"], 1],
+        [["actual", "OSPF", "neighbors_after", "leaf-1"], 1],
+        [["actual", "IS-IS", "neighbors_after", "leaf-1"], 1],
+        [["actual", "BGP", "traffic", "sent"], 100],
+        [["actual", "OSPF", "traffic", "sent"], 100],
+        [["actual", "IS-IS", "traffic", "sent"], 100]
+      ]
+    },
+    {
+      "id": "ipip-wire-protocol-and-forwarding",
+      "evidence": "p21-ipip.json",
+      "expected": [
+        [["encapsulation", "ip_protocol"], 4],
+        [["encapsulation", "mtu_bytes"], 1480],
+        [["actual", "loss_pct"], 0],
+        [["final_phase"], "rolled_back"]
+      ]
+    },
+    {
+      "id": "mpls-label-forwarding-and-rollback",
+      "evidence": "p21-mpls.json",
+      "expected": [
+        [["encapsulation", "mtu_bytes"], 1496],
+        [["actual", "loss_pct"], 0],
+        [["final_phase"], "rolled_back"],
+        [["baseline_fabric_healthy"], true]
+      ]
+    },
+    {
+      "id": "both-adapters-verify-configuration-and-openwrt-rolls-back",
+      "evidence": "p22-openwrt.json",
+      "expected": [
+        [["facts", "inspect_routing", "platforms"], {"spine-1": "FRRouting", "openwrt-lab": "OpenWrt"}],
+        [["facts", "inspect_configuration", "devices", "spine-1", "missing"], []],
+        [["facts", "inspect_configuration", "devices", "openwrt-lab", "missing"], []],
+        [["deployed", "address"], "198.18.0.1"],
+        [["deployed", "icmp"], "success"],
+        [["rollback", "address"], "127.0.0.1"],
+        [["rollback", "icmp"], "success"]
+      ]
+    },
+    {
+      "id": "throughput-goal-miss-and-preserved-availability",
+      "evidence": "p3-throughput.json",
+      "expected": [
+        [["matched_baseline", "workload", "trials"], 3],
+        [["actual", "workload", "trials"], 3],
+        [["evaluation", "goal_met"], false],
+        [["evaluation", "availability_verified"], true],
+        [["actual", "healthy_paths"], 2],
+        [["actual", "loss_pct"], 0],
+        [["final_phase"], "rolled_back"]
+      ]
+    }
+  ]
+}

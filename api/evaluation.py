@@ -5,12 +5,14 @@ import http.client
 import json
 import time
 from copy import deepcopy
+from functools import reduce
+from operator import getitem
 
 from . import advisor, intents, investigations, topology
 from .monitoring import Rules, detect
 from .presets import ROOT
 
-VERSION = "p3-suite-v1"
+VERSION = "engineering-harness-v1"
 
 
 def diagnostics():
@@ -118,7 +120,13 @@ def intent_cases():
             None,
             None,
         ),
-        ("Add two leaves connected to every spine.", {"provision"}, [], "leaf", 2),
+        (
+            "Add two leaves connected to every spine.",
+            {"provision"},
+            ["spine-1", "spine-2", "spine-3"],
+            "leaf",
+            2,
+        ),
         ("Provision another spine with appropriate BGP neighbors.", {"provision"}, [], "spine", 1),
         ("Add a host under Leaf 2.", {"provision"}, ["leaf-2"], "host", 1),
         ("Investigate the most unstable BGP peer.", {"diagnose"}, [], None, None),
@@ -191,6 +199,42 @@ def legacy_assess(observation):
 
 
 VERSIONS = ["schema-only-baseline", "fabric-triage-v5", advisor.VERSION]
+
+
+def recorded_checks():
+    manifest = json.loads((ROOT / "scenarios" / (VERSION + ".json")).read_text())
+    if manifest["version"] != VERSION:
+        raise ValueError("The engineering harness evidence manifest version changed.")
+    for case in manifest["cases"]:
+        path = ROOT / "docs/proof/harness" / case["evidence"]
+        data = path.read_bytes()
+        evidence = json.loads(data)
+        checks = []
+        for keys, expected in case["expected"]:
+            try:
+                actual = reduce(getitem, keys, evidence)
+            except (KeyError, IndexError, TypeError):
+                checks.append(
+                    {"path": keys, "expected": expected, "passed": False, "status": "missing"}
+                )
+            else:
+                checks.append(
+                    {
+                        "path": keys,
+                        "expected": expected,
+                        "actual": actual,
+                        "passed": actual == expected,
+                    }
+                )
+        yield {
+            "id": case["id"],
+            "kind": "recorded verification",
+            "version": VERSION,
+            "origin": str(path.relative_to(ROOT)),
+            "observation_sha256": hashlib.sha256(data).hexdigest(),
+            "passed": all(check["passed"] for check in checks),
+            "checks": checks,
+        }
 
 
 def assess_suite(db=None):
@@ -323,6 +367,27 @@ def assess_suite(db=None):
             "tool_calls": [{"tool": "configuration.diff", "result": delta}],
         }
     )
+    custom = expanded()
+    for router in custom["routers"]:
+        if router["name"] == "spine-3":
+            router.update(name="core-east-9", kind="spine", aliases=["East Spine"])
+    graph = topology.inventory(custom)
+    resolved = topology.resolve("East Spine", graph)
+    spines = topology.group("all spines", graph, custom)
+    rows.append(
+        {
+            "id": "site-specific router name on the six-router fabric",
+            "kind": "topology",
+            "version": VERSION,
+            "origin": "Renamed spine in the recorded expansion fixture",
+            "passed": resolved == "core-east-9"
+            and set(spines) == {"spine-1", "spine-2", "core-east-9"},
+            "result": {"resolved": resolved, "spines": spines},
+            "tool_calls": [{"tool": "topology.resolve"}],
+        }
+    )
+    recorded = list(recorded_checks())
+    rows.extend(recorded)
     summary = {}
     for version in VERSIONS:
         group = [r for r in rows if r["kind"] == "diagnosis" and r["version"] == version]
@@ -334,12 +399,20 @@ def assess_suite(db=None):
             "unsupported_citations": sum(r["unsupported_citations"] for r in group),
             "mean_latency_s": sum(r["latency_s"] for r in group) / len(group),
             "model_calls": sum(len(r["tool_calls"]) for r in group),
+            "successful_model_calls": sum(
+                call.get("http_status") == 200 for r in group for call in r["tool_calls"]
+            ),
+            "validated_decisions": sum("decision" in r for r in group),
         }
     report = {
         "suite": VERSION,
         "model": advisor.model_name(),
         "observed": time.time(),
         "summary": summary,
+        "recorded_verification": {
+            "passed": sum(row["passed"] for row in recorded),
+            "cases": len(recorded),
+        },
         "results": rows,
         "workflows": {
             "schema-only-baseline": "Same instruction and observations, JSON schema only; not the shipped P2 controller",

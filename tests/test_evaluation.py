@@ -56,6 +56,8 @@ def test_evaluation_pairs_identical_evidence_and_counts_failures(monkeypatch):
     assert [r["observation_sha256"] for r in first] == [r["observation_sha256"] for r in second]
     assert report["summary"][advisor.VERSION]["diagnosis_correct"] < 8
     assert all(r["passed"] for r in report["results"] if r["kind"] in {"policy", "detector"})
+    assert report["recorded_verification"]["passed"] == report["recorded_verification"]["cases"]
+    assert next(r for r in report["results"] if r["kind"] == "topology")["passed"]
 
 
 def test_reset_after_failed_automatic_action_is_not_ai_repair():
