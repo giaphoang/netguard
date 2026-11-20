@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import advisor, capacity, network_tools, protocol_study, topology
+from . import adapters, advisor, capacity, network_tools, protocol_study, topology
 
 VERSION = "topology-intent-v11"
 WORKFLOWS = {
@@ -124,6 +124,7 @@ def explicit_inspections(text):
                 r"\b(?:topology|inventory|interfaces?|addresses?|busiest leaf|traffic counters?|links?)\b",
             ),
             ("inspect_routing", r"\b(?:bgp|ospf|is is|isis|routing|routes?|neighbors?|peers?)\b"),
+            ("inspect_configuration", r"\b(?:config|configuration)\b"),
             (
                 "inspect_connectivity",
                 r"\b(?:icmp|tcp|http|ping|probes?|reachability|connectivity)\b",
@@ -155,7 +156,10 @@ def interpret(prompt, selection, sample):
     requested_tools = explicit_inspections(text)
     schema = Intent.model_json_schema()
     choices = list(WORKFLOWS)
-    if requested_tools:
+    if adapters.wants_loopback_change(prompt):
+        choices = ["design_network_experiment"]
+        requested_tools = []
+    elif requested_tools:
         choices = [
             "detect_configuration_drift"
             if requested_tools == ["inspect_configuration"]

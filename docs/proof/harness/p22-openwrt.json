@@ -1,0 +1,82 @@
+{
+  "request": "Inspect kernel routing and configuration on Spine 1 and OpenWrt.",
+  "facts": {
+    "inspect_routing": {
+      "observed": 1795133189.4691427,
+      "devices": {
+        "spine-1": {
+          "bgp": {
+            "status": "observed",
+            "data": {
+              "10.211.11.2": "Established",
+              "10.211.12.2": "Established"
+            }
+          },
+          "kernel": {
+            "status": "observed",
+            "data": "10.211.11.0/28 dev eth0 proto kernel scope link src 10.211.11.1 \n10.211.12.0/28 dev eth1 proto kernel scope link src 10.211.12.1 \n10.212.1.0/28 nhid 8 via 10.211.11.2 dev eth0 proto bgp metric 20 \n10.212.2.0/28 nhid 7 via 10.211.12.2 dev eth1 proto bgp metric 20"
+          }
+        },
+        "openwrt-lab": {
+          "bgp": {
+            "status": "unavailable",
+            "data": null
+          },
+          "kernel": {
+            "status": "observed",
+            "data": "local 127.0.0.0/8 dev lo scope host  src 127.0.0.1 \nlocal 127.0.0.1 dev lo scope host  src 127.0.0.1 \nbroadcast 127.255.255.255 dev lo scope link  src 127.0.0.1"
+          }
+        }
+      },
+      "platforms": {
+        "spine-1": "FRRouting",
+        "openwrt-lab": "OpenWrt"
+      }
+    },
+    "inspect_configuration": {
+      "observed": 1795133190.522939,
+      "devices": {
+        "spine-1": {
+          "status": null,
+          "missing": [],
+          "unexpected": [],
+          "scope": "mounted BGP statements"
+        },
+        "openwrt-lab": {
+          "status": null,
+          "missing": [],
+          "unexpected": [],
+          "scope": "UCI loopback addresses"
+        }
+      }
+    }
+  },
+  "plan_revision": "615f73ac8446213e71327879eed61e63748a401795e05f1c9aa9ab728f18fad2",
+  "id": "06b31354604140f6807ec2869330af47",
+  "stale_approval_status": 409,
+  "deployed": {
+    "configuration": {
+      "scope": "UCI loopback addresses",
+      "missing": [],
+      "unexpected": []
+    },
+    "address": "198.18.0.1",
+    "icmp": "success",
+    "routes": "local 127.0.0.0/8 dev lo scope host  src 127.0.0.1 \nlocal 127.0.0.1 dev lo scope host  src 127.0.0.1 \nbroadcast 127.255.255.255 dev lo scope link  src 127.0.0.1 \nlocal 198.18.0.1 dev lo scope host  src 198.18.0.1"
+  },
+  "rollback": {
+    "configuration": {
+      "scope": "UCI loopback addresses",
+      "missing": [],
+      "unexpected": []
+    },
+    "address": "127.0.0.1",
+    "icmp": "success",
+    "routes": "local 127.0.0.0/8 dev lo scope host  src 127.0.0.1 \nlocal 127.0.0.1 dev lo scope host  src 127.0.0.1 \nbroadcast 127.255.255.255 dev lo scope link  src 127.0.0.1"
+  },
+  "memory_usage": "460KiB / 64MiB",
+  "native_architecture": "linux/arm64",
+  "release": "OpenWrt 24.10.7",
+  "rootfs_sha256": "3eaefd63c6111d11457dee5c726a8259e7b03d0165def94aebc6c95066adf655",
+  "final_frr_fabric_healthy": true
+}

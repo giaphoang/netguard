@@ -52,7 +52,7 @@ def managed_links(spec):
 
 
 def inventory(sample):
-    routers = {r["name"]: r for r in sample["routers"]}
+    routers = {r["name"]: r for r in [*sample["routers"], *sample.get("adapter_devices", [])]}
     hosts = {h["name"]: h for h in sample.get("hosts", [])}
     for flow in sample.get("flows", []):
         hosts.setdefault(f"host-{flow['source']}", {})
@@ -81,6 +81,7 @@ def inventory(sample):
                 "interfaces": ports,
                 "address": row.get("address"),
                 "error": row.get("error"),
+                "vendor": row.get("vendor", "Linux" if kind == "host" else "FRRouting"),
             }
         )
         for port, info in ports.items():
@@ -167,6 +168,8 @@ def group(text, graph, sample):
     for aliases, kind in [("spines?", "spine"), ("leaf|leaves", "leaf"), ("hosts?", "host")]:
         if re.search(rf"\b(?:all|every|each) (?:the )?(?:{aliases})\b", text):
             selected.extend(node["id"] for node in graph["nodes"] if node["kind"] == kind)
+    if re.search(r"\b(?:all|every|each) (?:the )?routers?\b", text):
+        selected.extend(node["id"] for node in graph["nodes"] if node["kind"] != "host")
     if re.search(r"\bbusiest leaf\b", text):
         selected.append(busiest_leaf(graph, sample.get("traffic", {})))
     return list(dict.fromkeys(selected))

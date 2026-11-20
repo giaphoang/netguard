@@ -17,6 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, ValidationError
 
 from . import (
+    adapters,
     advisor,
     architecture_plans as plans,
     expansion,
@@ -52,7 +53,7 @@ class Request(BaseModel):
 
 
 class Objective(BaseModel):
-    objective: Literal["throughput", "gre", "ipip", "mpls", "evaluation", "unsupported"]
+    objective: Literal["throughput", "gre", "ipip", "mpls", "openwrt", "evaluation", "unsupported"]
 
 
 def objective_schema(prompt):
@@ -64,6 +65,10 @@ def objective_schema(prompt):
     workflow = re.search(r"\b(?:prompt|retrieval|diagnosis workflow|model)\b", prompt, re.I)
     if requested and not workflow:
         schema["properties"]["objective"]["enum"] = [*requested, "unsupported"]
+    elif adapters.wants_loopback_change(prompt):
+        schema["properties"]["objective"]["enum"] = ["openwrt"]
+    else:
+        schema["properties"]["objective"]["enum"].remove("openwrt")
     return schema
 
 
@@ -289,6 +294,19 @@ def prepare(controller, run):
             )
             run["quality"] = {**report, "record_id": record["id"]}
             trace.mark("evaluated", "Paired diagnosis workflow evaluation complete.")
+            return
+        if objective == "openwrt":
+            with trace.tool("Validate the pinned OpenWrt runtime and preview UCI") as event:
+                identity, plan = adapters.OPENWRT.preview()
+                run.update(
+                    scope={"identity": identity},
+                    plan=plan,
+                    endpoints=[adapters.OPENWRT_NODE],
+                    baseline={},
+                )
+                event["result"] = plan
+            run.update(digest=digest(run), expires=time.time() + PREVIEW_TTL)
+            trace.mark("preview", "Review the isolated OpenWrt loopback configuration.")
             return
         encapsulated = objective in gre.TUNNELS or objective == "mpls"
         multiplier = None if encapsulated else plans.requested_multiplier(run["prompt"])
@@ -521,6 +539,20 @@ def verdict(run):
 def apply(controller, run):
     trace = Trace(controller.db, run)
     try:
+        if run["kind"] == "openwrt":
+            trace.stage = "Implement and verify"
+            with trace.tool(
+                "Apply UCI loopback and verify kernel forwarding", node=adapters.OPENWRT_NODE
+            ) as event:
+                run["verification"] = event["result"] = adapters.OPENWRT.configure(
+                    run["scope"]["identity"],
+                    lambda node: begin_change(controller, run, trace, node),
+                )
+            checkpoint(controller)
+            trace.mark(
+                "verified", "OpenWrt UCI, the kernel route, and loopback ICMP passed verification."
+            )
+            return
         active, spec = current_fabric(controller)
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
         kind = run["kind"]
@@ -585,6 +617,15 @@ def restore(controller, run, trace):
     trace.stage = "Rollback"
     trace.mark("rolling_back", "Restoring the recorded configuration.")
     try:
+        if run["kind"] == "openwrt":
+            with trace.tool(
+                "Restore OpenWrt UCI and loopback state", node=adapters.OPENWRT_NODE
+            ) as event:
+                run["rollback_verification"] = event["result"] = adapters.OPENWRT.restore(
+                    run["scope"]["identity"]
+                )
+            trace.mark("rolled_back", "Restored and verified the previous OpenWrt loopback.")
+            return
         active, spec = current_fabric(controller)
         pair = tuple(plans.Endpoint(**row) for row in run["endpoints"])
         kind = run["kind"]

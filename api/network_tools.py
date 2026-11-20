@@ -1,7 +1,5 @@
 """Typed operations over the managed fabric. Only inspection tools reach the model."""
 
-import json
-import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -10,7 +8,7 @@ from typing import Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from . import expansion, investigations, provision, topology
+from . import adapters, expansion, provision, topology
 
 Inspection = Literal[
     "inspect_topology", "inspect_routing", "inspect_connectivity", "inspect_configuration"
@@ -19,7 +17,6 @@ RoutingProtocol = Literal["bgp", "kernel", "ospf", "isis"]
 ProbeProtocol = Literal["ICMP", "TCP", "HTTP"]
 ProbeState = Literal["success", "failed", "unavailable"]
 LAB_ADDRESSES = tuple(IPv4Network(f"10.{network}.0.0/16") for network in (211, 212, 213, 214))
-ROUTING_READS = {"ospf": "show ip ospf neighbor json", "isis": "show isis neighbor"}
 
 
 class Contract(BaseModel):
@@ -54,6 +51,7 @@ class Device(Contract):
     interfaces: dict[str, Interface]
     address: str | None
     error: str | None
+    vendor: Literal["FRRouting", "OpenWrt", "Linux"]
 
 
 class Endpoint(Contract):
@@ -86,6 +84,7 @@ class ProtocolReading(Contract):
 class RoutingResult(Contract):
     observed: float
     devices: dict[str, dict[RoutingProtocol, ProtocolReading]]
+    platforms: dict[str, Literal["FRRouting", "OpenWrt"]]
 
 
 class IcmpReading(Contract):
@@ -111,11 +110,11 @@ class ConfigurationDifference(Contract):
     status: Literal["unavailable"] | None = None
     missing: list[str] = Field(default_factory=list)
     unexpected: list[str] = Field(default_factory=list)
+    scope: str = "mounted BGP statements"
 
 
 class ConfigurationResult(Contract):
     observed: float
-    scope: Literal["mounted BGP statements"] = "mounted BGP statements"
     devices: dict[str, ConfigurationDifference]
 
 
@@ -177,7 +176,11 @@ class Context:
             for link in self.graph["links"]:
                 if link["target"] in selected and selected[link["target"]]["kind"] == "host":
                     selected.setdefault(link["source"], {})
-        return [r for r in self.sample["routers"] if r["name"] in selected]
+        return [
+            r
+            for r in [*self.sample["routers"], *self.sample.get("adapter_devices", [])]
+            if r["name"] in selected
+        ]
 
 
 def inspect_topology(ctx, req):
@@ -202,35 +205,19 @@ def inspect_topology(ctx, req):
     }
 
 
-def protocol_reading(router, protocol):
-    from .fabric import command
-
-    if protocol == "bgp":
-        data = router.get("peers")
-    elif protocol == "kernel":
-        data = router.get("routes") or None
-    else:
-        try:
-            output = command(router["name"], "vtysh", "-c", ROUTING_READS[protocol])
-            data = (json.loads(output) if protocol == "ospf" else output) if output else None
-            if protocol == "isis" and output.startswith("%"):
-                data = None
-        except (OSError, ValueError, subprocess.SubprocessError):
-            data = None
-    return {"status": "observed" if data is not None else "unavailable", "data": data}
-
-
 def inspect_routing(ctx, req):
     routers = ctx.routers(req.targets)
 
     def read(row):
+        adapter = adapters.from_inventory(row)
         return {
-            protocol: protocol_reading(row, protocol) for protocol in dict.fromkeys(req.protocols)
+            protocol: adapter.routing(row, protocol) for protocol in dict.fromkeys(req.protocols)
         }
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         devices = dict(zip((r["name"] for r in routers), pool.map(read, routers)))
-    return {"observed": ctx.sample["observed"], "devices": devices}
+    platforms = {row["name"]: row.get("vendor", "FRRouting") for row in routers}
+    return {"observed": ctx.sample["observed"], "devices": devices, "platforms": platforms}
 
 
 def probe_address(node, peer, links):
@@ -281,7 +268,7 @@ def inspect_connectivity(ctx, req):
         outcomes = dict.fromkeys(req.protocols, "unavailable")
         icmp = None
         service = target["kind"] == "host"
-        if address and not nodes[source]["error"]:
+        if address and not nodes[source]["error"] and nodes[source]["vendor"] != "OpenWrt":
             results, icmp = probe_observations(
                 source,
                 address,
@@ -308,7 +295,9 @@ def inspect_connectivity(ctx, req):
 def inspect_configuration(ctx, req):
     return {
         "observed": time.time(),
-        "devices": investigations.configuration_facts(r["name"] for r in ctx.routers(req.targets)),
+        "devices": {
+            r["name"]: adapters.from_inventory(r).configuration(r) for r in ctx.routers(req.targets)
+        },
     }
 
 

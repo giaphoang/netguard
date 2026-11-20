@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from . import (
+    adapters,
     advisor,
     architecture,
     capacity,
@@ -174,6 +175,7 @@ def operator_events(req, c, background=None):
             "Collect live observations", "Read router state and bidirectional ICMP and HTTP probes."
         )
         sample = observe()
+        sample["adapter_devices"] = adapters.optional_inventory()
         yield step(
             "Interpret the request", "Identify the workflow and resolve the requested targets."
         )

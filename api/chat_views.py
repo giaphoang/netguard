@@ -415,6 +415,8 @@ def experiment(run):
                 "key": "approve",
                 "label": "Approve and run comparison"
                 if routing_study
+                else "Approve and verify configuration"
+                if run.get("kind") == "openwrt"
                 else "Approve change and benchmark",
                 "primary": True,
                 "revision": run["digest"],

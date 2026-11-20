@@ -72,11 +72,12 @@ def inspection_summary(facts):
             parts.append(f"{source} → {destination} returned {outcomes}.")
     if result := facts.get("inspect_configuration"):
         for name, reading in result["devices"].items():
+            scope = reading["scope"]
             if reading["status"] == "unavailable":
-                parts.append(f"The BGP configuration comparison is unavailable for {label(name)}.")
+                parts.append(f"The comparison of {scope} is unavailable for {label(name)}.")
             else:
                 missing, unexpected = len(reading["missing"]), len(reading["unexpected"])
-                parts.append(f"{label(name)} has {missing} missing and {unexpected} unexpected BGP statements.")
+                parts.append(f"{label(name)} has {missing} missing and {unexpected} unexpected {scope}.")
         if not result["devices"]:
             parts.append("No routing device was observed for the configuration comparison.")
     return " ".join(parts)
