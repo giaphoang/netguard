@@ -19,6 +19,7 @@ PORT = 5209
 DURATION = 4
 STREAMS = 8
 TRIALS = 3
+ICMP_COUNT = 25
 HASH_POLICY = "net.ipv4.fib_multipath_hash_policy"
 
 
@@ -125,6 +126,15 @@ class Lab:
             "single_flow": single_flow,
             "resources": budget,
             "iperf3": version,
+            "workload": {
+                "transport": "TCP",
+                "seconds": DURATION,
+                "streams": STREAMS,
+                "trials": TRIALS,
+                "icmp_probes_per_trial": ICMP_COUNT,
+                "source": source[0],
+                "destination": destination[0],
+            },
         }
 
     def trial(self, source, destination, streams, counters):
@@ -183,6 +193,8 @@ class Lab:
         after_links = counters()
         return {
             "gbps": received["bits_per_second"] / 1e9,
+            "received_bytes": received["bytes"],
+            "duration_s": received["seconds"],
             "endpoint_cpu": client["end"]["cpu_utilization_percent"],
             "guest_cpu_pct": utilization(before_cpu["cpu"], after_cpu["cpu"]),
             "busiest_vcpu_pct": max(
@@ -223,7 +235,7 @@ class Lab:
             "-I",
             address,
             "-c",
-            "25",
+            str(ICMP_COUNT),
             "-i",
             "0.1",
             "-W",

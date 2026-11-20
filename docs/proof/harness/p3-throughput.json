@@ -1,0 +1,682 @@
+{
+  "id": "5706c9e0c8004b4baab8c3109ef284ea",
+  "kind": "throughput",
+  "version": "architecture-v3",
+  "method": {
+    "tcp_seconds": 4,
+    "tcp_streams": 8,
+    "repeats": 3,
+    "role": "Guest tools in endpoint network namespaces"
+  },
+  "phase": "verified",
+  "model_revision": {
+    "name": "qwen2.5:1.5b",
+    "digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+  },
+  "approval": {
+    "time": 1795133367.3458023,
+    "digest": "4ca46570515944e37e040af2f2e120d406f12d393a0823e0a18cfd0b7a12f7f4"
+  },
+  "baseline": {
+    "gbps": 124.28477552487323,
+    "p95_ms": 0.162,
+    "loss_pct": 0.0,
+    "guest_cpu_pct": 98.10201660735468,
+    "busiest_vcpu_pct": 99.30875576036867,
+    "link_bytes": {
+      "spine-1": 472,
+      "spine-2": 191652504805
+    },
+    "trials": [
+      {
+        "gbps": 89.89474641093577,
+        "received_bytes": 44977094656,
+        "duration_s": 4.002645,
+        "endpoint_cpu": {
+          "host_total": 164.60977912826326,
+          "host_user": 2.480045204674642,
+          "host_system": 162.12968402880426,
+          "remote_total": 97.1731369310985,
+          "remote_user": 3.39443421516138,
+          "remote_system": 93.7787027159371
+        },
+        "guest_cpu_pct": 96.53679653679653,
+        "busiest_vcpu_pct": 96.7741935483871,
+        "link_bytes": {
+          "spine-1": 85,
+          "spine-2": 45037959112
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.219,
+            0.026,
+            0.023,
+            0.02,
+            0.018,
+            0.029,
+            0.023,
+            0.017,
+            0.037,
+            0.037,
+            0.019,
+            0.05,
+            0.031,
+            0.069,
+            0.064,
+            0.162,
+            0.081,
+            0.031,
+            0.114,
+            0.123,
+            0.051,
+            0.054,
+            0.051,
+            0.06,
+            0.025
+          ]
+        }
+      },
+      {
+        "gbps": 124.28477552487323,
+        "received_bytes": 63241453568,
+        "duration_s": 4.070745,
+        "endpoint_cpu": {
+          "host_total": 182.2029078132195,
+          "host_user": 1.80027206376614,
+          "host_system": 180.40266025528706,
+          "remote_total": 100.1784417154675,
+          "remote_user": 3.2803404345635507,
+          "remote_system": 96.89815041133222
+        },
+        "guest_cpu_pct": 98.10201660735468,
+        "busiest_vcpu_pct": 99.28571428571429,
+        "link_bytes": {
+          "spine-1": 236,
+          "spine-2": 63324215535
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.161,
+            0.021,
+            0.018,
+            0.018,
+            0.016,
+            0.02,
+            0.031,
+            0.042,
+            0.036,
+            0.018,
+            0.023,
+            0.038,
+            0.02,
+            0.02,
+            0.09,
+            0.031,
+            0.024,
+            0.017,
+            0.017,
+            0.017,
+            0.041,
+            0.017,
+            0.021,
+            0.028,
+            0.02
+          ]
+        }
+      },
+      {
+        "gbps": 166.30528574634525,
+        "received_bytes": 83183534080,
+        "duration_s": 4.001486,
+        "endpoint_cpu": {
+          "host_total": 217.72525959210108,
+          "host_user": 2.187099714410256,
+          "host_system": 215.53820946785294,
+          "remote_total": 118.6140191385886,
+          "remote_user": 3.353925949545175,
+          "remote_system": 115.25999323297411
+        },
+        "guest_cpu_pct": 98.90616004605641,
+        "busiest_vcpu_pct": 99.30875576036867,
+        "link_bytes": {
+          "spine-1": 151,
+          "spine-2": 83290330158
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            1.46,
+            0.204,
+            0.084,
+            0.022,
+            0.105,
+            0.03,
+            0.024,
+            0.025,
+            0.068,
+            0.024,
+            0.021,
+            0.017,
+            0.036,
+            0.018,
+            0.019,
+            0.017,
+            0.017,
+            0.023,
+            0.016,
+            0.018,
+            0.02,
+            0.021,
+            0.037,
+            0.026,
+            0.022
+          ]
+        }
+      }
+    ],
+    "single_flow": {
+      "gbps": 45.274840598051576,
+      "received_bytes": 22645309440,
+      "duration_s": 4.001394,
+      "endpoint_cpu": {
+        "host_total": 80.8998415251165,
+        "host_user": 0.9613176875508898,
+        "host_system": 79.93854882178184,
+        "remote_total": 56.955715826957864,
+        "remote_user": 1.818985171965761,
+        "remote_system": 55.1367306549921
+      },
+      "guest_cpu_pct": 63.116370808678504,
+      "busiest_vcpu_pct": 74.09326424870466,
+      "link_bytes": {
+        "spine-1": 85,
+        "spine-2": 22678565015
+      },
+      "ping": {
+        "sent": 25,
+        "received": 25,
+        "rtt_ms": [
+          0.213,
+          0.031,
+          0.013,
+          0.023,
+          0.013,
+          0.013,
+          0.01,
+          0.027,
+          0.197,
+          0.024,
+          0.04,
+          0.022,
+          0.025,
+          0.04,
+          0.05,
+          0.166,
+          0.087,
+          0.045,
+          0.105,
+          0.028,
+          0.034,
+          0.027,
+          0.235,
+          0.017,
+          0.03
+        ]
+      }
+    },
+    "resources": {
+      "vm_cpus": 4,
+      "memory_available_mib": 4756
+    },
+    "iperf3": "iperf 3.16 (cJSON 1.7.15)",
+    "workload": {
+      "transport": "TCP",
+      "seconds": 4,
+      "streams": 8,
+      "trials": 3,
+      "icmp_probes_per_trial": 25,
+      "source": "host-1",
+      "destination": "host-2"
+    },
+    "paths": {
+      "leaf-1": [
+        1,
+        2
+      ],
+      "leaf-2": [
+        1,
+        2
+      ]
+    },
+    "healthy_paths": 2
+  },
+  "matched_baseline": {
+    "gbps": 149.9849425527637,
+    "p95_ms": 0.127,
+    "loss_pct": 0.0,
+    "guest_cpu_pct": 99.6422182468694,
+    "busiest_vcpu_pct": 99.7624703087886,
+    "link_bytes": {
+      "spine-1": 604,
+      "spine-2": 224200560345
+    },
+    "trials": [
+      {
+        "gbps": 149.9849425527637,
+        "received_bytes": 75066245120,
+        "duration_s": 4.003935,
+        "endpoint_cpu": {
+          "host_total": 208.63902372069228,
+          "host_user": 2.1738436006538473,
+          "host_system": 206.46513020800842,
+          "remote_total": 106.70745306695963,
+          "remote_user": 3.3396029769609954,
+          "remote_system": 103.36790004068483
+        },
+        "guest_cpu_pct": 97.2027972027972,
+        "busiest_vcpu_pct": 97.45547073791349,
+        "link_bytes": {
+          "spine-1": 151,
+          "spine-2": 75162813859
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.127,
+            0.019,
+            0.024,
+            0.091,
+            0.028,
+            0.019,
+            0.016,
+            0.02,
+            0.015,
+            0.015,
+            0.018,
+            0.023,
+            0.018,
+            0.016,
+            0.016,
+            0.016,
+            0.016,
+            0.02,
+            0.043,
+            0.044,
+            0.02,
+            0.019,
+            0.022,
+            0.038,
+            0.019
+          ]
+        }
+      },
+      {
+        "gbps": 157.47408434804163,
+        "received_bytes": 78785544192,
+        "duration_s": 4.002464,
+        "endpoint_cpu": {
+          "host_total": 211.89231461444518,
+          "host_user": 1.7880214595461048,
+          "host_system": 210.10426824133668,
+          "remote_total": 114.99926295880813,
+          "remote_user": 3.5742000604623625,
+          "remote_system": 111.42508788279295
+        },
+        "guest_cpu_pct": 99.6422182468694,
+        "busiest_vcpu_pct": 99.7624703087886,
+        "link_bytes": {
+          "spine-1": 302,
+          "spine-2": 78886896718
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.178,
+            0.017,
+            0.018,
+            0.019,
+            0.02,
+            0.02,
+            0.018,
+            0.024,
+            0.018,
+            0.016,
+            0.018,
+            0.018,
+            0.018,
+            0.019,
+            0.018,
+            0.029,
+            0.02,
+            0.026,
+            0.027,
+            0.022,
+            0.016,
+            0.023,
+            0.018,
+            0.016,
+            0.02
+          ]
+        }
+      },
+      {
+        "gbps": 140.02879187736093,
+        "received_bytes": 70060605440,
+        "duration_s": 4.00264,
+        "endpoint_cpu": {
+          "host_total": 206.3776256202952,
+          "host_user": 2.3740306816297885,
+          "host_system": 204.00361986889192,
+          "remote_total": 116.60288813444484,
+          "remote_user": 3.1957304317911146,
+          "remote_system": 113.4071577026537
+        },
+        "guest_cpu_pct": 99.76133651551312,
+        "busiest_vcpu_pct": 99.76076555023923,
+        "link_bytes": {
+          "spine-1": 151,
+          "spine-2": 70150849768
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.208,
+            0.036,
+            0.035,
+            0.033,
+            0.02,
+            0.06,
+            0.024,
+            0.024,
+            0.031,
+            0.022,
+            0.018,
+            0.018,
+            0.019,
+            0.124,
+            0.024,
+            0.043,
+            0.066,
+            0.172,
+            0.037,
+            0.029,
+            0.021,
+            0.017,
+            0.017,
+            0.021,
+            0.018
+          ]
+        }
+      }
+    ],
+    "single_flow": null,
+    "resources": {
+      "vm_cpus": 4,
+      "memory_available_mib": 4685
+    },
+    "iperf3": "iperf 3.16 (cJSON 1.7.15)",
+    "workload": {
+      "transport": "TCP",
+      "seconds": 4,
+      "streams": 8,
+      "trials": 3,
+      "icmp_probes_per_trial": 25,
+      "source": "host-1",
+      "destination": "host-2"
+    },
+    "paths": {
+      "leaf-1": [
+        1,
+        2
+      ],
+      "leaf-2": [
+        1,
+        2
+      ]
+    },
+    "healthy_paths": 2
+  },
+  "actual": {
+    "gbps": 94.81224464501685,
+    "p95_ms": 0.657,
+    "loss_pct": 0.0,
+    "guest_cpu_pct": 96.97717458359038,
+    "busiest_vcpu_pct": 98.52071005917159,
+    "link_bytes": {
+      "spine-1": 62500935119,
+      "spine-2": 61589231310
+    },
+    "trials": [
+      {
+        "gbps": 94.81224464501685,
+        "received_bytes": 47428403200,
+        "duration_s": 4.00188,
+        "endpoint_cpu": {
+          "host_total": 175.28416280603253,
+          "host_user": 2.076131821791697,
+          "host_system": 173.20800602593366,
+          "remote_total": 110.78108168147172,
+          "remote_user": 3.4733510266001217,
+          "remote_system": 107.3077056667347
+        },
+        "guest_cpu_pct": 95.70977917981072,
+        "busiest_vcpu_pct": 95.75,
+        "link_bytes": {
+          "spine-1": 19202586583,
+          "spine-2": 28287037698
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.234,
+            0.04,
+            0.02,
+            0.018,
+            0.018,
+            0.234,
+            0.061,
+            0.061,
+            0.025,
+            0.022,
+            0.031,
+            0.027,
+            0.022,
+            0.023,
+            0.024,
+            0.028,
+            0.022,
+            0.049,
+            0.039,
+            0.033,
+            0.22,
+            1.1,
+            0.026,
+            0.097,
+            0.032
+          ]
+        }
+      },
+      {
+        "gbps": 110.47115277410732,
+        "received_bytes": 55387750400,
+        "duration_s": 4.01102,
+        "endpoint_cpu": {
+          "host_total": 174.08291321132668,
+          "host_user": 2.148433558436511,
+          "host_system": 171.9345045674643,
+          "remote_total": 114.05947747599059,
+          "remote_user": 3.098330578846187,
+          "remote_system": 110.96119675963611
+        },
+        "guest_cpu_pct": 96.97717458359038,
+        "busiest_vcpu_pct": 97.77227722772277,
+        "link_bytes": {
+          "spine-1": 35251276966,
+          "spine-2": 20209522847
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.098,
+            0.035,
+            0.032,
+            0.026,
+            0.023,
+            0.022,
+            0.024,
+            0.579,
+            0.058,
+            0.027,
+            0.097,
+            0.046,
+            0.075,
+            0.019,
+            0.021,
+            0.04,
+            0.024,
+            0.024,
+            0.023,
+            0.018,
+            0.025,
+            0.025,
+            0.02,
+            0.026,
+            0.036
+          ]
+        }
+      },
+      {
+        "gbps": 42.20436513181978,
+        "received_bytes": 21112422400,
+        "duration_s": 4.001941,
+        "endpoint_cpu": {
+          "host_total": 119.83482106944155,
+          "host_user": 1.3856480474880086,
+          "host_system": 118.44917302195354,
+          "remote_total": 64.05628350550757,
+          "remote_user": 2.2261875074026336,
+          "remote_system": 61.83009599810493
+        },
+        "guest_cpu_pct": 98.07407407407408,
+        "busiest_vcpu_pct": 98.52071005917159,
+        "link_bytes": {
+          "spine-1": 8047071570,
+          "spine-2": 13092670765
+        },
+        "ping": {
+          "sent": 25,
+          "received": 25,
+          "rtt_ms": [
+            0.128,
+            0.026,
+            0.022,
+            0.021,
+            0.025,
+            0.049,
+            0.034,
+            10.1,
+            0.083,
+            0.046,
+            0.07,
+            0.445,
+            0.238,
+            0.206,
+            0.356,
+            0.035,
+            2.78,
+            0.042,
+            0.059,
+            0.196,
+            0.657,
+            0.045,
+            0.345,
+            0.053,
+            0.086
+          ]
+        }
+      }
+    ],
+    "single_flow": null,
+    "resources": {
+      "vm_cpus": 4,
+      "memory_available_mib": 4703
+    },
+    "iperf3": "iperf 3.16 (cJSON 1.7.15)",
+    "workload": {
+      "transport": "TCP",
+      "seconds": 4,
+      "streams": 8,
+      "trials": 3,
+      "icmp_probes_per_trial": 25,
+      "source": "host-1",
+      "destination": "host-2"
+    },
+    "paths": {
+      "leaf-1": [
+        1,
+        2
+      ],
+      "leaf-2": [
+        1,
+        2
+      ]
+    },
+    "healthy_paths": 2
+  },
+  "evaluation": {
+    "measured_multiplier": 0.6321450875754581,
+    "goal_met": false,
+    "matched_target_gbps": 299.9698851055274,
+    "availability_verified": true,
+    "baseline_range_gbps": [
+      140.02879187736093,
+      157.47408434804163
+    ],
+    "actual_range_gbps": [
+      42.20436513181978,
+      110.47115277410732
+    ],
+    "prediction_error": {
+      "gbps": -29.47253087985638,
+      "healthy_paths": 0,
+      "loss_pct": 0.0
+    },
+    "finding": "Measured 0.63\u00d7 the baseline with 2 installed paths and 0.0% ICMP loss during the sampled runs.",
+    "interpretation": "Traffic spread across more spine paths, and the aggregate target was missed. This is consistent with shared forwarding or endpoint limits. Median guest CPU utilization was at least 90% in both arms."
+  },
+  "prediction": {
+    "gbps": 124.28477552487323,
+    "healthy_paths": 2,
+    "loss_pct": 0
+  },
+  "design_alternatives": [
+    {
+      "name": "Use TCP/UDP-aware ECMP",
+      "assessment": "Selected for a reversible trial. Layer 3 hashing sent at least 95% of observed transit bytes through one spine while redundant paths were installed.",
+      "cost": "Existing routers and links. No additional VM memory reservation."
+    },
+    {
+      "name": "Add a spine",
+      "assessment": "An additional BGP path would require a Compose rollout and share the same VM. The baseline does not establish an independent forwarding capacity limit per spine.",
+      "cost": "One spine adds a 0.5 CPU limit and a 192 MiB memory limit. The guest reported 4756 MiB available during the baseline."
+    },
+    {
+      "name": "Increase endpoint or VM capacity",
+      "assessment": "Shared CPU, virtual interfaces and endpoint processing can cap aggregate throughput. The workload cannot establish how a larger VM would scale.",
+      "cost": "Changing VM resources is outside the experiment\u2019s current resource budget."
+    }
+  ],
+  "final_phase": "rolled_back",
+  "baseline_fabric_healthy": true,
+  "stale_approval_http_status": 409
+}

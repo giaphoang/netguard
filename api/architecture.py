@@ -486,10 +486,11 @@ def restore_routing(controller, run, trace):
 
 
 def verdict(run):
-    baseline, actual = run["baseline"], run["actual"]
+    baseline, actual = run.get("matched_baseline", run["baseline"]), run["actual"]
     prediction = run["plan"]["prediction"]
     measured = actual["gbps"] / baseline["gbps"]
     goal = run["requested_multiplier"]
+    available = actual["healthy_paths"] >= baseline["healthy_paths"] and not actual["loss_pct"]
     before_trials = [trial["gbps"] for trial in baseline["trials"]]
     after_trials = [trial["gbps"] for trial in actual["trials"]]
     overlaps = min(max(before_trials), max(after_trials)) >= max(
@@ -522,7 +523,11 @@ def verdict(run):
         )
     return {
         "measured_multiplier": measured,
-        "goal_met": None if goal is None else measured >= goal,
+        "goal_met": None if goal is None else measured >= goal and available,
+        "matched_target_gbps": baseline["gbps"] * goal if goal is not None else None,
+        "availability_verified": available,
+        "baseline_range_gbps": [min(before_trials), max(before_trials)],
+        "actual_range_gbps": [min(after_trials), max(after_trials)],
         "prediction_error": {
             key: actual[key] - value
             for key, value in prediction.items()
@@ -569,6 +574,14 @@ def apply(controller, run):
                 live = gre.underlay(lab, pair, spec["spines"], mode=kind)
                 if live["route_mtu"] != run["baseline"]["route_mtu"]:
                     raise ValueError("The underlay MTU changed. Generate a fresh preview.")
+            if kind == "throughput":
+                trace.stage = "Measure the matched baseline"
+                run["matched_baseline"] = measure(controller, lab, pair, spec)
+                if run["matched_baseline"]["loss_pct"]:
+                    raise ValueError(
+                        "The pre-change workload observed packet loss. Review the baseline."
+                    )
+                trace.stage = "Approve and implement"
             configure = adapter.configure if adapter else plans.set_policies
             configure(
                 lab,
@@ -587,14 +600,11 @@ def apply(controller, run):
             inspect_fabric(trace, spec)
             trace.stage = "Evaluate"
             with trace.tool("Compare prediction with measurements") as event:
+                baseline = run.get("matched_baseline", run["baseline"])
+                check_workloads(baseline, run["actual"])
                 run["evaluation"] = event["result"] = verdict(run)
-                if (
-                    run["actual"]["loss_pct"]
-                    or run["actual"]["healthy_paths"] < run["baseline"]["healthy_paths"]
-                ):
+                if not run["evaluation"]["availability_verified"]:
                     raise ValueError("Packet loss or path loss breached the experiment guard.")
-                if run["actual"]["iperf3"] != run["baseline"]["iperf3"]:
-                    raise ValueError("The benchmark tool changed between measurements.")
                 checkpoint(controller)
         trace.mark("verified", run["evaluation"]["finding"])
     except ERRORS as exc:
@@ -603,6 +613,15 @@ def apply(controller, run):
             trace.mark("blocked", run["failure"])
             return
         restore(controller, run, trace)
+
+
+def check_workloads(before, after):
+    if before["iperf3"] != after["iperf3"]:
+        raise ValueError("The benchmark tool changed between measurements.")
+    if before["resources"]["vm_cpus"] != after["resources"]["vm_cpus"]:
+        raise ValueError("The guest CPU count changed between measurements.")
+    if before.get("workload") and before["workload"] != after.get("workload"):
+        raise ValueError("The benchmark workload changed between measurements.")
 
 
 def begin_change(controller, run, trace, node):

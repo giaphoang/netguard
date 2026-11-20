@@ -68,7 +68,7 @@ METRICS = {
 
 
 def readings(run):
-    baseline = run["baseline"]
+    baseline = run.get("matched_baseline", run["baseline"])
     actual = run.get("actual", {})
     plan = run.get("plan", {})
     prediction = plan.get("prediction", {})
@@ -114,12 +114,13 @@ def readings(run):
         ),
     ]
     if plan.get("goal_gbps") is not None:
-        goal = f"Target {plan['goal_gbps']:.2f} Gbps"
+        target = evaluation.get("matched_target_gbps", plan["goal_gbps"])
+        goal = f"Target {target:.2f} Gbps"
         if evaluation.get("goal_met") is not None:
             goal += (
                 " · Reached in this workload"
                 if evaluation["goal_met"]
-                else " · Below target in this workload"
+                else " · Goal unmet in this workload"
             )
         blocks.append(text(goal))
     for detail in (plan.get("assumptions"), evaluation.get("interpretation")):

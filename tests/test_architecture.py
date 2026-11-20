@@ -78,3 +78,33 @@ def test_stale_hash_policy_blocks_every_write():
     }
     with pytest.raises(ValueError, match="changed after the baseline"):
         architecture_plans.set_policies(Lab(), plan, before_write=lambda _: pytest.fail("write"))
+
+
+def test_experiment_goal_compares_matched_baseline_and_availability():
+    matched = {
+        "gbps": 4.0,
+        "trials": [{"gbps": 4.0}],
+        "healthy_paths": 2,
+        "loss_pct": 0.0,
+        "guest_cpu_pct": 75,
+        "link_bytes": {"spine-1": 100},
+    }
+    run = {
+        "kind": "throughput",
+        "baseline": {**matched, "gbps": 2.0},
+        "matched_baseline": matched,
+        "actual": {**matched, "gbps": 8.0, "trials": [{"gbps": 8.0}], "healthy_paths": 1},
+        "requested_multiplier": 2.0,
+        "plan": {"prediction": {"gbps": 2.0}},
+    }
+    result = architecture.verdict(run)
+    assert result["measured_multiplier"] == 2.0 and result["matched_target_gbps"] == 8.0
+    assert not result["goal_met"] and not result["availability_verified"]
+    run["actual"]["healthy_paths"] = 2
+    assert architecture.verdict(run)["goal_met"]
+
+
+def test_changed_workload_cannot_pass_like_for_like_comparison():
+    before = {"iperf3": "iperf 3", "resources": {"vm_cpus": 4}, "workload": {"streams": 8}}
+    with pytest.raises(ValueError, match="workload changed"):
+        architecture.check_workloads(before, {**before, "workload": {"streams": 1}})
