@@ -1,7 +1,5 @@
 import React from "react";
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
-import { edgeTypes, type TopologyEdge } from "./TrafficEdge";
-
 export type FabricSpec = {spines:number[];leaves:number[];hosts:{id:number;leaf:number}[]};
 export type Overlay = Pick<Edge, "source" | "target"> & { label: string };
 export function TopologyPreview({before,after,applied=false,overlay,beforeLabel,afterLabel,excludedLinks=[]}:{
@@ -16,20 +14,13 @@ export function TopologyPreview({before,after,applied=false,overlay,beforeLabel,
       ...spec.hosts.map((h,i)=>({id:`host-${h.id}`,position:{x:i*spacing,y:220},data:{label:`Host ${h.id}`}}))
     ];
     const original = new Set([...before.spines.map(n=>`spine-${n}`),...before.leaves.map(n=>`leaf-${n}`),...before.hosts.map(h=>`host-${h.id}`)]);
-    const edges: TopologyEdge[] = [
-      ...spec.spines.flatMap(s => spec.leaves.map(l => ({
-        id: `${s}-${l}`, source: `spine-${s}`, target: `leaf-${l}`, type: "traffic",
-        data: { protocol: "BGP", curved: true }, ariaLabel: `Spine ${s} to Leaf ${l}, BGP`,
-      }))),
-      ...spec.hosts.map(h => ({
-        id: `h${h.id}`, source: `leaf-${h.leaf}`, target: `host-${h.id}`, type: "traffic",
-        data: { protocol: "Ethernet", curved: true }, ariaLabel: `Leaf ${h.leaf} to Host ${h.id}, Ethernet`,
-      })),
+    const edges: Edge[] = [
+      ...spec.spines.flatMap(s=>spec.leaves.map(l=>({id:`${s}-${l}`,source:`spine-${s}`,target:`leaf-${l}`}))),
+      ...spec.hosts.map(h=>({id:`h${h.id}`,source:`leaf-${h.leaf}`,target:`host-${h.id}`}))
     ];
     if (tunnel) {
       edges.push({
-        id: "tunnel", source: tunnel.source, target: tunnel.target, type: "traffic",
-        data: { protocol: tunnel.label }, ariaLabel: `${tunnel.source} to ${tunnel.target}, ${tunnel.label}`,
+        id: "tunnel", source: tunnel.source, target: tunnel.target, type: "straight",
         style: { stroke: "var(--accent)", strokeDasharray: "6 4", strokeWidth: 2 },
       });
     }
@@ -48,7 +39,6 @@ export function TopologyPreview({before,after,applied=false,overlay,beforeLabel,
             <ReactFlow
               {...graph(spec, i === 1, tunnel)}
               colorMode="dark"
-              edgeTypes={edgeTypes}
               fitView
               nodesDraggable={false}
               nodesConnectable={false}

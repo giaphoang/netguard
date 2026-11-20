@@ -512,25 +512,6 @@ main {
   font-size: 11px;
 }
 
-.react-flow__edge-textwrapper.route-protocol {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-:is(.react-flow__edge, .access-probe-route):is(:hover, :focus-visible) .route-protocol {
-  visibility: visible;
-}
-
-.route-protocol .react-flow__edge-text {
-  fill: var(--ink);
-  font: 600 12px var(--sans);
-}
-
-.route-protocol .react-flow__edge-textbg {
-  fill: var(--surface-raised);
-  stroke: var(--input-border);
-}
-
 .route-overlay {
   position: absolute;
   inset: 0;
@@ -542,12 +523,6 @@ main {
   stroke: var(--blue);
   stroke-dasharray: 4 4;
   stroke-width: 1.5;
-}
-
-.access-probe-hit-area {
-  stroke: transparent;
-  stroke-width: 18;
-  pointer-events: stroke;
 }
 
 .probe-controls,
