@@ -1,10 +1,13 @@
 import React, { useLayoutEffect, useRef } from "react";
 import {
   BaseEdge,
-  EdgeProps,
+  EdgeText,
+  getBezierPath,
   getStraightPath,
   useInternalNode,
   ViewportPortal,
+  type Edge,
+  type EdgeProps,
 } from "@xyflow/react";
 
 export type LinkActivity = {
@@ -14,21 +17,38 @@ export type LinkActivity = {
   bytes_per_second: number;
 };
 
-export function TrafficEdge(props: EdgeProps) {
-  const [path, x, y] = getStraightPath(props);
+export type TopologyEdge = Edge<{ protocol: string; curved?: boolean }>;
+
+function RouteProtocol({ x, y, label }: { x: number; y: number; label: string }) {
+  return (
+    <EdgeText
+      x={x}
+      y={y}
+      label={label}
+      labelBgPadding={[6, 3]}
+      labelBgBorderRadius={4}
+      className="route-protocol"
+      aria-hidden="true"
+    />
+  );
+}
+
+export function TrafficEdge(props: EdgeProps<TopologyEdge>) {
+  const [path, x, y] = props.data?.curved ? getBezierPath(props) : getStraightPath(props);
   return (
     <>
       <BaseEdge
         id={props.id}
         path={path}
         style={props.style}
-        interactionWidth={18}
+        interactionWidth={props.interactionWidth ?? 18}
       />
       {props.label && (
         <text x={x} y={y - 5} textAnchor="middle" className="edge-warning">
           {props.label}
         </text>
       )}
+      {props.data && <RouteProtocol x={x} y={y + (props.label ? 14 : -14)} label={props.data.protocol} />}
     </>
   );
 }
@@ -53,10 +73,12 @@ function MovingPacket({
   guidePath,
   hops,
   onLap,
+  accessMidpoint,
 }: {
   guidePath: string;
   hops: string[];
   onLap?: () => void;
+  accessMidpoint?: { x: number; y: number };
 }) {
   const line = useRef<SVGPathElement>(null);
   const dot = useRef<SVGCircleElement>(null);
@@ -100,19 +122,26 @@ function MovingPacket({
       className="route-overlay"
       width="100%"
       height="100%"
-      aria-hidden="true"
+      aria-hidden={!accessMidpoint}
     >
       <path
         ref={line}
         d={guidePath}
         fill="none"
-        className={hops.length === 2 ? "access-probe" : undefined}
-        stroke={hops.length === 2 ? undefined : "none"}
+        className={accessMidpoint ? "access-probe" : undefined}
+        stroke={accessMidpoint ? undefined : "none"}
       />
+      {accessMidpoint && (
+        <g className="access-probe-route" tabIndex={0} role="img" aria-label="ICMP probe on the shared access network">
+          <path d={guidePath} className="access-probe-hit-area" fill="none" />
+          <RouteProtocol x={accessMidpoint.x} y={accessMidpoint.y - 14} label="ICMP probe" />
+        </g>
+      )}
       <circle
         ref={dot}
         className="packet"
         r={6}
+        aria-hidden="true"
         data-path={hops.join(" ")}
         data-route={(hops.length === 2 ? hops : [hops[0], hops[2], hops[hops.length - 1]])
           .map((id) => id.split("-")[1]).join("-")}
@@ -137,19 +166,21 @@ export function ProbePacket({ hops, onLap }: { hops: string[]; onLap?: () => voi
     ...(target ? [last?.bottom, to?.top] : []),
   ];
   let guidePath: string;
+  let accessMidpoint: { x: number; y: number } | undefined;
   if (hops.length === 2) {
     if (!from || !to) return null;
     const x = (from.center + to.center) / 2;
     const y = Math.max(from.bottomY, to.bottomY) + 44;
     // Hosts on the same access network send frames directly to each other.
     guidePath = `M${from.bottom} Q${x},${y} ${to.bottom}`;
+    accessMidpoint = { x, y: (from.bottomY + 2 * y + to.bottomY) / 4 };
   } else {
     if (points.some((p) => !p)) return null;
     guidePath = "M" + points.join(" L");
   }
   return (
     <ViewportPortal>
-      <MovingPacket guidePath={guidePath} hops={hops} onLap={onLap} />
+      <MovingPacket guidePath={guidePath} hops={hops} onLap={onLap} accessMidpoint={accessMidpoint} />
     </ViewportPortal>
   );
 }

@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Background, ReactFlow, type NodeChange } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./style.css";
-import { edgeTypes, LinkActivity, ProbePacket } from "./TrafficEdge";
+import { edgeTypes, LinkActivity, ProbePacket, type TopologyEdge } from "./TrafficEdge";
 import { Operator } from "./Operator";
 import { FabricSpec } from "./TopologyPreview";
 import { Cases } from "./Cases";
@@ -346,24 +346,36 @@ function App() {
       ))}
     </select>
   );
-  const edges = [];
+  function followsProbe(source: string, target: string) {
+    return packetPath?.some((hop, i) =>
+      (hop === source && packetPath[i + 1] === target) ||
+      (hop === target && packetPath[i + 1] === source),
+    );
+  }
+
+  const edges: TopologyEdge[] = [];
   let warnings = 0, unknownLinks = 0;
   for (const l of leaves)
     for (const s of spines) {
-      const state = sample?.routers.find((r) => r.name === "leaf-" + l)
+      const source = "spine-" + s;
+      const target = "leaf-" + l;
+      const state = sample?.routers.find((r) => r.name === target)
         ?.peers?.["10.211." + (10 * s + l) + ".1"];
-      const remote = sample?.routers.find(r=>r.name === "spine-"+s)?.peers?.["10.211."+(10*s+l)+".2"];
+      const remote = sample?.routers.find((r) => r.name === source)
+        ?.peers?.["10.211." + (10 * s + l) + ".2"];
       if (!state || !remote) unknownLinks++;
       const failed = (!!state && state !== "Established") || (!!remote && remote !== "Established");
       const live = !offline && state === "Established" && remote === "Established";
-      const onProbePath = packetPath?.includes("spine-" + s) && packetPath.includes("leaf-" + l);
+      const onProbePath = followsProbe(source, target);
+      const protocol = onProbePath ? "BGP · ICMP probe" : "BGP";
       if (failed) warnings++;
       edges.push({
         id: s + "-" + l,
-        source: "spine-" + s,
-        target: "leaf-" + l,
+        source,
+        target,
         type: "traffic",
-
+        data: { protocol },
+        ariaLabel: `${displayName(source)} to ${displayName(target)}, ${protocol}`,
         label: failed ? "Link warning" : undefined,
         style: {
           stroke: failed ? "var(--danger)" : live ? "var(--topology-link)" : "var(--topology-unknown)",
@@ -372,15 +384,20 @@ function App() {
         },
       });
     }
-  for (const h of hosts)
+  for (const h of hosts) {
+    const source = "leaf-" + h.leaf;
+    const target = "host-" + h.id;
+    const protocol = followsProbe(source, target) ? "Ethernet · ICMP probe" : "Ethernet";
     edges.push({
       id: "access" + h.id,
-      source: "leaf-" + h.leaf,
-      target: "host-" + h.id,
+      source,
+      target,
       type: "traffic",
-
+      data: { protocol },
+      ariaLabel: `${displayName(source)} to ${displayName(target)}, ${protocol}`,
       style: { stroke: "var(--topology-unknown)", strokeWidth: 2 },
     });
+  }
   const up = sample?.routers.filter((r) => !r.error && r.peers !== null).length;
   const health = offline
     ? "stale"
@@ -638,7 +655,11 @@ function App() {
               nodesDraggable={false}
               onNodesChange={keepNodeMeasurements}
               key={names.join(",")}
-              fitViewOptions={{ padding: 0.12, maxZoom: 1.65 }}
+              fitViewOptions={{
+                // The shared access path can extend below the hosts.
+                padding: { x: 0.12, top: 0.12, bottom: "52px" },
+                maxZoom: 1.65,
+              }}
               onNodeClick={(_, n) => {
                 select(n.id);
                 setFaultTarget(n.id);
