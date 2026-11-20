@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import adapters, advisor, capacity, network_tools, protocol_study, topology
 
-VERSION = "topology-intent-v11"
+VERSION = "topology-intent-v12"
 WORKFLOWS = {
     "answer_question": "answer",
     "diagnose_connectivity": "diagnose",
@@ -154,6 +154,20 @@ def interpret(prompt, selection, sample):
     text = topology.normalize(prompt)
     references = topology.references(text, graph)
     requested_tools = explicit_inspections(text)
+    existing_suite = bool(
+        re.match(r"^(?:please )?(?:evaluate|run|check)\b", text)
+        and re.search(r"\b(?:test|evaluation) suite\b", text)
+        and not re.search(r"\b(?:candidate|improved|prompt|retrieval)\b", text)
+    )
+    manual_comparison = all(
+        re.search(pattern, text)
+        for pattern in (
+            r"\b(?:compare|versus|vs)\b",
+            r"\bmanual\b",
+            r"\b(?:ai|automat\w+)\b",
+            r"\b(?:recovery|closure|performance|time|timing)\b",
+        )
+    )
     schema = Intent.model_json_schema()
     choices = list(WORKFLOWS)
     if adapters.wants_loopback_change(prompt):
@@ -165,6 +179,10 @@ def interpret(prompt, selection, sample):
             if requested_tools == ["inspect_configuration"]
             else "answer_question"
         ]
+    elif existing_suite:
+        choices = ["evaluate_ai_quality"]
+    elif manual_comparison:
+        choices = ["compare_operational_metrics"]
     elif len(protocol_study.requested_protocols(prompt)) >= 2:
         choices = ["design_routing_study", "answer_question"]
     elif not references and capacity.has_host_growth_goal(prompt):
@@ -270,7 +288,7 @@ def interpret(prompt, selection, sample):
             targets = [link["id"]]
     if spec.intent in {"risk", "remove", "simulate"} and not targets:
         raise ValueError("Name the existing node or link to assess or change.")
-    if spec.intent == "benchmark":
+    if spec.intent == "benchmark" and not existing_suite:
         mode = EvaluationMode.model_validate_json(
             advisor.infer(
                 "Choose paired_workflows when the request compares a new, improved or candidate "

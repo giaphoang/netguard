@@ -38,6 +38,41 @@ def test_chat_preserves_the_regular_suite_and_routes_candidate_comparisons(
     assert intents.interpret(prompt, "", evaluation.base_sample())[0].intent == intent
 
 
+@pytest.mark.parametrize(
+    ("prompt", "workflow", "intent"),
+    [
+        (
+            "Evaluate the AI operator against our incident test suite.",
+            "evaluate_ai_quality",
+            "benchmark",
+        ),
+        (
+            "Compare automated recovery performance against manual operations.",
+            "compare_operational_metrics",
+            "evaluate",
+        ),
+    ],
+)
+def test_explicit_evaluation_requests_keep_their_specialized_workflow(
+    monkeypatch, prompt, workflow, intent
+):
+    def classify(instruction, context, schema):
+        assert schema["properties"]["intent"]["enum"] == [workflow]
+        return json.dumps(
+            {
+                "intent": workflow,
+                "targets": [],
+                "node_type": "unspecified",
+                "quantity": None,
+                "duration_s": None,
+                "scope": "network",
+            }
+        )
+
+    monkeypatch.setattr(advisor, "infer", classify)
+    assert intents.interpret(prompt, "", evaluation.base_sample())[0].intent == intent
+
+
 def test_paired_workflows_share_each_source_observation(tmp_path, monkeypatch):
     def abstain(prompt, context, schema):
         advisor.TRACE.get().append({"tool": "ollama.chat"})
