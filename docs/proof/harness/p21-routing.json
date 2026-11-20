@@ -1,0 +1,188 @@
+{
+  "id": "d9494e6293de4cd6816c2d3bacb0a744",
+  "version": "routing-study-v1",
+  "phase": "completed",
+  "message": "Routing comparison complete. The trial containers and networks were removed and the active fabric passed verification.",
+  "method": {
+    "route_interval_ms": 100,
+    "probe_interval_ms": 100,
+    "probe_count": 100,
+    "probe_timeout_s": 14,
+    "warmup_s": 1,
+    "failure_window_s": 8,
+    "stable_samples": 3
+  },
+  "evaluation": {
+    "BGP": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    },
+    "OSPF": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    },
+    "IS-IS": {
+      "excess": {
+        "local_route_ms": 0,
+        "both_routes_ms": 0,
+        "lost_probes": 0
+      },
+      "neighbor_mismatches": {}
+    }
+  },
+  "actual": {
+    "BGP": {
+      "routes_ms": {
+        "leaf-1": 203.2,
+        "leaf-2": 3753.1
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 35,
+        "missing_sequences": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46
+        ],
+        "longest_loss_ms": 3500,
+        "last_reply_after_fault_ms": 9389.4
+      },
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    },
+    "OSPF": {
+      "routes_ms": {
+        "leaf-1": 156.6,
+        "leaf-2": 156.6
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 1,
+        "missing_sequences": [
+          11
+        ],
+        "longest_loss_ms": 100,
+        "last_reply_after_fault_ms": 9551.3
+      },
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    },
+    "IS-IS": {
+      "routes_ms": {
+        "leaf-1": 301.7,
+        "leaf-2": 4082.7
+      },
+      "traffic": {
+        "sent": 100,
+        "lost": 37,
+        "missing_sequences": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48
+        ],
+        "longest_loss_ms": 3700,
+        "last_reply_after_fault_ms": 9393.4
+      },
+      "neighbors_before": {
+        "leaf-1": 2,
+        "spine-1": 2,
+        "leaf-2": 2
+      },
+      "neighbors_after": {
+        "leaf-1": 1,
+        "spine-1": 1,
+        "leaf-2": 2
+      }
+    }
+  }
+}
