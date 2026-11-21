@@ -1,0 +1,84 @@
+name: Deploy recruiter demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recruiter-demo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: recruiter-demo
+      url: ${{ steps.publish.outputs.url }}
+    steps:
+      - name: Check out the Ubuntu dashboard
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: netguard-ubuntu-arm64
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build the standalone replay
+        working-directory: web
+        run: |
+          npm ci
+          npm run build:demo
+
+      - name: Package the static deployment
+        run: |
+          output="$RUNNER_TEMP/netguard-recruiter-demo/.vercel/output"
+          mkdir -p "$output/static"
+          cp -R web/dist-demo/. "$output/static/"
+          printf '%s\n' '{"version":3,"routes":[{"src":"^/$","dest":"/index.html"}]}' > "$output/config.json"
+
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@65.8.0 --no-audit --no-fund
+
+      - name: Publish to Vercel
+        id: publish
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          NETGUARD_DEMO_URL: ${{ vars.NETGUARD_DEMO_URL }}
+          VERCEL_TELEMETRY_DISABLED: '1'
+        run: |
+          : "${VERCEL_TOKEN:?Set the VERCEL_TOKEN environment secret}"
+          : "${VERCEL_ORG_ID:?Set the VERCEL_ORG_ID environment variable}"
+          : "${VERCEL_PROJECT_ID:?Set the VERCEL_PROJECT_ID environment variable}"
+          : "${NETGUARD_DEMO_URL:?Set the NETGUARD_DEMO_URL environment variable}"
+          revision=$(git rev-parse HEAD)
+          result=$(vercel deploy --cwd "$RUNNER_TEMP/netguard-recruiter-demo" \
+            --prebuilt --prod --yes --json --token "$VERCEL_TOKEN" \
+            --project "$VERCEL_PROJECT_ID" --meta "netguardCommit=$revision")
+          url=$(jq -er --arg expected "$NETGUARD_DEMO_URL" \
+            '.deployment | select(.readyState == "READY" and .productionUrl == $expected) | .productionUrl' <<< "$result")
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+          printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the published files
+        env:
+          DEMO_URL: ${{ steps.publish.outputs.url }}
+          DEMO_REVISION: ${{ steps.publish.outputs.revision }}
+        run: |
+          curl --fail --silent --show-error --retry 3 --max-time 20 \
+            "$DEMO_URL/" -o "$RUNNER_TEMP/netguard-index.html"
+          curl --fail --silent --show-error --retry 3 --max-time 20 \
+            "$DEMO_URL/app.js" -o "$RUNNER_TEMP/netguard-app.js"
+          cmp web/dist-demo/index.html "$RUNNER_TEMP/netguard-index.html"
+          cmp web/dist-demo/app.js "$RUNNER_TEMP/netguard-app.js"
+          printf '[Open the recruiter demo](%s)\n\nPublished and verified `%s`.\n' \
+            "$DEMO_URL" "$DEMO_REVISION" >> "$GITHUB_STEP_SUMMARY"
