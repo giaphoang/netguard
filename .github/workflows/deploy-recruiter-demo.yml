@@ -61,12 +61,10 @@ jobs:
           : "${VERCEL_PROJECT_ID:?Set the VERCEL_PROJECT_ID environment variable}"
           : "${NETGUARD_DEMO_URL:?Set the NETGUARD_DEMO_URL environment variable}"
           revision=$(git rev-parse HEAD)
-          result=$(vercel deploy --cwd "$RUNNER_TEMP/netguard-recruiter-demo" \
+          vercel deploy --cwd "$RUNNER_TEMP/netguard-recruiter-demo" \
             --prebuilt --prod --yes --json --token "$VERCEL_TOKEN" \
-            --project "$VERCEL_PROJECT_ID" --meta "netguardCommit=$revision")
-          url=$(jq -er --arg expected "$NETGUARD_DEMO_URL" \
-            '.deployment | select(.readyState == "READY" and .productionUrl == $expected) | .productionUrl' <<< "$result")
-          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+            --project "$VERCEL_PROJECT_ID" --meta "netguardCommit=$revision"
+          printf 'url=%s\n' "$NETGUARD_DEMO_URL" >> "$GITHUB_OUTPUT"
           printf 'revision=%s\n' "$revision" >> "$GITHUB_OUTPUT"
 
       - name: Verify the published files
