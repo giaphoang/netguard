@@ -1,5 +1,9 @@
 # NetGuard
 
+**[Open demo](https://netguard-recruiter-demo.vercel.app/)** · [Recorded Ubuntu run](docs/proof/p3/final-recovery.json)
+
+Play a recorded Ubuntu link failure, follow the BGP failover, and inspect the local Qwen diagnosis. Maintainers can publish the replay from [Deploy recruiter demo](https://github.com/giaphoang/netguard/actions/workflows/deploy-recruiter-demo.yml). [Build and verification](docs/RECRUITER_DEMO.md)
+
 A local network reliability lab extending Erica Nordlöf’s MIT-licensed multi-site network platform. The separate six-node fabric runs real FRRouting eBGP and Linux forwarding. See [provenance](docs/UPSTREAM.md), [original README](docs/UPSTREAM_README.md) and [environment and topology decisions](docs/DECISIONS.md).
 
 **Overview** opens the Command Center. Select a link and ask **NetGuard Agent** “Why is this connection failing?” to inspect its routing and probe evidence. The sidebar opens the dedicated AI Agent, Incidents, Provisioning, and AI Impact workspaces. Chat history and drafts follow you between workspaces. [NetGuard Agent instructions and example prompts](docs/OPERATOR.md)
