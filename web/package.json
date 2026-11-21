@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc --noEmit --jsx react --esModuleInterop --resolveJsonModule --skipLibCheck --lib es2020,dom app.tsx && esbuild app.tsx --bundle --minify --loader:.woff2=file --asset-names=assets/[name]-[hash] --outfile=dist/app.js && node build-workspaces.cjs"
+    "typecheck": "tsc --noEmit --jsx react --esModuleInterop --resolveJsonModule --skipLibCheck --lib es2020,dom app.tsx",
+    "build": "npm run typecheck && node build.cjs",
+    "build:demo": "npm run typecheck && node build.cjs --demo"
   },
   "keywords": [],
   "author": "",

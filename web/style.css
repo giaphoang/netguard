@@ -690,6 +690,89 @@ form {
   overflow-wrap: anywhere;
 }
 
+.replay-play {
+  order: -1;
+}
+
+.replay-details {
+  min-width: 0;
+}
+
+.replay-evidence {
+  display: grid;
+  gap: 14px;
+  margin-top: 0;
+}
+
+.replay-stage h2 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+}
+
+.replay-stage p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.replay-evidence table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.replay-evidence caption {
+  padding-bottom: 6px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.replay-evidence :is(th, td) {
+  padding: 7px 5px;
+  border-bottom: 1px solid var(--line);
+}
+
+.replay-evidence thead {
+  color: var(--muted);
+}
+
+.replay-evidence td[data-result] {
+  text-transform: capitalize;
+}
+
+.replay-evidence td[data-result="success"] {
+  color: var(--success);
+}
+
+.replay-evidence td[data-result="failed"] {
+  color: var(--danger);
+}
+
+.replay-diagnosis {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.replay-diagnosis summary {
+  font-weight: 600;
+}
+
+.replay-diagnosis p {
+  margin: 7px 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.replay-source {
+  font-size: 12px;
+}
+
+@media (min-width: 1081px) {
+  .recruiter-demo main[data-page="Command Center"] .workspace {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  }
+}
+
 .incidents {
   padding-top: 8px;
 }

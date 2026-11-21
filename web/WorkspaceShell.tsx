@@ -40,11 +40,12 @@ export function workspaceHref(page: WorkspaceName) {
 
 type Status = "Live isolated lab" | "Replay" | "Connecting" | "Telemetry offline";
 
-export function WorkspaceShell({ page, navigate, status, environment, children }: {
+export function WorkspaceShell({ page, navigate, status, environment, demo = false, children }: {
   page: WorkspaceName;
   navigate: (page: WorkspaceName) => void;
   status: Status;
   environment: string;
+  demo?: boolean;
   children: React.ReactNode;
 }) {
   function follow(event: React.MouseEvent<HTMLAnchorElement>, workspace: WorkspaceName) {
@@ -54,13 +55,16 @@ export function WorkspaceShell({ page, navigate, status, environment, children }
   }
 
   return (
-    <div className="shell">
+    <div className={demo ? "shell recruiter-demo" : "shell"}>
       <aside className="rail">
         <a className="brand" href={workspaceHref("Command Center")} onClick={(e) => follow(e, "Command Center")}>
           <span className="brand-mark"><Activity size={20} aria-hidden="true" /></span>
           <span><strong>NetGuard</strong><small>AI network operations</small></span>
         </a>
-        <nav className="workspaces" aria-label="Workspace navigation">
+        {demo ? <nav className="workspaces" aria-label="Replay navigation">
+          <a href="#topology">Topology</a>
+          <a href="#recorded-evidence">Recorded evidence</a>
+        </nav> : <nav className="workspaces" aria-label="Workspace navigation">
           {names.map((name) => {
             const { icon: Icon, label } = workspaces[name];
             return (
@@ -71,17 +75,17 @@ export function WorkspaceShell({ page, navigate, status, environment, children }
               </a>
             );
           })}
-        </nav>
+        </nav>}
         <div className="lab-panel">
           <div className="lab-status">
             <strong data-live={status === "Live isolated lab"}>{status}</strong>
             <small>{environment}</small>
           </div>
-          <nav className="replays" aria-label="Lab mode">
+          {!demo && <nav className="replays" aria-label="Lab mode">
             <a href="/">Live lab</a>
             <a href="/?replay">Link replay</a>
             <a href="/?replay=handoff">Handoff replay</a>
-          </nav>
+          </nav>}
         </div>
       </aside>
       <main data-page={page}>{children}</main>

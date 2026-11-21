@@ -9,6 +9,7 @@ import { FabricSpec } from "./TopologyPreview";
 import { Cases } from "./Cases";
 import { IncidentPanel, Run } from "./Incidents";
 import { WorkspaceHeader, WorkspaceShell, workspaceAtLocation, workspaceHref, type WorkspaceName } from "./WorkspaceShell";
+import { RecordedIncident, type RecordedFrame } from "./RecordedIncident";
 
 type Router = {
   name: string;
@@ -19,6 +20,7 @@ type Router = {
 };
 type Probe = {
   source?: number;
+  candidates?: number[] | null;
   probes: Record<string, string>;
 };
 type ProbePath = {
@@ -39,6 +41,18 @@ type Sample = {
   flows?: Probe[];
   probe_paths?: ProbePath[];
 };
+type ReplayFrame = RecordedFrame & { snapshot: Sample };
+type DemoRecording = {
+  startedAt: number;
+  verifiedFailover: number;
+  closure: number;
+  evidenceUrl: string;
+  frames: ReplayFrame[];
+};
+
+declare const __NETGUARD_DEMO__: DemoRecording | null;
+const demo = __NETGUARD_DEMO__;
+
 function displayName(id: string) {
   const edge = /^([1-3])-([1-4])$/.exec(id);
   if (edge) return "Leaf " + edge[2] + " ↔ Spine " + edge[1];
@@ -59,16 +73,18 @@ function App() {
   const [preview, setPreview] = useState<FabricSpec>();
   const [signal, setSignal] = useState("");
   const [loaded, setLoaded] = useState(false);
-  const [page, setPage] = useState(workspaceAtLocation),
-    [environment, setEnvironment] = useState("Local lab");
+  const [page, setPage] = useState<WorkspaceName>(() => demo ? "Command Center" : workspaceAtLocation()),
+    [environment, setEnvironment] = useState(demo ? "Ubuntu ARM64" : "Local lab");
   const [operatorRequest, requestOperator] = useState<{ text: string }>(),
     [notice, setNotice] = useState("");
   const [clock, setClock] = useState(Date.now());
   useEffect(() => {
+    if (demo) return;
     const timer = setInterval(() => setClock(Date.now()), 2000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
+    if (demo) return;
     function syncWorkspace() {
       setPage(workspaceAtLocation());
       setNotice("");
@@ -77,7 +93,9 @@ function App() {
     return () => window.removeEventListener("popstate", syncWorkspace);
   }, []);
   useEffect(() => {
-    document.title = page === "Command Center" ? "NetGuard • Fabric console" : `${page} • NetGuard`;
+    if (!demo) {
+      document.title = page === "Command Center" ? "NetGuard • Fabric console" : `${page} • NetGuard`;
+    }
   }, [page]);
 
   function navigate(name: WorkspaceName) {
@@ -89,8 +107,8 @@ function App() {
     setNotice("");
   }
 
-  const [sample, setSample] = useState<Sample>(),
-    [mode, setMode] = useState("CONNECTING"),
+  const [sample, setSample] = useState<Sample | undefined>(demo?.frames[0].snapshot),
+    [mode, setMode] = useState(demo ? "RECORDED REPLAY" : "CONNECTING"),
     [selected, select] = useState("leaf-1");
   const [source, setSource] = useState(1),
     [routeChoice, setRouteChoice] = useState("auto"),
@@ -117,16 +135,7 @@ function App() {
       return next;
     });
   }
-  const [frames, setFrames] = useState<
-      {
-        label: string;
-        review?: Run["review"];
-        reason?: string;
-        eventTime?: number;
-        snapshot: Sample;
-        probes: { timestamp: string; probes: Record<string, string> }[];
-      }[]
-    >([]),
+  const [frames, setFrames] = useState<ReplayFrame[]>(demo?.frames || []),
     [frame, setFrame] = useState(0);
   const [faultTarget, setFaultTarget] = useState("");
   const [incident, setIncident] = useState<Run>();
@@ -137,6 +146,7 @@ function App() {
   }, [faultTarget, incident?.id, incident?.phase]);
   const [history, setHistory] = useState<string[][]>([]);
   useEffect(() => {
+    if (demo) return;
     let alive = true;
     let events: EventSource | undefined;
     async function connect() {
@@ -213,6 +223,10 @@ function App() {
     return () => clearTimeout(timer);
   }, [playing, frame, frames]);
   const observed = frames.length ? frames[frame].probes : sample?.flows || [];
+  const candidates = observed[0]?.candidates;
+  const survivingSpine = demo && candidates?.length === 1 && observed.every(
+    flow => flow.candidates?.length === 1 && flow.candidates[0] === candidates[0],
+  ) ? candidates[0] : undefined;
   const liveRoutes = sample?.probe_paths || [];
   const results = (liveRoutes.length ? liveRoutes : observed).flatMap((f) =>
     Object.values(f.probes),
@@ -368,6 +382,7 @@ function App() {
       const live = !offline && state === "Established" && remote === "Established";
       const onProbePath = followsProbe(source, target);
       const protocol = onProbePath ? "BGP · ICMP probe" : "BGP";
+      const surviving = live && s === survivingSpine;
       if (failed) warnings++;
       edges.push({
         id: s + "-" + l,
@@ -378,8 +393,8 @@ function App() {
         ariaLabel: `${displayName(source)} to ${displayName(target)}, ${protocol}`,
         label: failed ? "Link warning" : undefined,
         style: {
-          stroke: failed ? "var(--danger)" : live ? "var(--topology-link)" : "var(--topology-unknown)",
-          strokeWidth: (onProbePath || paths.includes(s)) && live ? 4.5 : 3,
+          stroke: failed ? "var(--danger)" : surviving ? "var(--blue)" : live ? "var(--topology-link)" : "var(--topology-unknown)",
+          strokeWidth: (surviving || onProbePath || paths.includes(s)) && live ? 4.5 : 3,
           strokeDasharray: failed || !state ? "6 5" : undefined,
         },
       });
@@ -539,39 +554,77 @@ function App() {
       ];
   timeline.sort((a, b) => b.time - a.time);
   const labStatus = frames.length ? "Replay" : offline ? "Telemetry offline" : liveMode ? "Live isolated lab" : "Connecting";
+  const sessionCount = sessions.length && !offline
+    ? sessions.filter(Boolean).length + " / " + sessions.length
+    : "—";
+  const probeSuccess = percent === undefined || offline ? "—" : percent + "%";
+  const kpis = demo ? [
+    ["BGP adjacencies", sessionCount, "Established in this stage"],
+    ["Probe success", probeSuccess, "Recorded ICMP and HTTP"],
+    ["Verified failover", demo.verifiedFailover.toFixed(1) + " s", "Traffic on the surviving spine"],
+    ["Incident closure", demo.closure.toFixed(1) + " s", "Full redundancy restored"],
+  ] : [
+    ["Routers online", up === undefined || offline ? "—" : up + " / " + sample!.routers.length,
+      up === sample?.routers.length && up ? "● All online" : "Router telemetry"],
+    ["BGP sessions", sessionCount, "● Established"],
+    ["Probe success", probeSuccess, "ICMP · HTTP"],
+    ["Active incidents", activeCount, activeCount === 0 ? "● No incidents" : "Incident monitor"],
+  ];
+  const inspection = (
+    <details className="drawer inspection" open={!!faultTarget || undefined}>
+      <summary>
+        {demo ? "Router inspection · " + displayName(selected) : "Network inspection"}
+        {!demo && faultTarget && " · " + displayName(faultTarget)}
+      </summary>
+      {!demo && <>
+        <h2>Trace traffic</h2>
+        {frames.length ? (
+          <label>
+            Flow{" "}
+            <select
+              disabled={busy}
+              value={source}
+              onChange={(e) => {
+                setSource(+e.target.value);
+                setPaths([]);
+                setProbe("");
+              }}
+            >
+              <option value="1">Host 1 → Host 2</option>
+              <option value="2">Host 2 → Host 1</option>
+            </select>
+          </label>
+        ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
+        <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
+          {busy ? "Probing…" : "Trace traffic"}
+        </button>
+        <p role="status">
+          {probe || "Select a probe route to inspect its reachability."}
+        </p>
+        <hr />
+      </>}
+      {demo ? <h2>Recorded BGP peers</h2> : <><small>OBSERVED ROUTER STATE</small><h2>{selected}</h2></>}
+      {router?.error && <p>{router.error}</p>}
+      <pre>
+        {router ? JSON.stringify(router.peers, null, 2) : "Select a router to inspect peers."}
+      </pre>
+      <pre>
+        {router?.interfaces.split("\n").filter((line) => /^eth/.test(line)).join("\n")}
+      </pre>
+      <pre>{router?.routes}</pre>
+    </details>
+  );
   return (
-    <WorkspaceShell page={page} navigate={navigate} status={labStatus} environment={environment}>
-      <WorkspaceHeader page={page} navigate={navigate} />
+    <WorkspaceShell page={page} navigate={navigate} status={labStatus} environment={environment} demo={!!demo}>
+      {demo ? <header className="page-title">
+        <div>
+          <h1>Ubuntu network failover</h1>
+          <p>Replay a recorded link failure, follow the BGP failover, and inspect the local Qwen diagnosis.</p>
+        </div>
+      </header> : <WorkspaceHeader page={page} navigate={navigate} />}
       {notice && <p role="status">{notice}</p>}
       <div className="kpis">
-        {[
-          [
-            "Routers online",
-            up === undefined || offline
-              ? "—"
-              : up + " / " + sample!.routers.length,
-            up === sample?.routers.length && up
-              ? "● All online"
-              : "Router telemetry",
-          ],
-          [
-            "BGP sessions",
-            sessions.length && !offline
-              ? sessions.filter(Boolean).length + " / " + sessions.length
-              : "—",
-            "● Established",
-          ],
-          [
-            "Probe success",
-            percent === undefined || offline ? "—" : percent + "%",
-            "ICMP · HTTP",
-          ],
-          [
-            "Active incidents",
-            activeCount,
-            activeCount === 0 ? "● No incidents" : "Incident monitor",
-          ],
-        ].map(([k, v, n]) => (
+        {kpis.map(([k, v, n]) => (
           <div key={k}>
             <small>{k}</small>
             <strong>{v}</strong>
@@ -579,16 +632,16 @@ function App() {
           </div>
         ))}
       </div>
-      {page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
+      {!demo && page === "Command Center" && <Cases live={liveMode} compact navigate={navigate}/>}
       <div className="workspace">
-        <section className="fabric">
+        <section className="fabric" id="topology">
           <div className="fabric-head">
             <div>
-              <h2>Live Network Topology</h2>
+              <h2>{demo ? "Recorded network topology" : "Live Network Topology"}</h2>
               <small>FRRouting · eBGP · ECMP</small>
             </div>
-            <b className="tag" data-health={fresh ? health : undefined}>
-              {frames.length
+            <b className="tag" data-health={demo || fresh ? health : undefined}>
+              {demo ? health.toUpperCase() : frames.length
                 ? "REPLAY"
                 : !fresh
                   ? "WAITING"
@@ -602,6 +655,7 @@ function App() {
                 value={frame}
                 onChange={(e) => {
                   const i = +e.target.value;
+                  if (demo) setPlaying(false);
                   setFrame(i);
                   setSample(frames[i].snapshot);
                   setPaths([]);
@@ -615,6 +669,7 @@ function App() {
                 ))}
               </select>
               <button
+                className={demo ? "primary replay-play" : undefined}
                 onClick={() => {
                   if (!playing && frame === frames.length - 1) {
                     setFrame(0);
@@ -625,7 +680,7 @@ function App() {
                   setPlaying(!playing);
                 }}
               >
-                {playing ? "Pause playback" : "Play walkthrough"}
+                {playing ? "Pause playback" : demo ? "Play incident" : "Play walkthrough"}
               </button>
             </div>
           )}
@@ -661,7 +716,7 @@ function App() {
                 maxZoom: 1.65,
               }}
               onNodeClick={(_, n) => {
-                select(n.id);
+                if (!demo || !n.id.startsWith("host-")) select(n.id);
                 setFaultTarget(n.id);
               }}
               onEdgeClick={(_, edge) => {
@@ -689,9 +744,9 @@ function App() {
           <div className="legend">
             <span>● Healthy</span>
             <span>● Degraded</span>
-            <span>● ICMP probe</span>
+            {demo ? survivingSpine !== undefined && <span>● Surviving next hop</span> : <span>● ICMP probe</span>}
           </div>
-          <div className="fabric-actions">
+          {!demo && <div className="fabric-actions">
             <button
               className="primary"
               disabled={!liveMode || !!active}
@@ -708,8 +763,8 @@ function App() {
                 ? "Restore incident"
                 : "Restore link"}
             </button>
-          </div>
-          <div className="transmission">
+          </div>}
+          {!demo && <div className="transmission">
             <div>
               <strong>Link activity</strong>
               <small>
@@ -741,9 +796,12 @@ function App() {
                 {f.probes.HTTP}
               </small>
             ))}
-          </div>
+          </div>}
         </section>
-        <Operator
+        {demo ? <div className="replay-details">
+          <RecordedIncident frame={frames[frame]} startedAt={demo.startedAt} evidenceUrl={demo.evidenceUrl} />
+          {inspection}
+        </div> : <Operator
           page={page}
           request={operatorRequest}
           navigate={navigate}
@@ -761,72 +819,26 @@ function App() {
               time: recorded.eventTime || 0,
             })),
           } : undefined}
-        />
-        {page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
+        />}
+        {!demo && page === "Incidents" && <Cases live={liveMode} navigate={navigate}/>}
       </div>
       <section className="timeline">
-        <h2>Operations Timeline</h2>
+        <h2>{demo ? "Recorded timeline" : "Operations Timeline"}</h2>
         {timeline.slice(0, 5).map((e, i) => (
           <div key={i}>
             <b>{e.type}</b>
             <span>{e.text}</span>
-            <time>{new Date(e.time).toLocaleTimeString()}</time>
+            <time>{demo
+              ? e.time / 1000 < demo.startedAt ? "Before fault" : `+${(e.time / 1000 - demo.startedAt).toFixed(1)} s`
+              : new Date(e.time).toLocaleTimeString()}</time>
           </div>
         ))}
         {!frames.length && !history.length && !incident && (
           <p>Waiting for routing or incident events.</p>
         )}
       </section>
-      <details
-        className="drawer inspection"
-        open={!!faultTarget || undefined}
-      >
-        <summary>
-          Network inspection{" "}
-          {faultTarget && "· " + displayName(faultTarget)}
-        </summary>
-        <h2>Trace traffic</h2>
-        {frames.length ? (
-          <label>
-            Flow{" "}
-            <select
-              disabled={busy}
-              value={source}
-              onChange={(e) => {
-                setSource(+e.target.value);
-                setPaths([]);
-                setProbe("");
-              }}
-            >
-              <option value="1">Host 1 → Host 2</option>
-              <option value="2">Host 2 → Host 1</option>
-            </select>
-          </label>
-        ) : shownRoute && <p>{routeLabel(shownRoute)}</p>}
-        <button disabled={busy || (!frames.length && !shownRoute)} onClick={trace}>
-          {busy ? "Probing…" : "Trace traffic"}
-        </button>
-        <p role="status">
-          {probe || "Select a probe route to inspect its reachability."}
-        </p>
-        <hr />
-        <small>OBSERVED ROUTER STATE</small>
-        <h2>{selected}</h2>
-        <p>{router?.error}</p>
-        <pre>
-          {router
-            ? JSON.stringify(router.peers, null, 2)
-            : "Select a router to inspect peers."}
-        </pre>
-        <pre>
-          {router?.interfaces
-            .split("\n")
-            .filter((l) => /^eth/.test(l))
-            .join("\n")}
-        </pre>
-        <pre>{router?.routes}</pre>
-      </details>
-      {frames.length > 0 && (
+      {!demo && inspection}
+      {!demo && frames.length > 0 && (
         <section className="incidents-recording">
           <h2>Recorded incident · {frames[frame].label}</h2>
           <p>{frames[frame].reason}</p>
@@ -879,7 +891,7 @@ function App() {
           />
         </details>
       )}
-      <details className="drawer collector">
+      {!demo && <details className="drawer collector">
         <summary>Collector log</summary>
 
         <p>
@@ -892,7 +904,7 @@ function App() {
               ))
             : "No session changes in this view."}
         </p>
-      </details>
+      </details>}
     </WorkspaceShell>
   );
 }
